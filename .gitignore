@@ -1,0 +1,13 @@
+.work/
+target/
+dist/
+node_modules/
+.gradle/
+build/
+local.properties
+*.keystore
+*.jks
+*.key
+*.pem
+__pycache__/
+*.pyc

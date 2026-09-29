@@ -1,0 +1,82 @@
+name: Validate and build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.8'
+          cache: false
+      - name: Policy and LuCI tests
+        run: node --test tests/policy/*.test.* tests/luci/*.test.*
+      - name: CAPTCHA broker
+        working-directory: captcha-broker
+        run: |
+          go test -race ./...
+          go vet ./...
+      - name: Shell syntax
+        run: |
+          bash -n scripts/build-sdk.sh
+          sh -n install.sh
+          find openwrt -type f \( -name '*.init' -o -name manage -o -name tun-hook -o -name '9*-csqtt*' \) -exec sh -n {} \;
+  core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust and native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang ninja-build pkg-config
+          rustup toolchain install 1.97.1 --profile minimal
+      - name: Rust tests
+        run: cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Android helper tests and build
+        working-directory: android-helper
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest lintDebug assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-helper-debug
+          path: android-helper/app/build/outputs/apk/debug/*.apk
+  openwrt:
+    runs-on: ubuntu-24.04
+    needs: [checks, core]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.8'
+          cache: false
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang cmake ninja-build gawk gettext git libncurses-dev libssl-dev python3 python3-setuptools rsync swig unzip zlib1g-dev file wget zstd
+          rustup toolchain install 1.97.1 --profile minimal
+      - name: Native OpenWrt packages
+        run: bash scripts/build-sdk.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-25.12.5-aarch64-cortex-a53
+          path: |
+            dist/*.apk
+            dist/manifest.json
+            dist/SHA256SUMS
