@@ -29,18 +29,38 @@ turn; recheck live agents before assigning follow-up work.
 
 ## Checks and limitations
 
+- Source checkpoint `18baa7d` is published. Android job in
+  [PR CI run 36637150431](https://github.com/RATOR2000/csqtt-openwrt/actions/runs/36637150431)
+  **passed** `./gradlew testDebugUnitTest lintDebug assembleDebug --no-daemon`:
+  Kotlin compilation, all 13 JVM unit tests, lint and debug APK assembly.
+  Reviewed the exact broker/core schemas at that checkpoint: claim consumes a
+  pairing grant and returns `id`, `redirect_uri`, `session`, `expires_at`; the
+  helper sends `id`/`token` for results and uses the session for result, cancel
+  and CONNECT authentication. The core's private `session_token` stays on the
+  router. Expiry is Unix seconds in all components, converted to milliseconds
+  only for Android timers; the core accepts 30–600-second configured lifetimes.
+- Compared WebView navigation/bridge/CONNECT allowlists against the broker and
+  original v2.1.9 `CaptchaUriPolicy`: all use VK/OK roots `vk.com`, `vk.ru`,
+  `ok.ru`, `okcdn.ru` and their subdomains. Helper/broker restrict HTTPS to port
+  443 and reject URL user information. The JS interceptor reads the original
+  `captchaNotRobot.check` response's `response.success_token` field.
+- Found and reported a broker request-body mismatch: a valid 16,384-byte token
+  containing JSON quotes/backslashes can exceed its 32,768-byte body limit.
+  Root's current broker source raises that limit to 65,536; broker validation
+  is recorded by the root separately from this Android CI result.
+  No further Android source change was required by this contract comparison.
 - `git diff --check -- android-helper docs/ANDROID_STATUS.md` passed locally;
   Git emitted only line-ending normalization warnings. Targeted source search
   found no logging calls or remaining `readNBytes` invocation.
 - Previous root CI snapshot `450df5`: Android Kotlin compilation and existing
   unit tests passed; lint failed on `InputStream.readNBytes` requiring API 33.
-  That result does not validate these later lifecycle changes.
+  The newer `18baa7d` Android CI pass validates these lifecycle changes and the
+  API-28-compatible bounded read replacement at build/unit/lint level.
 - Added JVM regression cases for concurrent attempt reservation and stale
   cleanup, UTF-8 token boundaries/controls, strict CONNECT authorities, malformed
   pairing links, response size limits, zero-length reads, truncated/oversized
-  headers and preservation of TLS payload bytes. These new tests have not run
-  locally; the root will run `./gradlew testDebugUnitTest lintDebug assembleDebug
-  --no-daemon` through GitHub Actions.
+  headers and preservation of TLS payload bytes. The complete 13-test JVM suite
+  passed in the CI run above.
 - Local environment inspection found Java 8 and no local Android SDK/JDK 21
   configured for the Gradle build. No Android build was attempted locally.
 - No Android device/WebView runtime test, router connection, live VK challenge
@@ -49,9 +69,7 @@ turn; recheck live agents before assigning follow-up work.
 
 ## Next concrete step
 
-Checkpoint and push the Android source with the root integration changes, run
-the Android CI command above, fix compile/lint/test failures, then update this
-file with the commit/run and actual results. Device acceptance must cover
+Keep the debug APK as build validation material. Device acceptance must cover
 rotation/destruction during claim and proxy installation, duplicate Start,
 submission racing expiry/cancel, unavailable router, router/VK certificate
 failure, blocked non-VK requests and cleanup before a new pairing attempt.

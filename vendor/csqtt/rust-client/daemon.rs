@@ -434,16 +434,33 @@ pub async fn shutdown() {
 /// hashes and CAPTCHA URLs in errors. These lines cannot safely go to logread.
 pub fn redact_log(line: String) -> String {
     let Some(runtime) = current() else { return line; };
+    redact_diagnostic(line, &runtime.config.password, &crate::worker::parse_hashes(&runtime.config.vk_hashes.join(",")))
+}
+
+fn redact_diagnostic(line: String, password: &str, hashes: &[String]) -> String {
     let lower = line.to_ascii_lowercase();
     if ["token", "secret", "session_key", "password", "captcha_solve|", "captcha_result|",
-        "https://", "http://", "[stdin]", "sid=", "captcha_sid", "redirect_uri", "{", "}"].iter().any(|s| lower.contains(s)) {
+        "https://", "http://", "[stdin]", "sid=", "captcha_sid", "redirect_uri",
+        "device id", "device_id=", "salt=", "generation=", "{", "}"].iter().any(|s| lower.contains(s)) {
         return "[DAEMON] sensitive upstream diagnostic omitted".into();
     }
-    let mut result = line.replace(&runtime.config.password, "[redacted]");
-    for hash in crate::worker::parse_hashes(&runtime.config.vk_hashes.join(",")) {
-        result = result.replace(&hash, "[redacted]");
+    let mut result = line.replace(password, "[redacted]");
+    for hash in hashes {
+        result = result.replace(hash, "[redacted]");
     }
     result
+}
+
+#[test]
+fn daemon_diagnostics_hide_upstream_identity_fields() {
+    for message in ["[CLIENT] Device ID: opaque value", "[VKCalls] Identity - Name: test | device_id=opaque value",
+                    "request salt=opaque value", "request generation=1", "request https://vk.com/test"] {
+        assert_eq!(redact_diagnostic(message.into(), "fixture-password", &[]),
+                   "[DAEMON] sensitive upstream diagnostic omitted");
+    }
+    assert_eq!(redact_diagnostic("worker connected".into(), "fixture-password", &[]), "worker connected");
+    assert_eq!(redact_diagnostic("failed with fixture-password".into(), "fixture-password", &[]),
+               "failed with [redacted]");
 }
 
 #[derive(Deserialize)]

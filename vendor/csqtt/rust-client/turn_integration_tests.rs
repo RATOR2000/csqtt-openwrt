@@ -274,12 +274,16 @@ fn channel_data(channel: u16, payload: &[u8]) -> Vec<u8> {
 }
 
 async fn recv_datagram(socket: &UdpSocket) -> (Vec<u8>, SocketAddr) {
+    recv_datagram_stage(socket, "UDP datagram").await
+}
+
+async fn recv_datagram_stage(socket: &UdpSocket, stage: &str) -> (Vec<u8>, SocketAddr) {
     let mut buffer = [0u8; 4096];
     let (length, source) =
         tokio::time::timeout(Duration::from_secs(3), socket.recv_from(&mut buffer))
             .await
-            .unwrap()
-            .unwrap();
+            .unwrap_or_else(|_| panic!("TURN test server timed out waiting for {stage}"))
+            .unwrap_or_else(|error| panic!("TURN test server could not receive {stage}: {error}"));
     (buffer[..length].to_vec(), source)
 }
 
@@ -316,7 +320,7 @@ async fn recv_stream_channel_data(stream: &mut TcpStream) -> Vec<u8> {
 }
 
 async fn receive_challenged_allocate(server: &UdpSocket, relay: SocketAddr) -> SocketAddr {
-    let (first_wire, client) = recv_datagram(server).await;
+    let (first_wire, client) = recv_datagram_stage(server, "initial Allocate request").await;
     let first = StunMessage::decode(&first_wire).unwrap();
     assert_eq!(first.class(), StunClass::Request);
     assert_eq!(first.kind(), ALLOCATE_REQUEST);
@@ -328,7 +332,8 @@ async fn receive_challenged_allocate(server: &UdpSocket, relay: SocketAddr) -> S
         .await
         .unwrap();
 
-    let (authenticated_wire, authenticated_client) = recv_datagram(server).await;
+    let (authenticated_wire, authenticated_client) =
+        recv_datagram_stage(server, "authenticated Allocate request").await;
     assert_eq!(authenticated_client, client);
     let authenticated = assert_authenticated_request(&authenticated_wire, 3);
     server
@@ -342,7 +347,8 @@ async fn receive_challenged_allocate(server: &UdpSocket, relay: SocketAddr) -> S
 }
 
 async fn receive_create_permission(server: &UdpSocket, client: SocketAddr, peer: SocketAddr) {
-    let (permission_wire, permission_client) = recv_datagram(server).await;
+    let (permission_wire, permission_client) =
+        recv_datagram_stage(server, "CreatePermission request").await;
     assert_eq!(permission_client, client);
     let permission = assert_authenticated_request(&permission_wire, CREATE_PERMISSION_REQUEST);
     let encoded_peer = permission.attribute(ATTR_XOR_PEER_ADDRESS).unwrap();
@@ -475,13 +481,15 @@ async fn authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_co
     let server_address = server.local_addr().unwrap();
     let peer: SocketAddr = "127.0.0.1:39001".parse().unwrap();
     let relay: SocketAddr = "127.0.0.1:49001".parse().unwrap();
-    let server_task = tokio::spawn({
+    let (send_inbound, wait_inbound) = oneshot::channel();
+    let mut server_task = tokio::spawn({
         let server = server.clone();
         async move {
             let client = receive_challenged_allocate(&server, relay).await;
             receive_create_permission(&server, client, peer).await;
 
-            let (channel_wire, channel_client) = recv_datagram(&server).await;
+            let (channel_wire, channel_client) =
+                recv_datagram_stage(&server, "pool-deficit ChannelBind request").await;
             assert_eq!(channel_client, client);
             let channel_request = assert_authenticated_request(&channel_wire, CHANNEL_BIND_REQUEST);
             let channel = channel_number(&channel_request);
@@ -501,9 +509,14 @@ async fn authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_co
                 .await
                 .unwrap();
 
-            let (outbound, outbound_client) = recv_datagram(&server).await;
+            let (outbound, outbound_client) =
+                recv_datagram_stage(&server, "outbound ChannelData").await;
             assert_eq!(outbound_client, client);
             assert_eq!(outbound, channel_data(channel, b"outbound"));
+
+            // The client still owns its only PacketBuf during send(). Wait
+            // until that lease returns before sending data requiring it.
+            wait_inbound.await.unwrap();
 
             let wrong_channel = if channel == 0x7fff {
                 channel - 1
@@ -523,7 +536,8 @@ async fn authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_co
                 .await
                 .unwrap();
 
-            let (refresh_wire, refresh_client) = recv_datagram(&server).await;
+            let (refresh_wire, refresh_client) =
+                recv_datagram_stage(&server, "deallocation Refresh request").await;
             assert_eq!(refresh_client, client);
             let refresh = assert_authenticated_request(&refresh_wire, REFRESH_REQUEST);
             assert_eq!(attribute_u32(&refresh, ATTR_LIFETIME), 0);
@@ -539,13 +553,24 @@ async fn authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_co
     let mut held = pool.acquire();
     let storage = held.storage_mut().as_ptr();
     assert_eq!(pool.available(), 0);
-    let allocation = connect(server_address, peer, pool.clone()).await;
+    let allocation = tokio::select! {
+        allocation = connect(server_address, peer, pool.clone()) => allocation,
+        result = &mut server_task => {
+            panic!("TURN test server stopped during pool-deficit allocation: {result:?}");
+        }
+    };
     assert_eq!(allocation.local_addr(), relay);
     assert_eq!(pool.available(), 0);
-    tokio::time::timeout(Duration::from_secs(5), allocation.prepare_channel())
-        .await
-        .unwrap()
-        .unwrap();
+    tokio::select! {
+        result = tokio::time::timeout(Duration::from_secs(5), allocation.prepare_channel()) => {
+            result
+                .expect("pool-deficit client timed out preparing ChannelBind")
+                .expect("pool-deficit client could not prepare ChannelBind");
+        }
+        result = &mut server_task => {
+            panic!("TURN test server stopped during pool-deficit ChannelBind: {result:?}");
+        }
+    }
     let mut receiver = allocation.take_receiver().unwrap();
     assert!(allocation.take_receiver().is_err());
     assert_eq!(allocation.ingress_pool_deficit_drops(), 0);
@@ -555,11 +580,18 @@ async fn authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_co
     held.read_area()[..8].copy_from_slice(b"outbound");
     held.set_read_len(8).unwrap();
     allocation.send_with_duplicate(held, false).await.unwrap();
+    send_inbound.send(()).unwrap();
 
-    let mut inbound = tokio::time::timeout(Duration::from_secs(3), receiver.recv())
-        .await
-        .unwrap()
-        .unwrap();
+    let mut inbound = tokio::select! {
+        result = tokio::time::timeout(Duration::from_secs(3), receiver.recv()) => {
+            result
+                .expect("pool-deficit client timed out receiving inbound ChannelData")
+                .expect("pool-deficit client could not receive inbound ChannelData")
+        }
+        result = &mut server_task => {
+            panic!("TURN test server stopped during inbound ChannelData: {result:?}");
+        }
+    };
     assert_eq!(inbound.as_slice(), b"inbound");
     assert_eq!(inbound.storage_mut().as_ptr(), storage);
     drop(inbound);

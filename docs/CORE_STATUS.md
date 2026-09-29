@@ -1,11 +1,19 @@
 # Rust core checkpoint
 
-Updated: 2026-09-30. Owner: `core_finish` (check live agents before delegation).
+Updated: 2026-09-30. Owner: `core_ci_fix` (check live agents before delegation).
 Source integration is complete. Linux Rust CI passed at commit
 `450df529d1435f2be6e63f51d335f70fa97075d4`: **337 tests passed, 7 ignored**
 (result reported by the root agent). Subsequent changes listed below still
 need CI. Live TUN/VK operation has not been verified. Root owns CI,
 checkpoints and publication.
+
+Latest CI at `18baa7d` compiled the core but reported **339 passed, 1 failed,
+7 ignored**. The failure is
+`turn::integration_tests::authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_copy`:
+the fixture server's UDP receive timed out after 3 seconds, then the client's
+ChannelBind preparation timed out after 5 seconds. The prior helper omitted
+the handshake stage. This is unresolved; a subsequent successful retry alone
+does not demonstrate that the cause was fixed.
 
 ## Implemented
 
@@ -85,7 +93,29 @@ answers immediately. These last changes have not yet run in CI.
 - Changes after the verified SHA: `dispatcher.rs` native descriptor test,
   `main.rs` runtime-creation failure status, and `captcha.rs`/`daemon.rs`
   broker-limit, epoch/cancellation fixes and regression tests.
-- Next: run the CI core job or, on Linux with Rust 1.97.1, run:
+- CI failure review: confirmed `turn.rs`, `turn_core.rs`, `udp_batch.rs` and
+  `turn_integration_tests.rs` were unchanged between `450df5` and `18baa7d`.
+  Static review did not establish a production defect. Under the sole pool
+  lease deficit, the UDP driver handles STUN through its stack buffer and
+  schedules a native control pump; wake notifications retain a permit.
+- Added receive stage diagnostics (initial/authenticated Allocate,
+  CreatePermission, ChannelBind, outbound ChannelData and deallocation
+  Refresh). The failing fixture now observes its server task alongside the
+  client during allocation, preparation and inbound receive, so server
+  failures surface immediately. Timeouts, protocol assertions and zero-copy
+  checks are unchanged. This diagnostic change has not been compiled/tested.
+- Separately fixed a confirmed data-phase fixture race: the server could
+  receive outbound data on another worker and send inbound data before
+  `send_with_duplicate` dropped the sole packet lease. A one-shot gate now
+  permits inbound sends only after the client send completes. The Allocate
+  and ChannelBind handshake still runs with zero available pool buffers;
+  malformed/wrong-channel rejection and storage-pointer reuse assertions
+  remain. This does not explain or resolve the observed preparation timeout.
+- Rechecked `Get-Command cargo,rustc,rustup -ErrorAction SilentlyContinue`:
+  none is installed. `git diff --check` passed for the diagnostic/status edit.
+- Next: run the named test with `RUST_BACKTRACE=1`, then the complete CI core
+  job. If the timeout recurs, use its stage/backtrace to fix the confirmed
+  cause. On Linux with Rust 1.97.1, run:
 
   ```sh
   cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml

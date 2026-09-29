@@ -29,6 +29,8 @@ jobs:
         run: |
           go test -race ./...
           go vet ./...
+      - name: Installer failure and rollback scenarios
+        run: python3 tests/installer/installer_test.py
       - name: Shell syntax
         run: |
           bash -n scripts/build-sdk.sh
@@ -38,13 +40,24 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            vendor/csqtt/rust-client/target
+          key: cargo-host-${{ runner.os }}-1.97.1-${{ hashFiles('vendor/csqtt/rust-client/Cargo.lock') }}
       - name: Rust and native build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake clang ninja-build pkg-config
           rustup toolchain install 1.97.1 --profile minimal
       - name: Rust tests
-        run: cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml
+        env:
+          RUST_BACKTRACE: '1'
+        run: |
+          cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml turn::integration_tests::authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_copy -- --exact
+          cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml
   native-policy:
     runs-on: ubuntu-24.04
     steps:
@@ -87,7 +100,7 @@ jobs:
           path: android-helper/app/build/outputs/apk/debug/*.apk
   openwrt:
     runs-on: ubuntu-24.04
-    needs: [checks, core, native-policy]
+    needs: checks
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

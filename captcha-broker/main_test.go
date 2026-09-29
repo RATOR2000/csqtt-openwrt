@@ -108,3 +108,55 @@ func TestPersistentTLSIdentity(t *testing.T) {
 		t.Fatal("identity changed")
 	}
 }
+
+func TestEscapedResultAtTokenLimit(t *testing.T) {
+	b := newTestBroker()
+	_, _ = b.pair()
+	j := b.current
+	j.Claimed = true
+	// Escaped JSON exceeds32768 bytes although the token is exactly16384 bytes.
+	token := strings.Repeat("\"\\", 8192)
+	body, _ := json.Marshal(object{"id": j.Challenge.ID, "token": token})
+	if len(body) <= 32768 {
+		t.Fatal("fixture did not exercise escaped body boundary")
+	}
+	r := httptest.NewRequest("POST", "/v1/result", strings.NewReader(string(body)))
+	r.Header.Set("Authorization", "Bearer "+j.Session)
+	w := httptest.NewRecorder()
+	b.ServeHTTP(w, r)
+	if w.Code != 200 {
+		t.Fatalf("valid boundary token rejected: %d", w.Code)
+	}
+}
+
+func TestStaleCancelCannotRevokeReplacement(t *testing.T) {
+	b := newTestBroker()
+	_, _ = b.pair()
+	old := b.current
+	old.Claimed = true
+	r := httptest.NewRequest("POST", "/v1/cancel", nil)
+	r.Header.Set("Authorization", "Bearer "+old.Session)
+	core := b.core
+	var replacement *job
+	cancelled := false
+	b.core = func(req object) (object, error) {
+		if req["command"] == "captcha_get" {
+			// A new pairing wins after authentication, before the old HTTP action.
+			b.core = core
+			_, _ = b.pair()
+			replacement = b.current
+			b.core = func(req object) (object, error) {
+				if req["command"] == "captcha_cancel" {
+					cancelled = true
+				}
+				return core(req)
+			}
+		}
+		return core(req)
+	}
+	w := httptest.NewRecorder()
+	b.ServeHTTP(w, r)
+	if w.Code != 409 || b.current != replacement || replacement == nil || cancelled {
+		t.Fatal("old request cancelled the replacement pairing")
+	}
+}

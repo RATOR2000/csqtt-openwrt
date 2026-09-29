@@ -14,7 +14,7 @@ tests and save later corrections in another small checkpoint.
 
 - Public: https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR: https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Last confirmed remote: 450df529d1435f2be6e63f51d335f70fa97075d4.
+- Last confirmed remote: 18baa7dc8583d19714a274a7bde53866589c136d.
   Actual Git HEAD/status are authority for subsequent changes.
 - Local push lacks authentication; GitHub connector tree/commit/ref APIs work.
   scripts/export-github-tree.py exports committed delta to .work/publish-delta.
@@ -74,7 +74,19 @@ tests and save later corrections in another small checkpoint.
 - Python py_compile passed: export-github-tree.py, release-manifest.py,
   verify-release.py, network-smoke.py. git diff --check passed.
 - Broker go test/go vet passed earlier; ARM64 Linux cross-build exists ignored.
-- Native ucode/nft, latest Android tests/lint, SDK packages, signed installation,
+- CI36637150431 at18baa7d: checks passed; Android Kotlin,13 JVM tests,
+  lintDebug and assembleDebug passed. Native ucode failed on missing semicolons
+  after exported functions; fixed for rerun. Rust compiled with339passed,
+  1failed/7ignored: TURN prepare_channel timed out. Added receive-stage
+  diagnostics and immediate server failure reporting; separately gated a
+  confirmed data-phase single-buffer fixture race. No production TURN fix.
+  SDK skipped; now scheduled after checks concurrently with native/Rust jobs.
+- Broker latest go test/go vet passed after65536-byte escaped-token body fix
+  and stale HTTP cancel/replacement race regression. Native identity log leak
+  (upstream Device ID/device_id fields) suppressed with a new Rust regression.
+- Installer isolated tests passed24 scenarios, then10 hardened/rollback cases;
+  final portable full suite/upgrade service lifecycle adjustments in progress.
+- Native ucode/nft, latest Rust source, SDK packages, signed installation,
   real router/VK/CAPTCHA have not passed yet.
 
 ## Agent ownership

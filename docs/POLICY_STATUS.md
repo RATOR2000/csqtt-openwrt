@@ -35,6 +35,12 @@ router behavior remain unverified. Root owns commits, CI and SDK packaging.
 - `tests/policy/native.uc` runs production compiler assertions on native ucode
   and writes native nft/DNS/model outputs. `render.mjs OUTPUT_DIRECTORY` writes
   production compiler output through the Node compatibility harness.
+- Native traffic smoke source now distinguishes WAN, simulated csqtt0 and local
+  replies, exercises tunnel route up/down and complete policy-rule loss, checks
+  guarded router source routing, local IPv4/IPv6 access, routed ULA blocking,
+  learned domain-set persistence and unassigned clients. Server startup is
+  synchronized and ARP/NDP state is flushed after a fixture MAC changes.
+  Namespaces have per-process names and all links are created inside them.
 
 ## Exact host checks
 
@@ -46,6 +52,14 @@ router behavior remain unverified. Root owns commits, CI and SDK packaging.
 - Bundled Git `sh.exe -n` on `manage`, `tun-hook`, `csqtt.init`,
   `csqtt-dns.init`, `90-csqtt`: all passed.
 - `git diff --check -- openwrt/csqtt tests/policy`: passed.
+- First Linux CI native run reported ucode syntax errors at exported function
+  boundaries (`Expecting ';'`). All three exports in `policy.uc` now end in `};`.
+  After the fix, Node tests passed **22/22**, render CLI and scoped whitespace
+  checks passed. Native rerun is pending; the syntax fix is not yet claimed as
+  Linux verified.
+- `python -m py_compile tests/policy/network-smoke.py`: passed. Actual smoke
+  traffic is pending Linux CI and uses a veth simulation, without CSQTT transport
+  or VK connectivity.
 
 ## Next concrete checks
 

@@ -28,14 +28,17 @@ BACKUP=
 cleanup() {
     status=$?
     trap - EXIT HUP INT TERM
+    set +e
     if [ "$status" -ne 0 ] && [ "$DNS_REMOVED" = 1 ]; then
         echo 'Restoring the previous DNS package after failed installation.' >&2
         # Replacement is allowed only on a first install, so these roots did
         # not exist before the transaction. Keep configs and fail-closed guards.
         apk --repositories-file "$TMP/repositories" --keys-dir "$TMP/keys" --cache-dir "$TMP/cache" --no-network del csqtt-captcha luci-app-csqtt csqtt dnsmasq-full >> "$TMP/rollback.txt" 2>&1 || true
         if apk --repositories-file "$TMP/repositories" --keys-dir "$TMP/keys" --cache-dir "$TMP/cache" --no-network add "$TMP/rollback/$DNS_PACKAGE.apk" >> "$TMP/rollback.txt" 2>&1; then
-            [ ! -f "$BACKUP/dhcp" ] || cp -p "$BACKUP/dhcp" /etc/config/dhcp
-            cp -p "$BACKUP/world" /etc/apk/world
+            if [ -f "$BACKUP/dhcp" ]; then
+                cp -p "$BACKUP/dhcp" /etc/config/dhcp || echo 'Cannot restore the DHCP configuration; inspect the private backup.' >&2
+            fi
+            cp -p "$BACKUP/world" /etc/apk/world || echo 'Cannot restore APK world; inspect the private backup.' >&2
             /etc/init.d/dnsmasq restart >> "$TMP/rollback.txt" 2>&1 || echo 'DNS service restart failed; inspect rollback.txt.' >&2
         else
             echo "Automatic DNS restore failed. Cached original package: $TMP/rollback/$DNS_PACKAGE.apk" >&2
@@ -70,8 +73,11 @@ CSQTT_PUBLIC_KEY
 [ "$(field '@.architecture')" = aarch64_cortex-a53 ] || die 'Manifest architecture mismatch.'
 [ "$(field '@.upstream')" = amurcanov/csqtt@v2.1.9 ] || die 'Manifest upstream mismatch.'
 NAMES=$(field '@.packages[*].name')
+set -f
 set -- $NAMES
+set +f
 [ "$#" -eq 3 ] || die 'Expected exactly three packages.'
+[ -z "$(field '@.packages[3]')" ] || die 'Expected exactly three manifest entries.'
 CORE= CAPTCHA= LUCI=
 INDEX=0
 for NAME in "$@"; do
@@ -123,12 +129,15 @@ cp "$TMP/release-keys/csqtt-public.pem" "$TMP/keys/"
 # staging; dependency errors and downloads cannot remove the live DNS package.
 STAGE="$TMP/stage"
 mkdir -p "$STAGE/lib/apk/db" "$STAGE/etc/apk/keys" "$STAGE/var/cache/apk"
-cp -a /lib/apk/db/. "$STAGE/lib/apk/db/"
+cp -aL /lib/apk/db/. "$STAGE/lib/apk/db/"
 cp /etc/apk/world "$STAGE/etc/apk/world"
 [ ! -f /etc/apk/arch ] || cp /etc/apk/arch "$STAGE/etc/apk/arch"
 cp "$TMP/keys/"* "$STAGE/etc/apk/keys/"
 cp "$TMP/repositories" "$STAGE/etc/apk/repositories"
 stage_apk() { apk --root "$STAGE" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-scripts "$@"; }
+UPGRADE=0
+apk query --installed --match name --fields name --format json csqtt > "$TMP/core-installed.json"
+[ "$(jsonfilter -i "$TMP/core-installed.json" -e '@[*].name')" != csqtt ] || UPGRADE=1
 REPLACE_DNS=0
 if apk query --installed --match name --fields name --format json dnsmasq > "$TMP/dns.json"; then
     [ "$(jsonfilter -i "$TMP/dns.json" -e '@[*].name')" != dnsmasq ] || REPLACE_DNS=1
@@ -160,7 +169,7 @@ cp -a "$STAGE/var/cache/apk/." "$TMP/cache/"
 # would not prove that the cache can satisfy the live transaction.
 STAGE="$TMP/offline"
 mkdir -p "$STAGE/lib/apk/db" "$STAGE/etc/apk/keys" "$STAGE/var/cache/apk"
-cp -a /lib/apk/db/. "$STAGE/lib/apk/db/"
+cp -aL /lib/apk/db/. "$STAGE/lib/apk/db/"
 cp /etc/apk/world "$STAGE/etc/apk/world"
 [ ! -f /etc/apk/arch ] || cp /etc/apk/arch "$STAGE/etc/apk/arch"
 cp "$TMP/keys/"* "$STAGE/etc/apk/keys/"
@@ -186,8 +195,11 @@ fi
 apk --repositories-file "$TMP/repositories" --keys-dir "$TMP/keys" --cache-dir "$TMP/cache" --no-network add "$TMP/packages/$CORE" "$TMP/packages/$CAPTCHA" "$TMP/packages/$LUCI" dnsmasq-full || die 'Package installation failed.'
 /etc/init.d/dnsmasq restart || die 'DNS service restart failed.'
 /etc/init.d/rpcd restart || die 'LuCI RPC service restart failed.'
+if [ "$UPGRADE" = 1 ]; then
+    /etc/init.d/csqtt restart || die 'CSQTT service restart failed.'
+fi
 /etc/init.d/csqtt-captcha enable || die 'CAPTCHA service enable failed.'
-/etc/init.d/csqtt-captcha start || die 'CAPTCHA service start failed.'
+/etc/init.d/csqtt-captcha restart || die 'CAPTCHA service restart failed.'
 # Persist the public key for future package operations only after success.
 mkdir -p /etc/apk/keys
 cp "$TMP/release-keys/csqtt-public.pem" /etc/apk/keys/csqtt-public.pem

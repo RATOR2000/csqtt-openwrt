@@ -145,6 +145,16 @@ func (b *broker) cancel() (object, error) {
 	}
 	return b.core(object{"command": "captcha_cancel", "id": j.Challenge.ID})
 }
+func (b *broker) cancelExpected(j *job) (object, error) {
+	b.mu.Lock()
+	if b.current != j {
+		b.mu.Unlock()
+		return nil, errors.New("stale_challenge")
+	}
+	b.revokeLocked()
+	b.mu.Unlock()
+	return b.core(object{"command": "captcha_cancel", "id": j.Challenge.ID})
+}
 func (b *broker) authorize(r *http.Request, claim bool) (*job, bool) {
 	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	b.mu.Lock()
@@ -200,7 +210,7 @@ func (b *broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ID    string `json:"id"`
 			Token string `json:"token"`
 		}
-		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32768))
+		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 65536))
 		dec.DisallowUnknownFields()
 		if dec.Decode(&v) != nil || v.ID != j.Challenge.ID || len(v.Token) < 1 || len(v.Token) > 16384 || strings.ContainsAny(v.Token, "\r\n\x00") {
 			response(w, 400, object{"error": "invalid_result"})
@@ -220,7 +230,11 @@ func (b *broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == "POST" && r.URL.Path == "/v1/cancel" {
-		_, _ = b.cancel()
+		out, err := b.cancelExpected(j)
+		if err != nil || out["ok"] != true {
+			response(w, 409, object{"error": "cancel_rejected"})
+			return
+		}
 		response(w, 200, object{"ok": true})
 		return
 	}
