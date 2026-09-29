@@ -550,7 +550,9 @@ mod platform {
         }
         #[cfg(target_os = "linux")]
         {
-            unsafe { libc::recvmmsg(fd, messages, count, flags, timeout) }
+            // The Linux libc declarations use signed flags on glibc and
+            // unsigned flags on musl; preserve the bits in the target type.
+            unsafe { libc::recvmmsg(fd, messages, count, flags as _, timeout) }
         }
     }
 
@@ -574,7 +576,7 @@ mod platform {
         }
         #[cfg(target_os = "linux")]
         {
-            unsafe { libc::sendmmsg(fd, messages, count, flags) }
+            unsafe { libc::sendmmsg(fd, messages, count, flags as _) }
         }
     }
 
@@ -639,18 +641,12 @@ mod platform {
     }
 
     fn mmsg_header(iovec: *mut libc::iovec) -> libc::mmsghdr {
-        libc::mmsghdr {
-            msg_hdr: libc::msghdr {
-                msg_name: ptr::null_mut(),
-                msg_namelen: 0,
-                msg_iov: iovec,
-                msg_iovlen: 1,
-                msg_control: ptr::null_mut(),
-                msg_controllen: 0,
-                msg_flags: 0,
-            },
-            msg_len: 0,
-        }
+        // Zero is valid for the header's integer/pointer fields and also
+        // initializes musl's private padding. Set the active fields afterward.
+        let mut message: libc::mmsghdr = unsafe { std::mem::zeroed() };
+        message.msg_hdr.msg_iov = iovec;
+        message.msg_hdr.msg_iovlen = 1;
+        message
     }
 }
 

@@ -37,7 +37,7 @@ s=socket.socket(socket.AF_INET6 if ':' in sys.argv[1] else socket.AF_INET,socket
 s.settimeout(.6)
 if len(sys.argv)>2:s.bind((sys.argv[2],0))
 try:
- s.sendto(b'csqtt-fixture',(sys.argv[1],9123)); data,_=s.recvfrom(100)
+ s.connect((sys.argv[1],9123));s.send(b'csqtt-fixture');data=s.recv(100)
  label,sep,payload=data.partition(b':')
  print(label.decode() if sep and payload==b'csqtt-fixture' else 'unexpected')
 except OSError: print('blocked')
@@ -48,12 +48,23 @@ def expect(client, dest, path, source=None):
     result = ns(client, "python3", "-c", client_code, *args).stdout.strip()
     wanted = path or "blocked"
     if result != wanted:
+        for namespace, command in (
+            ("router", ("ip", "-4", "rule", "show")),
+            ("router", ("ip", "-4", "route", "show", "table", "202")),
+            ("router", ("ip", "-s", "link", "show", "dev", "csqtt0")),
+            ("router", ("nft", "list", "chain", "inet", "csqtt", "forward_guard")),
+            ("router", ("nft", "list", "chain", "inet", "csqtt", "nat")),
+            ("vpn", ("ip", "-4", "route", "show")),
+        ):
+            details = ns(namespace, *command, check=False)
+            print(f"Diagnostic {namespace}: {' '.join(command)}\n{(details.stdout + details.stderr).strip()[:1600]}", file=sys.stderr)
         raise AssertionError(f"{client} → {dest}: expected {wanted}, got {result}")
 
-def echo_server(namespace, label):
+def echo_server(namespace, label, addresses):
     code = """import socket,selectors,sys
 sel=selectors.DefaultSelector()
-for family,addr in ((socket.AF_INET,'0.0.0.0'),(socket.AF_INET6,'::')):
+for addr in sys.argv[2:]:
+ family=socket.AF_INET6 if ':' in addr else socket.AF_INET
  s=socket.socket(family,socket.SOCK_DGRAM)
  if family==socket.AF_INET6:s.setsockopt(socket.IPPROTO_IPV6,socket.IPV6_V6ONLY,1)
  s.bind((addr,9123));sel.register(s,selectors.EVENT_READ)
@@ -62,7 +73,7 @@ while True:
  for key,_ in sel.select():
   data,peer=key.fileobj.recvfrom(100);key.fileobj.sendto(sys.argv[1].encode()+b':'+data,peer)
 """
-    process = subprocess.Popen(["ip", "netns", "exec", names[namespace], "python3", "-c", code, label],
+    process = subprocess.Popen(["ip", "netns", "exec", names[namespace], "python3", "-c", code, label, *addresses],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     processes.append(process)
     ready, _, _ = select.select([process.stdout], [], [], 5)
@@ -123,8 +134,15 @@ try:
     ip("router", "rule", "add", "pref", "11890", "fwmark", "0x40000000/0x60000000", "lookup", "202")
     ip("router", "rule", "add", "pref", "11900", "fwmark", "0x40000000/0x60000000", "unreachable")
     ip("router", "rule", "add", "pref", "11910", "fwmark", "0x20000000/0x60000000", "lookup", "main")
-    for namespace in ("wan", "vpn", "router"):
-        echo_server(namespace, namespace)
+    # A wildcard UDP socket can reply with the egress interface address. That
+    # breaks the reverse conntrack tuple after masquerade. Bind each destination
+    # so replies retain the requested source address, as a real endpoint would.
+    for namespace, addresses in (
+        ("wan", ("198.51.100.2", "203.0.113.2", "2001:db8:2::2", "fd00:2::2")),
+        ("vpn", ("198.51.100.2", "203.0.113.2")),
+        ("router", ("192.168.1.1", "fd00:1::1")),
+    ):
+        echo_server(namespace, namespace, addresses)
     load("native-policy.nft")
     expect("b", "198.51.100.2", "wan")
     expect("a", "203.0.113.2", "wan")

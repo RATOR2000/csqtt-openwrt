@@ -459,7 +459,7 @@ fn daemon_diagnostics_hide_upstream_identity_fields() {
                    "[DAEMON] sensitive upstream diagnostic omitted");
     }
     assert_eq!(redact_diagnostic("worker connected".into(), "fixture-password", &[]), "worker connected");
-    assert_eq!(redact_diagnostic("failed with fixture-password".into(), "fixture-password", &[]),
+    assert_eq!(redact_diagnostic("failed with fixture-credential".into(), "fixture-credential", &[]),
                "failed with [redacted]");
 }
 

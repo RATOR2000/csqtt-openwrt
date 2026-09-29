@@ -1,8 +1,10 @@
 # OpenWrt policy/backend checkpoint
 
 Updated: 2026-09-30. Owner for this session: `backend_validate`.
-Source implementation and host checks passed; native Linux/OpenWrt and real
-router behavior remain unverified. Root owns commits, CI and SDK packaging.
+Source implementation and host checks passed. Pinned native ucode, generated
+nft/DNS/model comparisons, dnsmasq syntax and initial namespace traffic passed
+in Linux CI at `d10c559`; complete traffic, OpenWrt integration and real router
+behavior remain unverified. Root owns commits, CI and SDK packaging.
 
 ## Completed source and review
 
@@ -55,18 +57,23 @@ router behavior remain unverified. Root owns commits, CI and SDK packaging.
 - First Linux CI native run reported ucode syntax errors at exported function
   boundaries (`Expecting ';'`). All three exports in `policy.uc` now end in `};`.
   After the fix, Node tests passed **22/22**, render CLI and scoped whitespace
-  checks passed. Native rerun is pending; the syntax fix is not yet claimed as
-  Linux verified.
+  checks passed. The Linux run at `d10c559` subsequently passed native ucode
+  assertions, nft/DNS/model comparisons and dnsmasq syntax validation.
 - `python -m py_compile tests/policy/network-smoke.py`: passed. Actual smoke
-  traffic is pending Linux CI and uses a veth simulation, without CSQTT transport
-  or VK connectivity.
+  traffic uses a veth simulation, without CSQTT transport or VK connectivity.
+- At `d10c559`, nft installed and initial WAN, blocked and local traffic checks
+  passed. Healthy csqtt0 failed because the wildcard echo socket replied from
+  its interface address, breaking the expected reverse NAT tuple. The fixture
+  now binds every destination address and uses connected UDP clients to require
+  exact reply sources. A host UDP probe confirmed wildcard/exact-bind source
+  behavior; latest Python syntax and scoped whitespace checks passed. Complete
+  Linux traffic rerun is pending. Failure-only namespace diagnostics were added.
 
 ## Next concrete checks
 
-1. Root runs pinned native ucode and nft/dnsmasq integration in Linux CI,
-   comparing native outputs with the Node harness and applying/reloading in a
-   disposable network namespace. Fix actual parser/kernel failures before
-   claiming native semantics are verified.
+1. Root reruns the corrected native namespace smoke in Linux CI. Complete the
+   healthy csqtt0, down/routing-loss, reload and IPv6 traffic checks before
+   claiming the full native suite passed.
 2. Build packages through the pinned 25.12.5 SDK and confirm installed fw4,
    procd, UCI and dnsmasq integration on the exact target.
 3. Real GL-MT6000 acceptance still needs server/VK details from the user: mixed

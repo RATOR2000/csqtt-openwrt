@@ -14,7 +14,7 @@ tests and save later corrections in another small checkpoint.
 
 - Public: https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR: https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Last confirmed remote: 18baa7dc8583d19714a274a7bde53866589c136d.
+- Last confirmed remote: d10c559943326cd2f0e4c7dd7c585ebccaec0173.
   Actual Git HEAD/status are authority for subsequent changes.
 - Local push lacks authentication; GitHub connector tree/commit/ref APIs work.
   scripts/export-github-tree.py exports committed delta to .work/publish-delta.
@@ -86,7 +86,22 @@ tests and save later corrections in another small checkpoint.
   (upstream Device ID/device_id fields) suppressed with a new Rust regression.
 - Installer isolated tests passed24 scenarios, then10 hardened/rollback cases;
   final portable full suite/upgrade service lifecycle adjustments in progress.
-- Native ucode/nft, latest Rust source, SDK packages, signed installation,
+- CI36638062416 atd10c559: checks including installer scenarios passed;
+  Android passed again. Native ucode assertions, all model/nft/DNS comparisons,
+  dnsmasq syntax and initial WAN/blocked/local traffic passed. Healthy simulated
+  VPN failed because wildcard echo sent replies from a different source IP;
+  exact-source sockets and connected UDP fixtures fix it, pending rerun.
+- Rust focused TURN fixture and full-suite TURN passed;340passed/1failed/7ignored
+  overall. Remaining failure was the new redaction test's dummy password value
+  triggering the existing keyword filter; fixture corrected, pending rerun.
+- SDK reached ARM64 musl Rust compilation and failed4libc ABI errors (ioctl,
+  sendmmsg/recvmmsg flags, private msghdr padding). Portable ABI fixes saved;
+  SDK now also checks musl test compilation before release build. Target CXX
+  compiler set explicitly. Cargo caches/per-job CI scheduling added.
+- Installer final local checks cover27 isolated scenarios across6 test methods;
+  upgrade restarts installed core/CAPTCHA versions. Real native APK signature,
+  staging/cache checks are being prepared by installer_validate in a new script.
+- Native complete traffic suite, latest Rust/musl source, SDK packages, signed installation,
   real router/VK/CAPTCHA have not passed yet.
 
 ## Agent ownership

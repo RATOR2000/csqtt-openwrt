@@ -19,9 +19,11 @@ export STAGING_DIR="$SDK/staging_dir"
 export PATH="$TOOLCHAIN/bin:$PATH"
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-openwrt-linux-musl-gcc
 export CC_aarch64_unknown_linux_musl=aarch64-openwrt-linux-musl-gcc
+export CXX_aarch64_unknown_linux_musl=aarch64-openwrt-linux-musl-g++
 export AR_aarch64_unknown_linux_musl=aarch64-openwrt-linux-musl-ar
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS='-C target-feature=+crt-static'
 rustup target add aarch64-unknown-linux-musl --toolchain 1.97.1
+cargo +1.97.1 check --tests --manifest-path "$ROOT/vendor/csqtt/rust-client/Cargo.toml" --release --locked --target aarch64-unknown-linux-musl
 cargo +1.97.1 build --manifest-path "$ROOT/vendor/csqtt/rust-client/Cargo.toml" --release --locked --target aarch64-unknown-linux-musl
 (cd "$ROOT/captcha-broker" && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o "$ROOT/dist/csqtt-captcha" .)
 CORE="$ROOT/vendor/csqtt/rust-client/target/aarch64-unknown-linux-musl/release/client"

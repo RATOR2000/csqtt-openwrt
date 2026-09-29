@@ -127,3 +127,38 @@ answers immediately. These last changes have not yet run in CI.
 - Remaining real acceptance: SIGTERM/boot/crash on OpenWrt, actual /dev/net/tun,
   original server handshake/data transfer, and live VK auto/manual CAPTCHA.
   No live router changes or credentials were used.
+
+## Follow-up CI at d10c559
+
+Run36638062416 compiled the updated source. The focused TURN fixture passed,
+and it also passed in the full suite. Full result:340 passed/1failed/7ignored.
+The sole failure was a new redaction test expectation: its dummy password
+contained the word `password`, so the existing sensitive-field filter omitted
+the whole line before literal replacement. Changed the dummy value to exercise
+replacement independently; production suppression was already correct.
+Native Device ID/device_id log fields are now suppressed in daemon mode.
+Latest full green Rust result still requires another CI run.
+
+## OpenWrt musl ABI compilation fix
+
+SDK job `109643864295` at `d10c559` reached the Rust cross-build and failed
+on four target-libc differences: `linux_tun.rs` passed a `c_ulong` ioctl
+request where musl requires `c_int`; `udp_batch.rs` passed signed flags where
+musl's `recvmmsg` and `sendmmsg` require unsigned flags; its `msghdr` struct
+literal could not name musl's private `__pad1`/`__pad2` fields.
+
+The ioctl request and Linux mmsg flags now cast to the type inferred from
+the target libc signature, preserving their bit patterns. The shared mmsg
+header starts zeroed, including private padding, then sets its public iovec
+pointer and count. This keeps the previous null/zero fields and batch behavior.
+Android syscall branches are unchanged. Reviewed the Linux/Android/test cfg
+paths in both files and searched the Rust tree for additional ioctl/mmsg
+calls and msghdr literals; no additional occurrences need the same repair.
+Existing UDP tests cover connected/unconnected batches and source addresses.
+
+`git diff --check` passed for these source/status edits. No local Rust compiler
+or SDK was used. Next: rerun the OpenWrt SDK release build and host core tests;
+also cross-check test compilation with
+`cargo +1.97.1 check --locked --tests --target aarch64-unknown-linux-musl
+--manifest-path vendor/csqtt/rust-client/Cargo.toml` using the SDK compiler
+environment. Successful host glibc tests alone do not verify musl compilation.

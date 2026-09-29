@@ -29,7 +29,8 @@ pub fn open(name: &str) -> Result<File> {
         *slot = byte as libc::c_char;
     }
     request.ifr_ifru.ifru_flags = (libc::IFF_TUN | libc::IFF_NO_PI | libc::IFF_TUN_EXCL) as libc::c_short;
-    if unsafe { libc::ioctl(file.as_raw_fd(), libc::TUNSETIFF as libc::c_ulong, &request) } < 0 {
+    // libc declares the request as c_ulong on glibc and c_int on musl.
+    if unsafe { libc::ioctl(file.as_raw_fd(), libc::TUNSETIFF as _, &request) } < 0 {
         return Err(std::io::Error::last_os_error()).context("create exclusive TUN interface");
     }
     Ok(file)
