@@ -44,4 +44,17 @@ make defconfig
 make package/csqtt-local/csqtt/compile package/csqtt-local/csqtt-captcha/compile package/csqtt-local/luci-app-csqtt/compile -j2 V=s \
     CSQTT_BINARY="$CORE" CSQTT_CAPTCHA_BINARY="$ROOT/dist/csqtt-captcha"
 find bin -type f \( -name 'csqtt-*.apk' -o -name 'luci-app-csqtt-*.apk' \) -exec cp '{}' "$ROOT/dist/" ';'
+if [[ -n "${CSQTT_SIGNING_KEY:-}" ]]; then
+    umask 077
+    KEYFILE=$(mktemp)
+    trap 'rm -f "$KEYFILE"' EXIT
+    printf '%s\n' "$CSQTT_SIGNING_KEY" > "$KEYFILE"
+    openssl pkey -in "$KEYFILE" -pubout -out "$WORK/signing-public.pem"
+    cmp "$WORK/signing-public.pem" "$ROOT/release/csqtt-public.pem"
+    "$SDK/staging_dir/host/bin/apk" adbsign --sign-key "$KEYFILE" "$ROOT"/dist/*.apk
+fi
 python3 "$ROOT/scripts/release-manifest.py" "$ROOT/dist"
+if [[ -n "${CSQTT_SIGNING_KEY:-}" ]]; then
+    openssl dgst -sha256 -sign "$KEYFILE" -out "$ROOT/dist/manifest.sig" "$ROOT/dist/manifest.json"
+    openssl dgst -sha256 -verify "$ROOT/release/csqtt-public.pem" -signature "$ROOT/dist/manifest.sig" "$ROOT/dist/manifest.json"
+fi

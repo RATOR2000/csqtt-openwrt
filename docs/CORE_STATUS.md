@@ -1,0 +1,99 @@
+# Rust core checkpoint
+
+Updated: 2026-09-30. Owner: `core_finish` (check live agents before delegation).
+Source integration is complete. Linux Rust CI passed at commit
+`450df529d1435f2be6e63f51d335f70fa97075d4`: **337 tests passed, 7 ignored**
+(result reported by the root agent). Subsequent changes listed below still
+need CI. Live TUN/VK operation has not been verified. Root owns CI,
+checkpoints and publication.
+
+## Implemented
+
+- `--config-file` reads private JSON; validates unknown fields, credentials,
+  worker/hash capacity, paths and interface names. Defaults: 9 workers,
+  video obfuscation, UDP TURN, `csqtt0`, MTU 1300.
+- Linux opens an exclusive, nonpersistent TUN descriptor, uses the existing
+  dispatcher/packet framing and preserves upstream native-TUN GETCONF port 0.
+  Descriptor loss cancels the client. Wire, auth, TURN and shared protocol files
+  remain upstream compatible.
+- SIGTERM/SIGINT and private `stop` command cancel the client. Daemon startup
+  can be cancelled during peer DNS resolution. Daemon mode does not consume
+  stdin or exit when its parent PID changes.
+- Validated TUNCONF applies /32 address and MTU/link state, then runs hook `up`.
+  Hook takes one action argument (`up` or `down`) and environment variables
+  `CSQTT_TUN_DEVICE`, `CSQTT_TUN_IP` (bare IPv4), `CSQTT_TUN_DNS` (comma list).
+  Hook processes have bounded deadlines and are killed on cancellation.
+  Shutdown cleans only the socket/TUN integration owned by this process.
+- Persistent private identity has an exclusive advisory lock. Generation is
+  incremented and atomically saved before transport starts; corrupt identity
+  and conflicting device IDs are rejected instead of silently replaced.
+- Atomic private JSON status exposes state/pid/tun_device/tunnel_ip/dns,
+  active_workers/bytes_up/bytes_down, redacted CAPTCHA and error_code. Events
+  update status without printing upstream machine messages in daemon mode.
+  Sensitive/oversized upstream diagnostics are suppressed.
+- Private Unix socket authenticates peer UID, bounds requests/concurrency/time,
+  and accepts one newline JSON request per connection: status, captcha_get,
+  captcha_manual, captcha_result, captcha_cancel, stop. Responses use `ok`.
+  CAPTCHA mutations require `id`; result additionally requires `token`.
+- Native CAPTCHA automatic attempts remain active. Manual takeover cancels
+  their future and proof-of-work token, then waits for the companion result.
+  Challenge UUIDs, monotonic deadlines, epoch-second expiry, one-use answers
+  and drop cleanup reject stale, expired, canceled or duplicate responses.
+  Only `captcha_get`/private control responses expose challenge credentials;
+  public status contains only id/state/expires_at.
+- Original Android stdin/WebView behavior remains selected outside daemon mode.
+
+## Cross-component contract
+
+`client_ids` is a comma-separated string. `vk_auth_mode` accepts `vkcalls` or
+`legacy`; fingerprint accepts firefox/chrome/edge/safari/opera. Optional
+`turn_host` and numeric `turn_port` are supported. `captcha_timeout_secs` is
+30..600. Runtime JSON must omit `captcha_mode` and `mtu`: automatic/manual
+companion behavior and MTU 1300 are fixed; unknown JSON fields are rejected.
+The policy and LuCI agents were notified of this contract.
+
+Scoped review confirmed hook action/environment names match the actual
+OpenWrt hook, private socket paths and JSON command/id/token names match the
+Go broker, and expiry is an integer number of Unix seconds. The broker and
+core now both allow CAPTCHA result tokens up to 16,384 bytes. Core request
+frames allow 65,536 bytes including JSON escaping. Both the published epoch
+deadline and a monotonic deadline are enforced; process cancellation revokes
+answers immediately. These last changes have not yet run in CI.
+
+## Added tests
+
+- Configuration typos/delimiters/hash capacity, IPv6 peer and TUN name safety.
+- TUNCONF address/DNS validation and redacted status transitions.
+- Identity persistence/generation/parallel lock; private-file permissions and
+  symlink rejection.
+- Unix malformed/missing/stale/unknown commands and successful stop reply flush.
+- Manual takeover wins automatic completion; one-use answer; expiry/cancel;
+  old cleanup cannot erase a new challenge.
+- The preceding tests were present in the successful CI snapshot above.
+  Later tests below still need CI:
+- Native dispatcher forwards an IPv4 packet and stops when the owned
+  descriptor disappears (Unix stream fixture, no CAP_NET_ADMIN required).
+- Broker-compatible token/frame bounds, published epoch expiry, and immediate
+  answer revocation on process cancellation.
+
+## Checks actually run and remaining work
+
+- Read and reviewed source contracts and edited files. Inspected Git state.
+- `Get-Command cargo,rustc,rustup` found no Rust toolchain.
+- `wsl --list --quiet` failed because WSL is not installed. No local Rust test
+  ran; the verified result above comes from Linux GitHub Actions.
+- Changes after the verified SHA: `dispatcher.rs` native descriptor test,
+  `main.rs` runtime-creation failure status, and `captcha.rs`/`daemon.rs`
+  broker-limit, epoch/cancellation fixes and regression tests.
+- Next: run the CI core job or, on Linux with Rust 1.97.1, run:
+
+  ```sh
+  cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml
+  cargo +1.97.1 build --locked --release --manifest-path vendor/csqtt/rust-client/Cargo.toml
+  ```
+
+- The tested Linux snapshot compiled successfully, including libc TUN ioctl
+  and async ownership code. Re-run CI on the latest source before packaging.
+- Remaining real acceptance: SIGTERM/boot/crash on OpenWrt, actual /dev/net/tun,
+  original server handshake/data transfer, and live VK auto/manual CAPTCHA.
+  No live router changes or credentials were used.

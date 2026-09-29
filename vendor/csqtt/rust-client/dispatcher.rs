@@ -1587,6 +1587,35 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
+    async fn native_tun_forwards_packets_and_stops_on_descriptor_loss() {
+        let cancel = CancellationToken::new();
+        let stats = Arc::new(Stats::default());
+        let (reader, mut writer) = UnixStream::pair().unwrap();
+        reader.set_nonblocking(true).unwrap();
+        let file = unsafe { File::from_raw_fd(reader.into_raw_fd()) };
+        let (dispatcher, port) = Dispatcher::start_native_tun(
+            file, PacketPool::new(8), stats.clone(), cancel.clone(),
+        ).await.unwrap();
+        assert_eq!(port, "0"); // Preserve the upstream native-TUN GETCONF value.
+        let (worker, latency, _priority, _bulk) = channels(1, 8);
+        dispatcher.register(worker);
+        let mut packet = [0u8; 28];
+        packet[0] = 0x45;
+        packet[2..4].copy_from_slice(&28u16.to_be_bytes());
+        packet[8] = 64;
+        packet[9] = 17;
+        writer.write_all(&packet).unwrap();
+        let received = tokio::time::timeout(Duration::from_secs(2), latency.recv(&cancel))
+            .await.unwrap().unwrap();
+        assert_eq!(received.as_slice(), packet);
+        assert_eq!(stats.total_bytes_up.load(Ordering::Relaxed), 28);
+        drop(writer);
+        tokio::time::timeout(Duration::from_secs(2), cancel.cancelled()).await.unwrap();
+        tokio::time::timeout(Duration::from_secs(2), dispatcher.shutdown()).await.unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
     async fn uds_tun_replacement_delivers_data_without_restarting_dispatcher() {
         let name = format!(
             "csqtt-dispatcher-test-{}-{}",

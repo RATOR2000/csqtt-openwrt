@@ -141,6 +141,7 @@ fn main() {
     let runtime = match build_runtime(runtime_worker_threads(arguments.workers)) {
         Ok(runtime) => runtime,
         Err(error) => {
+            daemon::fail("runtime_failed");
             eprintln!("[ФАТАЛ] {error:#}");
             std::process::exit(1);
         }

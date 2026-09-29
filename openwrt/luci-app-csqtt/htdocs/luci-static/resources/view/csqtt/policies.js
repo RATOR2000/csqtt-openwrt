@@ -20,7 +20,7 @@ return view.extend({
 			// Rebuild choices after adding or renaming a group in the same form.
 			o.renderWidget = function(sectionId, optionIndex, cfgvalue) {
 				this.keylist = []; this.vallist = [];
-				uci.sections('csqtt', 'group').forEach(function(g) { o.value(g['.name'], g.name || g['.name']); });
+				uci.sections('csqtt', 'group').forEach(function(g) { o.value(g['.name'], E('span', {}, [g.name || g['.name']])); });
 				return form.ListValue.prototype.renderWidget.call(this, sectionId, optionIndex, cfgvalue);
 			};
 			o.validate = function(id, value) {
@@ -55,7 +55,7 @@ return view.extend({
 		o = s.option(form.Value, 'name', 'Название');
 		o.validate = function(id, value) { return value.length <= 64 && !/[\x00-\x1f\x7f]/.test(value) || 'Не более 64 символов без управляющих символов.'; };
 		var mac = s.option(form.Value, 'mac', 'MAC-адрес'); mac.rmempty = false;
-		discovered.forEach(function(d) { if (model.validMac(d.mac)) mac.value(d.mac.toUpperCase(), [d.name || 'Без имени', d.ip || '', d.mac].join(' · ')); });
+		discovered.forEach(function(d) { if (model.validMac(d.mac)) mac.value(d.mac.toUpperCase(), E('span', {}, [[d.name || 'Без имени', d.ip || '', d.mac].join(' · ')])); });
 		mac.validate = function(id, value) {
 			if (!model.validMac(value)) return 'Укажите MAC-адрес устройства, например 02:12:34:56:78:9A.';
 			var duplicate = uci.sections('csqtt', 'device').some(function(d) {
@@ -78,7 +78,7 @@ return view.extend({
 		actionOption(s, 'action', 'Маршрут');
 
 		var rows = [E('tr', {}, [E('th', {}, 'Имя'), E('th', {}, 'Адрес IPv4'), E('th', {}, 'MAC-адрес')])];
-		discovered.forEach(function(d) { rows.push(E('tr', {}, [E('td', {}, String(d.name || '—')), E('td', {}, String(d.ip || '—')), E('td', {}, String(d.mac || '—'))])); });
+		discovered.forEach(function(d) { rows.push(E('tr', {}, [E('td', {}, [String(d.name || '—')]), E('td', {}, [String(d.ip || '—')]), E('td', {}, [String(d.mac || '—')])])); });
 		return m.render().then(function(node) {
 			return E('div', { 'class': 'csqtt-shell' }, [
 				E('link', { rel: 'stylesheet', href: L.resource('csqtt/style.css') }),

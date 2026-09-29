@@ -31,6 +31,14 @@ function destination(value) {
 	if (length(p) <= 2 && ipv4(p[0])) {
 		if (length(p) === 2 && (!match(p[1], /^(0|[1-9][0-9]?)$/) || +p[1] > 32))
 			fail('Invalid IPv4 prefix');
+		if (length(p) === 2) {
+			let octets = split(p[0], '.'), bits = +p[1], network = [];
+			for (let i = 0; i < 4; i++) {
+				let count = bits > 8 ? 8 : (bits > 0 ? bits : 0);
+				push(network, (+octets[i]) & (256 - (1 << (8 - count)))); bits -= 8;
+			}
+			value = join('.', network) + '/' + p[1];
+		}
 		return { kind: 'ip', value: value };
 	}
 	if (length(value) > 253 || !match(value, /^[a-z0-9][a-z0-9.-]*[a-z0-9]$/))
@@ -139,7 +147,8 @@ export function compile(input) {
 	rule(n, 'forward_guard', 'iifname != ' + lan + ' return');
 	rule(n, 'forward_guard', 'oifname ' + lan + ' return');
 	if (length(m.locals)) rule(n, 'forward_guard', 'ip daddr ' + setvalues(m.locals, false) + ' return');
-	rule(n, 'forward_guard', 'ip6 daddr { fe80::/10, fc00::/7, ff00::/8 } return');
+	// LAN egress was accepted above. Do not exempt all ULA/multicast prefixes:
+	// a routed IPv6 destination outside the LAN must remain blocked too.
 	rule(n, 'output_guard', 'ip saddr 198.18.0.1 oifname != "csqtt0" reject');
 	rule(n, 'nat', 'oifname "csqtt0" meta nfproto ipv4 masquerade');
 	rule(n, 'input_guard', 'iifname "lo" return');
@@ -220,7 +229,6 @@ export function hold(models, closed) {
 		rule(lines, 'maintenance_guard', 'iifname != ' + setvalues(lans, true) + ' return');
 		rule(lines, 'maintenance_guard', 'oifname ' + setvalues(lans, true) + ' return');
 		if (length(locals)) rule(lines, 'maintenance_guard', 'ip daddr ' + setvalues(locals, false) + ' return');
-		rule(lines, 'maintenance_guard', 'ip6 daddr { fe80::/10, fc00::/7, ff00::/8 } return');
 		rule(lines, 'maintenance_guard', 'ether saddr ' + setvalues(macs, false) + ' reject');
 	}
 	return join('\n', lines) + '\n';

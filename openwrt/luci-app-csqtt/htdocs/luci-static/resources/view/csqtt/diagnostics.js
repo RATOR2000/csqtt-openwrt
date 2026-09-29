@@ -9,6 +9,7 @@ var checks = {
 	dnsmasq: ['DNS с поддержкой nftset', 'Нужен пакет dnsmasq-full с поддержкой nftset.'],
 	dnsmasq_nftset: ['DNS с поддержкой nftset', 'Нужен пакет dnsmasq-full с поддержкой nftset.'],
 	tun: ['Интерфейс TUN', 'Проверьте установку kmod-tun и состояние соединения.'],
+	transport: ['Клиент туннеля', 'Проверьте настройки и состояние соединения.'],
 	firewall: ['Межсетевой экран', 'Проверьте firewall4 и nftables.'],
 	policy: ['Политики устройств', 'Проверьте группы, назначения устройств и исключения.'],
 	pbr: ['Совместимость с PBR', 'Отключите другую службу маршрутизации по правилам перед включением CSQTT.'],
@@ -23,7 +24,8 @@ function summary(result) {
 		['Защита политик', status.policies_active === true ? 'Включена' : 'Не активна']
 	];
 	(Array.isArray(result.checks) ? result.checks : []).forEach(function(check) {
-		var entry = checks[check.name];
+		var entry = Object.prototype.hasOwnProperty.call(checks, check.name) ? checks[check.name] :
+			(typeof check.name === 'string' && /^dns_[A-Za-z0-9_]+$/.test(check.name) ? ['DNS группы', 'Проверьте запуск DNS для групп в службе csqtt-dns.'] : null);
 		if (entry) rows.push([entry[0], check.ok === true ? 'В порядке' : 'Требует внимания', check.ok === true ? '' : entry[1]]);
 	});
 	return rows;
@@ -42,7 +44,7 @@ return view.extend({
 			var rows = summary(result);
 			report = ['Диагностика CSQTT', new Date().toISOString()].concat(rows.map(function(row) { return row.filter(Boolean).join(': '); })).join('\n');
 			output.replaceChildren(E('div', { 'class': 'csqtt-table-wrap' }, E('table', { 'class': 'table' }, rows.map(function(row) {
-				return E('tr', {}, [E('th', {}, row[0]), E('td', {}, row[1]), E('td', {}, row[2] || '')]);
+				return E('tr', {}, [E('th', {}, [row[0]]), E('td', {}, [row[1]]), E('td', {}, [row[2] || ''])]);
 			}))));
 		}
 		function refresh() { return api.call('diagnostics').then(update).catch(function() { update({ unavailable: true }); }); }

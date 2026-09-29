@@ -1,110 +1,102 @@
 # Development status — resume here
 
-Updated: 2026-09-30. State: **implementation in progress; no installable release
-has been verified**. Do not confuse source files with completed integration.
+Updated: 2026-09-30. **Implementation/build validation in progress; no verified
+installable release and no real router/VK acceptance.**
 
-## User decisions (settled)
+## First unfinished action
 
-- Original amurcanov/csqtt Android app deploys the original server; retain that
-  protocol and web administration. Server will be deployed later.
-- Router: GL.iNet GL-MT6000, official OpenWrt 25.12.5
-  r33051-f5dae5ece4, kernel 6.12.94, mediatek/filogic,
-  aarch64_cortex-a53, about 1 GiB RAM and 6.3 GiB free overlay.
-- Russian LuCI CSQTT tab; manual call hashes/links and necessary settings.
-- One active VPN, named device groups; ordered domain/IP/CIDR exceptions in
-  both directions. Unassigned devices use ordinary WAN.
-- VPN-classified traffic is blocked on failure. Explicit direct exceptions
-  remain direct. User accepts DNS-based domain classification limitations.
-- Automatic CAPTCHA plus manual solution using a separate Android helper.
-- Public repo and eventual one-command install. User wants concise updates,
-  most effort spent on code, and durable resumption after usage-limit breaks.
+Publish the current checkpoint on codex/csqtt-openwrt, read its fresh PR CI
+results, and fix native policy, Android or SDK failures. Inspect actual Git
+first: this file is included in the checkpoint being published. Finish installer
+tests and save later corrections in another small checkpoint.
 
-## Repository and source
+## Repository and continuity
 
-- GitHub: https://github.com/RATOR2000/csqtt-openwrt (created; connector has push).
-- Local branch: `codex/csqtt-openwrt`; origin already configured/fetched.
-- Remote initial main: `04ff32842b2ab26ea779ca10cd3caf44664d17bf`.
-- At this checkpoint, initial implementation files were still untracked;
-  root is about to adopt origin/main as parent and create/push a WIP checkpoint.
-  Always inspect actual Git state instead of relying on this sentence.
-- Vendored upstream tag v2.1.9, commit
-  `446293aa2e873ac5323ef6fd2316d9b81d966c11`; pristine clone `.work/upstream`.
-- SDK URL and SHA are pinned in `scripts/build-sdk.sh` and verified against the
-  official 25.12.5 mediatek/filogic download listing.
+- Public: https://github.com/RATOR2000/csqtt-openwrt
+- Attached draft PR: https://github.com/RATOR2000/csqtt-openwrt/pull/1
+- Last confirmed remote: 450df529d1435f2be6e63f51d335f70fa97075d4.
+  Actual Git HEAD/status are authority for subsequent changes.
+- Local push lacks authentication; GitHub connector tree/commit/ref APIs work.
+  scripts/export-github-tree.py exports committed delta to .work/publish-delta.
+  Use manifest base_tree/parent, update dev ref, fetch, compare trees and align.
+- Go1.26.8 in .work/tools/go/bin already verified; Node/Python available.
+  Windows has no Rust, WSL or Docker. Pristine .work/upstream already exists.
+- Private signing key: .work/signing/release.pem, ignored. Never print/commit it.
+  Public release/csqtt-public.pem is embedded in installer. Actions signing
+  secret CSQTT_SIGNING_KEY is not configured. See docs/BUILD.md.
 
-## Implemented source so far
+## Settled requirements
 
-- Original Rust client/shared source with work on Linux TUN, JSON daemon
-  config, private control socket/status, identity lifecycle, SIGTERM, native
-  CAPTCHA and manual takeover. Core agent is finishing integration/tests.
-- OpenWrt package/backend: ucode policy compiler, persistent fw4/nft guard,
-  per-group dnsmasq configuration; shell/procd integration still being finished.
-- LuCI Russian settings/status/groups/devices/rules/diagnostics and private
-  CAPTCHA link dialog; UI tests/integration still being finished.
-- `captcha-broker/`: Go TLS bridge, one-use pairing grants, current-challenge
-  validation, private Unix control, restricted VK CONNECT relay, persistent
-  certificate identity. Public HTTP status never contains credentials.
-- `android-helper/`: separate Kotlin APK source, pairing validation and pinned
-  TLS, WebView result interception, authenticated relay via loopback to router.
-- GitHub CI for Go/Node/Rust/Android/SDK and SDK packaging scripts exist.
-- Three packages planned: csqtt, luci-app-csqtt, csqtt-captcha.
+- Original amurcanov/csqtt v2.1.9 at 446293aa2e873ac5323ef6fd2316d9b81d966c11.
+  No incompatible fork. Original Android deploys server/web administration.
+- GL-MT6000, OpenWrt25.12.5 r33051-f5dae5ece4, kernel6.12.94,
+  mediatek/filogic, aarch64_cortex-a53, about1GiB RAM/6.3GiB free overlay.
+- Russian LuCI, one tunnel, named groups, one group per MAC, ordered
+  domain/IP/CIDR rules. Unassigned devices use WAN.
+- VPN-classified traffic remains blocked on failure; explicit WAN exceptions
+  continue; LAN/router access stays. DNS classification limitations accepted.
+  IPv6 internet blocked for groups that can select VPN; local IPv6 stays.
+- Automatic CAPTCHA and separate Android helper with authenticated VK-only
+  relay for phones in blocked VPN groups.
+- Eventual one-command signed installer. No stable release before real tests.
+  No live router access details or deployed server/VK hashes yet.
 
-## Verified, not assumed
+## Saved source milestones
 
-- Go 1.26.8 portable archive SHA256 checked before extraction.
-- `go test ./...` in captcha-broker passed (destination allowlist/SSRF,
-  one-use grant, stale/expired session, result replay, TLS identity persistence).
-- `go vet ./...` emitted no issues in the completed command sequence.
-- ARM64 Linux broker binary exists in ignored `dist/csqtt-captcha` (~6.2 MB);
-  verify ELF header/build command status before considering it release material.
-- Rust compilation/tests, Android build, actual ucode/nft semantics and SDK
-  packages have NOT yet been confirmed. Node policy/LuCI test results pending.
-- No live router changes, no actual VPN connection, no live manual CAPTCHA test.
+- Linux Rust daemon/TUN, private JSON control/config/status/identity, SIGTERM,
+  automatic/manual CAPTCHA. Latest edits add token/frame bounds, epoch expiry
+  and descriptor tests. CORE_STATUS has details.
+- OpenWrt ucode/procd, per-group DNS, persistent nft/routing guards, maintenance
+  protection and offload restore. Review fixed null status, capacity/CIDR and
+  routed IPv6 bypass. POLICY_STATUS has details; obsolete unused sets/chains
+  can accumulate across repeated configuration edits.
+- Russian LuCI/scoped RPC/ACL, safe text rendering, expiring private pairing
+  dialog. LUCI_STATUS has details.
+- Go broker: one-use pairing, TLS pin, private Unix control, replay/expiry,
+  restricted public IPv4 VK CONNECT relay.
+- Android lifecycle/transport fixes plus13 added JVM tests: reservation,
+  stale callbacks, expiry, proxy cleanup, tracked sockets, API28 reads,
+  redirects, token/URI validation. ANDROID_STATUS has details.
+- Installer: pinned APK/manifest verification, exact target check, staged APK
+  database/cache, original dnsmasq rollback. Fake-router tests being added;
+  actual OpenWrt APK runtime still unverified.
+- New native ucode/dnsmasq/nft namespace tests and SDK build in CI. Signed
+  draft preview workflow and BUILD/PREVIEW_NOTES added; workflows unverified.
 
-## Next actions (in order)
+## Checks actually completed
 
-1. Finish durable Git checkpoint and push the development branch. Use connector
-   Git tree/blob APIs if local Git credentials cannot push; do not expose tokens.
-2. Check active agents before spawning replacements. Latest ownership:
-   core_finish → vendor/csqtt; policy_finish → openwrt/csqtt + tests/policy;
-   luci_finish → openwrt/luci-app-csqtt + tests/luci. Root owns broker, Android,
-   build/release/installer and integration. Preserve their existing files.
-3. Complete installer (install.sh absent at this checkpoint), release signing,
-   README and build/release documentation. No stable release before CI checks.
-4. Fix/check Android: replace InputStream.readNBytes with an API-28-compatible
-   bounded read; review nullable relay sockets/lifecycle/manual retry, certificate
-   failure handling and WebView lint. Build and test on GitHub Actions.
-5. Run Node tests; run Go checks again only after relevant edits. Validate native
-   ucode and nftables in Linux, not only the JavaScript compatibility harness.
-6. Publish source to development branch, create/attach draft PR, read CI results,
-   fix failures until Rust/Android/OpenWrt package builds pass.
-7. Review cross-component config paths, status/error shapes, hook invocation,
-   timestamps, DNS/routing behavior on crash/reload and installer failure handling.
-8. Real acceptance requires a server deployed by the user and valid VK call
-   hashes. Never publish those to Git. Verify mixed WAN/VPN devices, kill switch,
-   DNS/IPv6 and manual CAPTCHA on GL-MT6000 before calling the release stable.
+- PR run36634479898 at450df5: Rust337 passed/7ignored. Go/Node passed.
+  Shell job failed on absent install.sh, now present. Android compiled/tested,
+  lint failed on API33 readNBytes, now replaced. SDK skipped. Latest source
+  changes still need a new Rust/Android run.
+- Latest local Node policy/LuCI:31 passed/0failed.
+- POSIX sh syntax passed: install.sh, build-sdk.sh, test-native-policy.sh.
+- Python py_compile passed: export-github-tree.py, release-manifest.py,
+  verify-release.py, network-smoke.py. git diff --check passed.
+- Broker go test/go vet passed earlier; ARM64 Linux cross-build exists ignored.
+- Native ucode/nft, latest Android tests/lint, SDK packages, signed installation,
+  real router/VK/CAPTCHA have not passed yet.
 
-## Integration contracts
+## Agent ownership
 
-- See `docs/IMPLEMENTATION.md` for UCI and policy behavior.
-- Core: --config-file /var/run/csqtt/client.json; control socket
-  /var/run/csqtt/control.sock; Unix newline JSON command status, captcha_get,
-  captcha_manual, captcha_result, captcha_cancel, stop. Mutation includes id;
-  result includes token. Responses contain ok boolean. captcha_get exposes the
-  private challenge id/state/redirect_uri/session_token/expires_at (epoch secs).
-- TUN hook: /usr/libexec/csqtt/tun-hook with action argument and
-  CSQTT_TUN_DEVICE, CSQTT_TUN_IP, CSQTT_TUN_DNS environment (confirm actual code).
-- Broker: /usr/bin/csqtt-captcha serve --listen LAN_IP:9443; Unix socket
-  /var/run/csqtt/captcha.sock. Fixed CLI `pair`, `cancel`, `status`.
-- pair returns ok, uri/helper_uri, expires_at. URI scheme csqtt-helper://pair
-  contains host, port, grant, pin and id; disclose only in authenticated action.
-- Helper GET /v1/challenge consumes grant, returns session + VK URL. Results
-  POST /v1/result; cancel POST /v1/cancel; authenticated CONNECT only VK-domain
-  HTTPS/public IPv4 during the challenge. Leaf certificate is pinned from URI.
+Check collaboration.list_agents; sessions may disappear.
+backend_validate: backend milestone complete; reviewing network-smoke healthy
+tunnel/transitions, owns backend/tests/policy/POLICY_STATUS.
+android_validate: milestone complete; Android source/status saved.
+installer_validate: install.sh/tests/installer/INSTALLER_STATUS, tests pending.
+Root: broker, CI/SDK/release, native shell runner, top-level docs/Git/integration.
 
-## Do not repeat
+## Remaining sequence
 
-No need to rediscover hardware, select fork, ask policy/failure/CAPTCHA questions,
-reinstall Go, re-read large upstream files or browse GitHub creation again. The
-user authenticated and the public repo now exists. Browser/runtime handles and
-subagents may disappear across turns; persistent files and Git survive.
+1. Publish checkpoint; inspect new CI concise errors and resolve failures.
+2. Finish installer rollback tests and verify native APK semantics.
+3. Check compiled component paths, permissions, service/control contracts and
+   DNS/routing transitions; save and push meaningful checkpoints.
+4. Configure signing secret for signed preview after SDK succeeds. Android
+   debug APK does not have a permanent release/update signing identity.
+5. Real authorized GL-MT6000/server tests: mixed clients, tunnel crash/stop,
+   DNS/IPv6, firewall/boot, existing flows, manual phone CAPTCHA.
+   Record results before stable release.
+
+See IMPLEMENTATION for contracts. Do not repeat settled questions, GitHub
+login/repo creation, upstream clone, tooling installation or finished work.

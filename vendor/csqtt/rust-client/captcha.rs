@@ -22,6 +22,7 @@ use uuid::Uuid;
 
 const API_VERSION: &str = "5.131";
 const SCRIPT_VERSION: &str = "1.1.1370";
+pub const MAX_CAPTCHA_TOKEN_BYTES: usize = 16_384;
 const DEVICE_INFO: &str = r#"{"screenWidth":1920,"screenHeight":1080,"screenAvailWidth":1920,"screenAvailHeight":1040,"innerWidth":1920,"innerHeight":970,"devicePixelRatio":1,"language":"ru-RU","languages":["ru-RU","ru","en-US","en"],"webdriver":false,"hardwareConcurrency":8,"notificationsPermission":"default"}"#;
 static POW_INPUT: LazyLock<Option<Regex>> =
     LazyLock::new(|| Regex::new(r#"const\s+powInput\s*=\s*["']([^"']+)["']"#).ok());
@@ -187,7 +188,11 @@ impl DaemonChallenge {
         serde_json::json!({"id": self.id, "state": self.state, "expires_at": self.expires_at,
             "redirect_uri": self.redirect_uri, "session_token": self.session_token})
     }
-    fn live(&self) -> bool { tokio::time::Instant::now() < self.deadline }
+    fn live(&self) -> bool {
+        // The broker enforces the published Unix timestamp. Also retain a
+        // monotonic cap so a backwards clock adjustment cannot extend a job.
+        crate::daemon::now() < self.expires_at && tokio::time::Instant::now() < self.deadline
+    }
 }
 
 struct ChallengeGuard<'a> { solver: &'a CaptchaSolver, id: String }
@@ -218,12 +223,12 @@ impl CaptchaSolver {
 
     pub fn daemon_challenge(&self) -> Option<Value> {
         let mut pending = self.daemon_pending.lock().unwrap_or_else(|e| e.into_inner());
-        Self::expire_challenge(&mut pending);
+        self.expire_challenge(&mut pending);
         pending.as_ref().map(DaemonChallenge::private_status)
     }
 
-    fn expire_challenge(pending: &mut Option<DaemonChallenge>) {
-        if pending.as_ref().is_some_and(|challenge| !challenge.live()) {
+    fn expire_challenge(&self, pending: &mut Option<DaemonChallenge>) {
+        if pending.as_ref().is_some_and(|challenge| self.cancel.is_cancelled() || !challenge.live()) {
             if let Some(challenge) = pending.take() { challenge.auto_cancel.cancel(); }
             crate::daemon::captcha_status(None);
         }
@@ -231,7 +236,7 @@ impl CaptchaSolver {
 
     pub fn daemon_takeover(&self, id: &str) -> bool {
         let mut pending = self.daemon_pending.lock().unwrap_or_else(|e| e.into_inner());
-        Self::expire_challenge(&mut pending);
+        self.expire_challenge(&mut pending);
         let Some(challenge) = pending.as_mut().filter(|c| c.id == id) else { return false; };
         challenge.state = "manual";
         challenge.auto_cancel.cancel();
@@ -241,11 +246,11 @@ impl CaptchaSolver {
 
     pub fn daemon_answer(&self, id: &str, answer: std::result::Result<String, String>) -> bool {
         let mut pending = self.daemon_pending.lock().unwrap_or_else(|e| e.into_inner());
-        Self::expire_challenge(&mut pending);
+        self.expire_challenge(&mut pending);
         let Some(challenge) = pending.as_ref() else { return false; };
         if challenge.id != id || (answer.is_ok() && challenge.state != "manual") { return false; }
         if let Ok(token) = &answer {
-            if token.trim().is_empty() || token.len() > 8192 || token.chars().any(char::is_control) {
+            if token.trim().is_empty() || token.len() > MAX_CAPTCHA_TOKEN_BYTES || token.chars().any(char::is_control) {
                 return false;
             }
         }
@@ -284,7 +289,7 @@ impl CaptchaSolver {
 
     fn finish_daemon_auto(&self, id: &str) -> bool {
         let mut pending = self.daemon_pending.lock().unwrap_or_else(|e| e.into_inner());
-        Self::expire_challenge(&mut pending);
+        self.expire_challenge(&mut pending);
         if pending.as_ref().is_none_or(|c| c.id != id || c.state != "auto") { return false; }
         if let Some(challenge) = pending.take() { challenge.auto_cancel.cancel(); }
         crate::daemon::captcha_status(None);
@@ -1265,6 +1270,36 @@ mod tests {
         assert_eq!(solver.daemon_challenge().unwrap()["id"],new);
         drop(ChallengeGuard { solver:&solver,id:new });
         assert!(solver.daemon_challenge().is_none());
+    }
+
+    #[tokio::test]
+    async fn daemon_enforces_broker_token_limit_and_published_epoch_expiry() {
+        let solver=CaptchaSolver::new("auto",CancellationToken::new());
+        let (id,_,receive,_)=solver.begin_daemon_challenge(&daemon_fixture(),Duration::from_secs(60));
+        assert!(solver.daemon_takeover(&id));
+        assert!(!solver.daemon_answer(&id,Ok("x".repeat(MAX_CAPTCHA_TOKEN_BYTES+1))));
+        assert!(solver.daemon_answer(&id,Ok("x".repeat(MAX_CAPTCHA_TOKEN_BYTES))));
+        assert_eq!(receive.await.unwrap().unwrap().len(),MAX_CAPTCHA_TOKEN_BYTES);
+
+        let (id,_,receive,_)=solver.begin_daemon_challenge(&daemon_fixture(),Duration::from_secs(60));
+        assert!(solver.daemon_takeover(&id));
+        // Simulate the published epoch deadline passing before the monotonic
+        // deadline (including a forward wall-clock adjustment).
+        solver.daemon_pending.lock().unwrap().as_mut().unwrap().expires_at=crate::daemon::now();
+        assert!(!solver.daemon_answer(&id,Ok("late".into())));
+        assert!(receive.await.is_err());
+    }
+
+    #[tokio::test]
+    async fn daemon_shutdown_revokes_answers_immediately() {
+        let cancel=CancellationToken::new();
+        let solver=CaptchaSolver::new("auto",cancel.clone());
+        let (id,_,receive,_)=solver.begin_daemon_challenge(&daemon_fixture(),Duration::from_secs(60));
+        assert!(solver.daemon_takeover(&id));
+        cancel.cancel();
+        assert!(!solver.daemon_answer(&id,Ok("late".into())));
+        assert!(solver.daemon_challenge().is_none());
+        assert!(receive.await.is_err());
     }
 
     #[test]

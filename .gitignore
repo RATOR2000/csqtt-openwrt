@@ -9,5 +9,6 @@ local.properties
 *.jks
 *.key
 *.pem
+!release/csqtt-public.pem
 __pycache__/
 *.pyc

@@ -32,7 +32,7 @@ function validHash(value) {
 }
 
 function validPassword(value) {
-	if (typeof value !== 'string' || /[\x00-\x1f\x7f|]/.test(value)) return false;
+	if (typeof value !== 'string' || /[\x00-\x1f\x7f-\x9f|]/.test(value)) return false;
 	var bytes = new TextEncoder().encode(value).length;
 	return bytes >= 4 && bytes <= 128;
 }
@@ -128,7 +128,8 @@ return baseclass.extend({
 	validDestination: validDestination,
 	workerLimit: function(count) { return Number.isInteger(count) && count > 0 && count <= 6 ? Math.min(126, count * 27) : 0; },
 	stateLabel: function(state) {
-		return ({ stopped: 'Остановлено', starting: 'Запуск', connecting: 'Подключение', connected: 'Подключено', captcha_required: 'Нужна CAPTCHA', error: 'Ошибка', disabled: 'Выключено' })[state] || 'Нет данных';
+		var labels = { stopped: 'Остановлено', starting: 'Запуск', connecting: 'Подключение', connected: 'Подключено', captcha_required: 'Нужна CAPTCHA', error: 'Ошибка', disabled: 'Выключено' };
+		return Object.prototype.hasOwnProperty.call(labels, state) ? labels[state] : 'Нет данных';
 	},
 	bytes: function(value) {
 		var n = Number(value || 0), units = ['Б', 'КиБ', 'МиБ', 'ГиБ', 'ТиБ'], i = 0;

@@ -9,6 +9,7 @@
 
 - [Текущее состояние и следующий шаг](docs/STATUS.md)
 - [Требования и интерфейсы компонентов](docs/IMPLEMENTATION.md)
+- [Сборка, подпись и условия выпуска](docs/BUILD.md)
 - [Инструкции для продолжения разработки](AGENTS.md)
 
 Исходное ядро: amurcanov/csqtt v2.1.9. Лицензия: PolyForm Noncommercial 1.0.0;

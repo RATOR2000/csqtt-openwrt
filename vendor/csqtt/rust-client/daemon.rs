@@ -16,7 +16,9 @@ use tokio_util::sync::CancellationToken;
 
 static RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
 const MAX_CONFIG: u64 = 65_536;
-const MAX_CONTROL: u64 = 16_384;
+// Matches the broker RPC bound and accommodates a 16 KiB result plus JSON
+// escaping, field names and the challenge ID.
+const MAX_CONTROL: u64 = 65_536;
 
 #[derive(Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -458,7 +460,8 @@ fn dispatch_control(request: ControlRequest, captcha: &crate::captcha::CaptchaSo
                 "captcha_manual" => captcha.daemon_takeover(&id),
                 "captcha_cancel" => captcha.daemon_answer(&id, Err("cancelled".into())),
                 _ => match request.token {
-                    Some(token) if !token.is_empty() && token.len() <= 8192 && !token.contains(['\n', '\r', '\0']) => captcha.daemon_answer(&id, Ok(token)),
+                    Some(token) if !token.trim().is_empty() && token.len() <= crate::captcha::MAX_CAPTCHA_TOKEN_BYTES
+                        && !token.chars().any(char::is_control) => captcha.daemon_answer(&id, Ok(token)),
                     _ => return json!({"ok":false,"error":"invalid_token"}),
                 },
             };
@@ -621,7 +624,9 @@ mod tests {
         let cancel=CancellationToken::new();
         let captcha=crate::captcha::CaptchaSolver::new("auto",cancel.clone());
         let task=spawn_control_listener(listener,captcha,cancel.clone());
+        let maximal_result=format!("{}\n",json!({"command":"captcha_result","id":"stale", "token":"x".repeat(crate::captcha::MAX_CAPTCHA_TOKEN_BYTES)}));
         for (request, error) in [
+            (maximal_result.as_str(),Some("stale_or_unavailable_challenge")),
             ("{bad}\n",Some("invalid_request")),
             ("{\"command\":\"captcha_result\",\"token\":\"secret\"}\n",Some("missing_id")),
             ("{\"command\":\"captcha_cancel\",\"id\":\"stale\"}\n",Some("stale_or_unavailable_challenge")),

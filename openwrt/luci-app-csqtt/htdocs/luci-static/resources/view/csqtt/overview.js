@@ -45,7 +45,7 @@ return view.extend({
 			pairingTimer = window.setTimeout(closePairing, Math.max(0, pairing.expires_at * 1000 - Date.now()));
 		}
 		function card(label, value, detail) {
-			return E('div', { 'class': 'csqtt-card' }, [E('div', { 'class': 'csqtt-card-label' }, label), E('div', { 'class': 'csqtt-card-value' }, value), E('div', { 'class': 'csqtt-subtle' }, detail || '')]);
+			return E('div', { 'class': 'csqtt-card' }, [E('div', { 'class': 'csqtt-card-label' }, [label]), E('div', { 'class': 'csqtt-card-value' }, [value]), E('div', { 'class': 'csqtt-subtle' }, [detail || ''])]);
 		}
 		function update(status) {
 			var tunnel = status.tunnel || {}, core = status.core || status.transport || status;

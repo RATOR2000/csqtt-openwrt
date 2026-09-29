@@ -7,7 +7,10 @@ const ROOT = '/var/run/csqtt/';
 const STATE = '/etc/csqtt/';
 let c = cursor();
 function readjson(path, fallback) {
-	try { return json(fs.readfile(path)); } catch (e) { return fallback; }
+	try {
+		let value = json(fs.readfile(path));
+		return value == null ? fallback : value;
+	} catch (e) { return fallback; }
 }
 function save(path, value) {
 	if (fs.writefile(path, value) == null) die('Cannot write ' + path);
@@ -64,25 +67,41 @@ function choice(value, fallback, allowed, name) {
 function client(main) {
 	let password = main.password || '', peer = main.peer || '', hashes = list(main.vk_hashes);
 	if (match(password, /[\x00-\x1f\x7f|]/) || length(password) > 128) die('Invalid password');
-	if (match(peer, /[\x00-\x20\x7f]/) || length(peer) > 2048) die('Invalid peer');
+	if (match(peer, /[\x00-\x20\x7f]/) || length(peer) > 255) die('Invalid peer');
+	if (peer) {
+		let endpoint = match(peer, /^(.+):([0-9]{1,5})$/);
+		if (!endpoint || +endpoint[2] < 1 || +endpoint[2] > 65535) die('Peer needs a host and port');
+		let host = endpoint[1];
+		if (substr(host, 0, 1) === '[') {
+			if (!match(host, /^\[[0-9a-fA-F:.]+\]$/) || index(host, ':') < 0) die('Invalid IPv6 peer');
+		} else {
+			if (substr(host, length(host) - 1) === '.') host = substr(host, 0, length(host) - 1);
+			let labels = split(host, '.');
+			for (let i = 0; i < length(labels); i++)
+				if (length(labels[i]) > 63 || !match(labels[i], /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/)) die('Invalid peer host');
+		}
+	}
+	if (length(hashes) > 6) die('At most six VK hashes are supported');
 	for (let i = 0; i < length(hashes); i++)
 		if (!match(hashes[i], /^[a-zA-Z0-9_-]{16,1024}$/)) die('Invalid VK hash');
+		else for (let j = 0; j < i; j++) if (hashes[i] === hashes[j]) die('Duplicate VK hash');
 	if (main.enabled === '1' && (!length(peer) || length(password) < 4 || !length(hashes)))
 		die('Enabled client needs peer, password and VK hashes');
+	let workers = integer(main.workers, 9, 9, 126, 'workers');
+	if (workers % 9 || (length(hashes) && workers > length(hashes) * 27)) die('Workers must be a multiple of nine within hash capacity');
 	if (main.tun_device && main.tun_device !== 'csqtt0') die('TUN device must be csqtt0');
 	let cfg = { peer: peer, password: password, vk_hashes: hashes,
-		workers: integer(main.workers, 9, 1, 32, 'workers'),
+		workers: workers,
 		obfs: choice(main.obfs, 'video', ['video', 'audio'], 'obfs'),
 		turn_transport: choice(main.turn_transport, 'udp', ['udp', 'tcp'], 'TURN transport'),
-		vk_auth_mode: choice(main.vk_auth_mode, 'vkcalls', ['vkcalls', 'vk'], 'VK auth mode'),
-		fingerprint: choice(main.fingerprint, 'firefox', ['firefox', 'chrome'], 'fingerprint'),
+		vk_auth_mode: choice(main.vk_auth_mode, 'vkcalls', ['vkcalls', 'legacy'], 'VK auth mode'),
+		fingerprint: choice(main.fingerprint, 'firefox', ['firefox', 'chrome', 'edge', 'safari', 'opera'], 'fingerprint'),
 		client_ids: main.client_ids || '8202606,6287487',
-		captcha_mode: choice(main.captcha_mode, 'auto', ['auto', 'manual'], 'CAPTCHA mode'),
 		captcha_timeout_secs: integer(main.captcha_timeout_secs, 180, 30, 600, 'CAPTCHA timeout'),
-		mtu: integer(main.mtu, 1300, 576, 1400, 'MTU'), tun_device: 'csqtt0',
+		tun_device: 'csqtt0',
 		tun_config_hook: '/usr/libexec/csqtt/tun-hook', status_file: ROOT + 'status.json',
 		control_socket: ROOT + 'control.sock', identity_file: STATE + 'device-id' };
-	if (!match(cfg.client_ids, /^[0-9]+(,[0-9]+)*$/)) die('Invalid client IDs');
+	if (length(cfg.client_ids) > 128 || !match(cfg.client_ids, /^[0-9]+(,[0-9]+)*$/)) die('Invalid client IDs');
 	if (main.turn_host) {
 		if (!match(main.turn_host, /^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}$/)) die('Invalid TURN host');
 		cfg.turn_host = main.turn_host;
@@ -91,7 +110,7 @@ function client(main) {
 	return cfg;
 }
 function devices() {
-	let found = {}, now = time();
+	let found = {};
 	let leases = split(fs.readfile('/tmp/dhcp.leases') || '', '\n');
 	for (let i = 0; i < length(leases); i++) {
 		let p = split(trim(leases[i]), /\s+/);
@@ -126,8 +145,9 @@ function service_running(name, instance) {
 function status() {
 	let stored = readjson(ROOT + 'status.json', {}), core = {}, running = service_running('csqtt', 'client');
 	// Explicit allowlist prevents upstream fields from exposing passwords or challenge answers.
-	for (let k in ['state', 'tun_device', 'tunnel_ip', 'active_workers', 'bytes_up', 'bytes_down', 'uptime_secs']) {
-		let field = ['state', 'tun_device', 'tunnel_ip', 'active_workers', 'bytes_up', 'bytes_down', 'uptime_secs'][k];
+	let fields = ['state', 'tun_device', 'tunnel_ip', 'active_workers', 'bytes_up', 'bytes_down', 'uptime_secs'];
+	for (let k = 0; k < length(fields); k++) {
+		let field = fields[k];
 		if (stored[field] != null) core[field] = stored[field];
 	}
 	if (stored.captcha) core.captcha = { id: stored.captcha.id, state: stored.captcha.state, expires_at: stored.captcha.expires_at };
@@ -211,9 +231,9 @@ else if (mode === 'devices') output({ devices: devices() });
 else if (mode === 'diagnostics') {
 	let s = status(), model = readjson(STATE + 'policy.json', { groups: [] }), checks = [];
 	push(checks, { name: 'policy', ok: !length(s.policy_error), detail: s.policy_error || 'Policy configuration loaded' });
-	push(checks, { name: 'transport', ok: s.running, detail: s.core.state || 'stopped' });
+	push(checks, { name: 'tun', ok: s.running, detail: s.core.state || 'stopped' });
 	for (let i = 0; i < length(model.groups); i++) if (length(model.groups[i].macs))
-		push(checks, { name: 'dns_' + model.groups[i].id, ok: service_running('csqtt-dns', 'dns_' + model.groups[i].id), detail: 'Guarded group DNS process' });
+		push(checks, { name: 'dnsmasq', ok: service_running('csqtt-dns', 'dns_' + model.groups[i].id), detail: 'Guarded group DNS process' });
 	output({ status: s, checks: checks, domain_limitations: 'DNS caches, shared destination IPs and independent DoH limit hostname classification. Online status is estimated from ARP.' });
 } else if (mode === 'dns-ready') {
 	let ids = split(trim(fs.readfile(ROOT + 'dns.ids') || ''), '\n');

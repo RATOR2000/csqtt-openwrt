@@ -56,7 +56,7 @@ test('settings enforce core capacity, password bytes and valid addresses', () =>
 	assert.equal(model.validPassword('valid space'), true);
 	assert.equal(model.validPassword('я'.repeat(64)), true);
 	assert.equal(model.validPassword('я'.repeat(65)), false);
-	for (const value of ['abc', 'abc\nsecret', 'abc|secret', 'abc\0secret']) assert.equal(model.validPassword(value), false);
+	for (const value of ['abc', 'abc\nsecret', 'abc|secret', 'abc\0secret', 'abc\u0085secret']) assert.equal(model.validPassword(value), false);
 	for (const value of ['example.org:443', '203.0.113.7:65535', '[2001:db8::1]:123']) assert.equal(model.validPeer(value), true);
 	for (const value of ['https://example.org:443', 'example.org', 'example.org:0', '999.1.1.1:4', 'a..b:43']) assert.equal(model.validPeer(value), false);
 	for (const value of ['example.org', 'sub.example.org.', '203.0.113.7', '203.0.113.0/24', '0.0.0.0/0']) assert.equal(model.validDestination(value), true);
@@ -88,7 +88,11 @@ class Node {
 	click() { return this.attrs.click?.(); }
 	set innerHTML(value) { throw Error('Unsafe HTML assignment'); }
 }
-const E = (tag, attrs, children) => new Node(tag, attrs, children);
+const E = (tag, attrs, children) => {
+	// LuCI parses scalar string children as HTML; array children become text nodes.
+	if (typeof children === 'string' && /<[^>]+>/.test(children)) throw Error('Untrusted scalar HTML children');
+	return new Node(tag, attrs, children);
+};
 function walk(node) { return node instanceof Node ? [node, ...node.children.flatMap(walk)] : []; }
 function text(node) { return node instanceof Node ? node.children.map(text).join(' ') : String(node); }
 const L = { resource: v => '/resources/' + v, url: v => '/' + v };
@@ -104,7 +108,7 @@ function uiStub() {
 test('CAPTCHA grants appear only after a user action and are wiped on challenge change', async () => {
 	const ui = uiStub(), calls = [], polls = [], window = { clearTimeout() {}, setTimeout() { return 1; }, navigator: {} };
 	const challenge = { id: 'challenge-1', state: 'manual', expires_at: pairing().expires_at };
-	let status = { core: { state: 'captcha_required', captcha: challenge, password: 'HIDDEN_PASSWORD' }, uri: 'HIDDEN_LINK' };
+	let status = { core: { state: 'captcha_required', captcha: challenge, password: 'HIDDEN_PASSWORD', tunnel_ip: '<img onerror=evil>', tun_device: '<script>evil</script>' }, uri: 'HIDDEN_LINK' };
 	const api = { call: async method => { calls.push(method); return method === 'captcha_begin' ? pairing() : status; } };
 	const view = load('view/csqtt/overview.js', { view: extend, E, L, ui, api, model, window, poll: { add: fn => polls.push(fn) } });
 	const page = view.render(status);

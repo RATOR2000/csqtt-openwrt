@@ -39,6 +39,7 @@ define Package/csqtt/install
 	$(INSTALL_CONF) ./files/csqtt.config $(1)/etc/config/csqtt
 	$(INSTALL_CONF) ./files/guard.nft $(1)/etc/csqtt/policy.nft
 	$(INSTALL_BIN) ./files/csqtt.init $(1)/etc/init.d/csqtt
+	$(INSTALL_BIN) ./files/csqtt-dns.init $(1)/etc/init.d/csqtt-dns
 	$(INSTALL_BIN) ./files/90-csqtt $(1)/etc/hotplug.d/iface/90-csqtt
 endef
 
@@ -47,6 +48,7 @@ define Package/csqtt/postinst
 [ -n "$$IPKG_INSTROOT" ] && exit 0
 chmod 0700 /etc/csqtt
 chmod 0600 /etc/config/csqtt
+/etc/init.d/csqtt enable
 exit 0
 endef
 

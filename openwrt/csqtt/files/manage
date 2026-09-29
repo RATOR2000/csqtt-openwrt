@@ -40,7 +40,7 @@ owned_rule() {
 }
 routes() {
 	# Reserve only these priorities and table. Never replace another service's rule.
-	foreign=$(ip -4 route show table 202 2>/dev/null | grep -Ev '^(unreachable default( |$)|default dev csqtt0( |$))' || true)
+	foreign=$(ip -4 route show table 202 2>/dev/null | grep -Ev '^(unreachable default( proto [a-z0-9]+)? metric 42760( |$)|default dev csqtt0( scope link)? metric 10( |$))' || true)
 	[ -z "$foreign" ] || error 'Routing table 202 is already in use'
 	owned_rule 11880 'from 198\.18\.0\.1(/32)? lookup 202$' from 198.18.0.1/32 lookup 202
 	owned_rule 11881 'from 198\.18\.0\.1(/32)? (unreachable|prohibit)$' from 198.18.0.1/32 unreachable
@@ -78,6 +78,7 @@ apply_policy() {
 	# secrets out of diagnostics and the system log.
 	runtime compile "$stage" >"$RUN/compile.log" 2>&1 || error 'Configuration validation failed; see root-only compile.log'
 	active=$(cat "$stage/active")
+	transport=$(uci -q get csqtt.main.enabled || true)
 	if [ "$active" = 1 ]; then conflicts; fi
 	for conf in "$stage"/dns-*.conf; do
 		[ -f "$conf" ] || continue
@@ -88,7 +89,10 @@ apply_policy() {
 	cp "$stage/hold.nft" "$STATE/hold.nft.new"
 	mv "$STATE/hold.nft.new" "$STATE/hold.nft"
 	nft -f "$STATE/hold.nft" >"$RUN/nft.log" 2>&1 || error 'Cannot install maintenance guard'
-	if [ "$active" = 1 ]; then routes; fi
+	# Drop existing hardware/software shortcuts before relying on new guards.
+	if nft list flowtable inet fw4 ft >/dev/null 2>&1; then
+		nft flush flowtable inet fw4 ft || error 'Cannot clear flow offloading'
+	fi
 	nft -c -f "$stage/policy.nft" >"$RUN/nft.log" 2>&1 || error 'Generated firewall policy was rejected; clients remain guarded'
 	# Stop DNS before changing set definitions so no writer races nft replacement.
 	/etc/init.d/csqtt-dns stop >/dev/null 2>&1 || true
@@ -101,6 +105,7 @@ apply_policy() {
 	else
 		runtime firewall-off >"$RUN/firewall.log" 2>&1 || error 'Cannot restore flow offloading'
 	fi
+	if [ "$active" = 1 ] || [ "$transport" = 1 ]; then routes; fi
 	nft -f "$STATE/policy.nft" >"$RUN/nft.log" 2>&1 || error 'Cannot load firewall policy; clients remain guarded'
 	fw4 reload >"$RUN/firewall.log" 2>&1 || error 'Firewall reload failed; clients remain guarded'
 	rm -f "$RUN"/dns-*.conf
@@ -125,7 +130,7 @@ apply_policy() {
 	mv "$STATE/hold.nft.new" "$STATE/hold.nft"
 	rm -f "$RUN/policy.error" "$STATE/deactivated"
 	if [ "$active" = 0 ]; then
-		remove_routes
+		[ "$transport" = 1 ] || remove_routes
 		rm -f "$STATE/offload.json"
 	fi
 	# Staging contains credentials. Remove only the files we generated, no recursive deletion.
