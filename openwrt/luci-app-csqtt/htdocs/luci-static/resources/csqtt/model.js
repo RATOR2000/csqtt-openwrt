@@ -107,12 +107,18 @@ function parseLink(raw) {
 	return { peer: (host.indexOf(':') >= 0 ? '[' + host + ']' : host) + ':' + Number(port), password: password, vk_hashes: hashes };
 }
 
-function validDestination(value) {
+function validDestination(value, localDomain) {
 	if (typeof value !== 'string' || !value || value.length > 253) return false;
 	var parts = value.split('/');
 	if (parts.length > 2 || value.indexOf(':') >= 0) return false;
 	if (parts.length === 2) return /^[0-9.]+$/.test(parts[0]) && validHost(parts[0]) && /^(?:[0-9]|[12][0-9]|3[0-2])$/.test(parts[1]);
-	return validHost(value) && value.indexOf('.') >= 0;
+	if (!validHost(value) || value.indexOf('.') < 0) return false;
+	if (localDomain && !/^[0-9.]+$/.test(value)) {
+		var domain = value.toLowerCase().replace(/\.$/, '');
+		var local = String(localDomain).toLowerCase().replace(/\.$/, '');
+		if (domain === local || domain.endsWith('.' + local)) return false;
+	}
+	return true;
 }
 
 return baseclass.extend({

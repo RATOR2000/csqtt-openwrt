@@ -8,12 +8,13 @@
 
 return view.extend({
 	load: function() {
-		return Promise.all([uci.load('csqtt'), api.call('devices').catch(function() { return { unavailable: true }; })]);
+		return Promise.all([uci.load('csqtt'), api.call('devices').catch(function() { return { unavailable: true }; }), api.call('status').catch(function() { return {}; })]);
 	},
 	render: function(data) {
 		var m = new form.Map('csqtt', 'Устройства и политики', 'Группа задаёт обычный маршрут устройств. Исключения проверяются сверху вниз: действует первое совпадение для этой группы.');
 		this.map = m;
 		var discovered = Array.isArray(data[1].devices) ? data[1].devices : [];
+		var localDomain = String(data[2] && data[2].local_domain || 'lan');
 		function groupOption(section) {
 			var o = section.option(form.ListValue, 'group', 'Группа');
 			o.rmempty = false;
@@ -73,7 +74,10 @@ return view.extend({
 		o = s.option(form.Flag, 'enabled', 'Включено'); o.default = '1'; o.rmempty = false;
 		groupOption(s);
 		o = s.option(form.Value, 'destination', 'Домен, IPv4 или подсеть'); o.placeholder = 'example.org или 203.0.113.0/24'; o.rmempty = false;
-		o.validate = function(id, value) { return model.validDestination(value) || 'Укажите домен без протокола и пути, IPv4-адрес или подсеть IPv4/CIDR.'; };
+		o.validate = function(id, value) {
+			if (!model.validDestination(value)) return 'Укажите домен без протокола и пути, IPv4-адрес или подсеть IPv4/CIDR.';
+			return model.validDestination(value, localDomain) || 'Локальные имена обслуживает DNS роутера; интернет-правило для них не требуется.';
+		};
 		o.write = function(id, value) { uci.set('csqtt', id, 'destination', value.toLowerCase().replace(/\.$/, '')); };
 		actionOption(s, 'action', 'Маршрут');
 
@@ -84,6 +88,7 @@ return view.extend({
 				E('link', { rel: 'stylesheet', href: L.resource('csqtt/style.css') }),
 				E('div', { 'class': 'csqtt-note' }, 'При обрыве туннеля трафик, назначенный VPN, блокируется. Прямые исключения продолжают работать. Доступ к роутеру и локальной сети сохраняется.'),
 				node,
+				E('div', { 'class': 'csqtt-note' }, ['Локальный домен ', E('strong', {}, [localDomain]), ' обслуживается DNS роутера и сохраняет доступ к устройствам в LAN.']),
 				E('h3', {}, 'Обнаружены в локальной сети'),
 				discovered.length ? E('div', { 'class': 'csqtt-table-wrap' }, E('table', { 'class': 'table' }, rows)) : E('p', { 'class': 'csqtt-muted' }, data[1].unavailable ? 'Не удалось получить список устройств.' : 'Активных DHCP-записей пока нет. MAC-адрес можно ввести вручную.'),
 				E('p', { 'class': 'csqtt-small' }, 'Адреса из этого списка доступны в поле MAC-адрес при добавлении устройства.'),

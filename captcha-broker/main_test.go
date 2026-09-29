@@ -129,34 +129,63 @@ func TestEscapedResultAtTokenLimit(t *testing.T) {
 	}
 }
 
-func TestStaleCancelCannotRevokeReplacement(t *testing.T) {
-	b := newTestBroker()
-	_, _ = b.pair()
-	old := b.current
-	old.Claimed = true
-	r := httptest.NewRequest("POST", "/v1/cancel", nil)
-	r.Header.Set("Authorization", "Bearer "+old.Session)
-	core := b.core
-	var replacement *job
-	cancelled := false
-	b.core = func(req object) (object, error) {
-		if req["command"] == "captcha_get" {
-			// A new pairing wins after authentication, before the old HTTP action.
-			b.core = core
+func TestStaleHTTPActionCannotRevokeReplacement(t *testing.T) {
+	for _, action := range []string{"cancel", "result"} {
+		t.Run(action, func(t *testing.T) {
+			b := newTestBroker()
 			_, _ = b.pair()
-			replacement = b.current
+			old := b.current
+			old.Claimed = true
+			body := ""
+			if action == "result" {
+				body = `{"id":"job1","token":"fixture-answer"}`
+			}
+			r := httptest.NewRequest("POST", "/v1/"+action, strings.NewReader(body))
+			r.Header.Set("Authorization", "Bearer "+old.Session)
+			core := b.core
+			var replacement *job
+			mutated := false
 			b.core = func(req object) (object, error) {
-				if req["command"] == "captcha_cancel" {
-					cancelled = true
+				if req["command"] == "captcha_get" {
+					// A new pairing wins after authentication, before the old HTTP action.
+					b.core = core
+					_, _ = b.pair()
+					replacement = b.current
+					b.core = func(req object) (object, error) {
+						if req["command"] == "captcha_cancel" || req["command"] == "captcha_result" {
+							mutated = true
+						}
+						return core(req)
+					}
 				}
 				return core(req)
 			}
-		}
-		return core(req)
+			w := httptest.NewRecorder()
+			b.ServeHTTP(w, r)
+			if w.Code != 409 || b.current != replacement || replacement == nil || mutated {
+				t.Fatal("old HTTP action mutated the replacement pairing")
+			}
+		})
 	}
-	w := httptest.NewRecorder()
-	b.ServeHTTP(w, r)
-	if w.Code != 409 || b.current != replacement || replacement == nil || cancelled {
-		t.Fatal("old request cancelled the replacement pairing")
+}
+
+func TestResultRejectsTrailingJSONAndControlTokens(t *testing.T) {
+	b := newTestBroker()
+	_, _ = b.pair()
+	j := b.current
+	j.Claimed = true
+	for _, body := range []string{
+		`{"id":"job1","token":"answer"} {}`,
+		`{"id":"job1","token":" "}`,
+		`{"id":"job1","token":"answer\t"}`,
+		`{"id":"job1","token":"answer\u0085"}`,
+	} {
+		r := httptest.NewRequest("POST", "/v1/result", strings.NewReader(body))
+		r.Header.Set("Authorization", "Bearer "+j.Session)
+		w := httptest.NewRecorder()
+		b.ServeHTTP(w, r)
+		if w.Code != 400 || b.current != j {
+			t.Fatal("malformed answer accepted or pairing consumed")
+		}
 	}
 }

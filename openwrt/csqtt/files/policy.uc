@@ -121,8 +121,14 @@ export function validate(input) {
 	model.vpn_dns = clean(main.vpn_dns || '1.1.1.1');
 	model.wan_dns = clean(main.wan_dns || '9.9.9.9');
 	if (!ipv4(model.vpn_dns) || !ipv4(model.wan_dns)) fail('DNS servers must be IPv4 literals');
-	model.local_domain = clean(input.local_domain || 'lan');
-	if (!match(model.local_domain, /^[a-zA-Z0-9][a-zA-Z0-9.-]*$/)) fail('Invalid local DNS domain');
+	model.local_domain = lc(clean(input.local_domain || 'lan'));
+	if (length(model.local_domain) > 253) fail('Invalid local DNS domain');
+	let local_labels = split(model.local_domain, '.');
+	for (let i = 0; i < length(local_labels); i++)
+		if (length(local_labels[i]) > 63 || !match(local_labels[i], /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/)) fail('Invalid local DNS domain');
+	for (let i = 0; i < length(model.rules); i++)
+		if (model.rules[i].kind === 'domain' && suffix(model.rules[i].value, model.local_domain))
+			fail('Local DNS domains cannot be internet policy destinations');
 	return model;
 };
 
@@ -164,7 +170,8 @@ export function compile(input) {
 		append(n, 'add chain inet csqtt ' + gc);
 		append(n, 'flush chain inet csqtt ' + gc);
 		let conf = ['# CSQTT group ' + g.id, 'port=' + g.port, 'bind-dynamic', 'no-resolv', 'no-poll',
-			'no-hosts', 'domain-needed', 'bogus-priv', 'stop-dns-rebind', 'cache-size=256',
+			'no-hosts', 'bogus-priv', 'stop-dns-rebind', 'rebind-domain-ok=//',
+			'rebind-domain-ok=/' + m.local_domain + '/', 'cache-size=256',
 			'pid-file=/var/run/csqtt/dns-' + g.id + '.pid', 'user=root', 'listen-address=127.0.0.1',
 			'server=//' + '127.0.0.1', 'server=/' + m.local_domain + '/127.0.0.1',
 			'server=/in-addr.arpa/127.0.0.1', 'server=/ip6.arpa/127.0.0.1'];

@@ -9,6 +9,8 @@ check(index(result.nft, '0x40000000 oifname != "csqtt0" reject') >= 0, 'missing 
 check(index(result.dns[0].config, 'server=/secure.example.org/9.9.9.9') >= 0, 'DNS rule order changed');
 check(index(hold([result.model], true), 'maintenance_guard') >= 0, 'missing maintenance guard');
 check(index(result.nft, 'flush set') < 0, 'reload would flush domain sets');
+check(index(result.dns[0].config, 'rebind-domain-ok=//') >= 0 && index(result.dns[0].config, 'rebind-domain-ok=/lan/') >= 0, 'local DNS reply exemptions missing');
+check(index(result.dns[0].config, 'domain-needed') < 0, 'plain local names would be rejected');
 check(index(result.nft, 'ip6 daddr') < 0, 'routed IPv6 would escape the guard');
 check(index(result.nft, 'ip daddr @' + result.model.rules[0].set) < index(result.nft, 'ip daddr @' + result.model.rules[1].set), 'rule order changed');
 let changed = json(fs.readfile('tests/policy/fixture.json'));
@@ -23,6 +25,11 @@ changed.devices[1].mac = changed.devices[0].mac;
 rejected = false;
 try { validate(changed); } catch (e) { rejected = true; }
 check(rejected, 'duplicate device membership was accepted');
+changed = json(fs.readfile('tests/policy/fixture.json'));
+changed.rules[0].destination = 'printer.lan';
+rejected = false;
+try { validate(changed); } catch (e) { rejected = true; }
+check(rejected, 'internet rule replaced local DNS delegation');
 if (ARGV[0]) {
 	fs.writefile(ARGV[0] + '/native-policy.nft', result.nft);
 	fs.writefile(ARGV[0] + '/native-hold.nft', hold([result.model], true));

@@ -32,6 +32,11 @@ function sections(package, kind) {
 function list(v) { return type(v) === 'array' ? v : (v ? [v] : []); }
 function includes(a, value) { for (let i = 0; i < length(a); i++) if (a[i] === value) return true; return false; }
 function network() { return call('network.interface', 'dump', {}) || { interface: [] }; }
+function local_domain() {
+	let domain = 'lan';
+	c.foreach('dhcp', 'dnsmasq', function(s) { if (s.domain) domain = s.domain; });
+	return lc(trim('' + domain));
+}
 function input() {
 	let m = c.get_all('csqtt', 'main') || {}, subnets = [], net = network();
 	let lans = list(m.lan_device || 'br-lan');
@@ -49,10 +54,8 @@ function input() {
 			push(subnets, join('.', n) + '/' + addr.mask);
 		}
 	}
-	let domain = 'lan';
-	c.foreach('dhcp', 'dnsmasq', function(s) { if (s.domain) domain = s.domain; });
 	return { main: m, groups: sections('csqtt', 'group'), devices: sections('csqtt', 'device'),
-		rules: sections('csqtt', 'rule'), local_subnets: subnets, local_domain: domain };
+		rules: sections('csqtt', 'rule'), local_subnets: subnets, local_domain: local_domain() };
 }
 function integer(value, fallback, low, high, name) {
 	if (value == null || value === '') return fallback;
@@ -154,6 +157,7 @@ function status() {
 	if (!running) core.state = 'stopped';
 	let model = readjson(STATE + 'policy.json', { devices: [], groups: [] });
 	return { core: core, running: running, enabled: c.get('csqtt', 'main', 'enabled') === '1',
+		local_domain: local_domain(),
 		policies_active: length(model.devices || []) > 0 && !fs.stat(STATE + 'deactivated'),
 		policy_error: trim(fs.readfile(ROOT + 'policy.error') || ''),
 		groups: length(model.groups || []), devices: length(model.devices || []) };

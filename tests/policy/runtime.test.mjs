@@ -118,3 +118,9 @@ test('device discovery combines leases, ARP and configured membership', () => {
   assert.equal(first.ip, '192.168.1.10'); assert.equal(first.group, 'private'); assert.equal(first.online, true);
   assert.equal(out.output[0].devices.length, 2);
 });
+
+test('status exposes the local DNS domain without requiring DHCP UCI access', () => {
+  const data = packages(); data.dhcp = { dns: { '.type': 'dnsmasq', domain: 'lab.lan' } };
+  const out = runtime('status', { packages: data });
+  assert.equal(out.output[0].local_domain, 'lab.lan');
+});

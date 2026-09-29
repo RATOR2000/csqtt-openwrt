@@ -1,133 +1,99 @@
 # Development status — resume here
 
-Updated: 2026-09-30. **Implementation/build validation in progress; no verified
-installable release and no real router/VK acceptance.**
+Updated2026-09-30. **Source/build validation in progress; no verified installable
+release and no real router/VK acceptance.** Read this, then IMPLEMENTATION.md.
+Actual files/Git/CI are authority.
 
 ## First unfinished action
 
-Publish the current checkpoint on codex/csqtt-openwrt, read its fresh PR CI
-results, and fix native policy, Android or SDK failures. Inspect actual Git
-first: this file is included in the checkpoint being published. Finish installer
-tests and save later corrections in another small checkpoint.
+Publish this checkpoint (SDK staging fix, real group DNS checks, CAPTCHA
+serialization), inspect its new PR CI run and fix SDK/native DNS/APK failures.
+The previous SDK runs failed after successful ARM64 client compilation because
+STAGING_DIR leaked into SDK make; source now scopes it to the compiler.
+Do not repeat passed Rust/Android work or completed installer doubles.
 
-## Repository and continuity
+## Saved repository/tooling
 
-- Public: https://github.com/RATOR2000/csqtt-openwrt
-- Attached draft PR: https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Last confirmed remote: 88d8189304b328ba92f888331806eb1a4320ad57.
-  Actual Git HEAD/status are authority for subsequent changes.
-- Local push lacks authentication; GitHub connector tree/commit/ref APIs work.
+- Public https://github.com/RATOR2000/csqtt-openwrt
+- Attached draft PR https://github.com/RATOR2000/csqtt-openwrt/pull/1
+- Development branch codex/csqtt-openwrt. Last confirmed remote54141e46bf48de563220cbda3977678c06b24a39; inspect HEAD for later commits.
+- Local push lacks auth; GitHub connector tree/commit/ref APIs work.
   scripts/export-github-tree.py exports committed delta to .work/publish-delta.
-  Use manifest base_tree/parent, update dev ref, fetch, compare trees and align.
-- Go1.26.8 in .work/tools/go/bin already verified; Node/Python available.
-  Windows has no Rust, WSL or Docker. Pristine .work/upstream already exists.
-- Private signing key: .work/signing/release.pem, ignored. Never print/commit it.
-  Public release/csqtt-public.pem is embedded in installer. Actions signing
-  secret CSQTT_SIGNING_KEY is not configured. See docs/BUILD.md.
+  Publish with manifest base_tree/parent, fetch, compare tree hashes and align.
+- Go1.26.8 already in .work/tools/go/bin; Node/Python available. No local Rust,
+  WSL or Docker. Pristine .work/upstream exists. Do not reinstall/reclone.
+- Private signing key .work/signing/release.pem is ignored; never print/commit.
+  Public release/csqtt-public.pem is embedded in installer. Actions secret
+  CSQTT_SIGNING_KEY not configured. See BUILD.md.
 
-## Settled requirements
+## Settled scope
 
-- Original amurcanov/csqtt v2.1.9 at 446293aa2e873ac5323ef6fd2316d9b81d966c11.
-  No incompatible fork. Original Android deploys server/web administration.
-- GL-MT6000, OpenWrt25.12.5 r33051-f5dae5ece4, kernel6.12.94,
-  mediatek/filogic, aarch64_cortex-a53, about1GiB RAM/6.3GiB free overlay.
-- Russian LuCI, one tunnel, named groups, one group per MAC, ordered
+- Original amurcanov/csqtt v2.1.9 at446293aa2e873ac5323ef6fd2316d9b81d966c11;
+  retain Android-deployed server/web administration. No incompatible fork.
+- GL-MT6000, official OpenWrt25.12.5 r33051-f5dae5ece4, kernel6.12.94,
+  mediatek/filogic/aarch64_cortex-a53, about1GiB RAM/6.3GiB overlay free.
+- Russian LuCI, one active tunnel, named groups, one group per MAC, ordered
   domain/IP/CIDR rules. Unassigned devices use WAN.
-- VPN-classified traffic remains blocked on failure; explicit WAN exceptions
-  continue; LAN/router access stays. DNS classification limitations accepted.
-  IPv6 internet blocked for groups that can select VPN; local IPv6 stays.
-- Automatic CAPTCHA and separate Android helper with authenticated VK-only
-  relay for phones in blocked VPN groups.
-- Eventual one-command signed installer. No stable release before real tests.
-  No live router access details or deployed server/VK hashes yet.
+- VPN-classified traffic stays blocked on tunnel failure; explicit WAN rules
+  continue; router/LAN access stays. DNS limitations accepted. Internet IPv6
+  blocked for groups that can select VPN; local IPv6 stays.
+- Native automatic CAPTCHA plus separate Android helper via pinned TLS,
+  one-use pairing and authenticated VK-only relay for blocked VPN phones.
+- Eventual one-command signed install. No stable release before real acceptance.
+  No router connection scope or deployed server/VK hashes supplied.
 
-## Saved source milestones
+## Current source and verification
 
-- Linux Rust daemon/TUN, private JSON control/config/status/identity, SIGTERM,
-  automatic/manual CAPTCHA. Latest edits add token/frame bounds, epoch expiry
-  and descriptor tests. CORE_STATUS has details.
-- OpenWrt ucode/procd, per-group DNS, persistent nft/routing guards, maintenance
-  protection and offload restore. Review fixed null status, capacity/CIDR and
-  routed IPv6 bypass. POLICY_STATUS has details; obsolete unused sets/chains
-  can accumulate across repeated configuration edits.
-- Russian LuCI/scoped RPC/ACL, safe text rendering, expiring private pairing
-  dialog. LUCI_STATUS has details.
-- Go broker: one-use pairing, TLS pin, private Unix control, replay/expiry,
-  restricted public IPv4 VK CONNECT relay.
-- Android lifecycle/transport fixes plus13 added JVM tests: reservation,
-  stale callbacks, expiry, proxy cleanup, tracked sockets, API28 reads,
-  redirects, token/URI validation. ANDROID_STATUS has details.
-- Installer: pinned APK/manifest verification, exact target check, staged APK
-  database/cache, original dnsmasq rollback. Fake-router tests being added;
-  actual OpenWrt APK runtime still unverified.
-- New native ucode/dnsmasq/nft namespace tests and SDK build in CI. Signed
-  draft preview workflow and BUILD/PREVIEW_NOTES added; workflows unverified.
+- Rust daemon/TUN/private JSON control/config/status/identity and CAPTCHA
+  integrated. Linux CI36638972094 at88d8189:341passed/0failed/7ignored plus
+  focused TURN fixture. Core job at54141e4 also passed. Musl ABI fixes passed
+  ARM64 test compilation and release binary build in SDK; no ARM64 execution.
+  See CORE_STATUS. Initial TURN preparation timeout remains historical; later
+  fixture race fixed and stage diagnostics retained.
+- Real ucode, exact nft/DNS/model comparisons, dnsmasq syntax and namespace
+  traffic passed at88d8189 and54141e4: simulated VPN up/down, WAN exceptions,
+  routing loss, reserved-source guard, learned sets/reload, local access,
+  IPv6/ULA and unassigned clients. See POLICY_STATUS.
+- Latest DNS changes add real group resolver queries/set insertion and fix local
+  names (domain-needed/rebind/delegation). Latest LuCI shows local domain via
+  scoped status RPC and rejects internet rules for local names. New native DNS
+  suite is not executed yet. Node policy/LuCI33passed locally.
+- Android13 JVM tests, Kotlin/lintDebug/assembleDebug passed in CI; see
+  ANDROID_STATUS. No actual phone/WebView/VK acceptance.
+- Broker latest local go test/go vet passed: pairing/result/cancel serialized;
+  stale results/cancels cannot affect replacement, quoted16KiB token fits64KiB
+  JSON bound, control tokens and trailing JSON rejected. CI race check pending
+  for these latest edits. Private grants/pin/URLs excluded from public status.
+- Installer27 isolated command-double scenarios passed locally; Linux CI
+  installer suite passed. Upgrade/core/CAPTCHA restart and exact original DNS
+  rollback covered. Native APK3 signature/cache/no-scripts/offline/rollback
+  script implemented and hooked after SDK build; not executed yet. See
+  INSTALLER_STATUS.
+- Release-manifest producer/verifier CLI tests4passed locally. Shell syntax and
+  git diff --check passed for latest root scripts. Public key is the only PEM
+  tracked. Signed draft workflow exists; signing secret/release still pending.
+- SDK runs36638972094 and36639256975 passed ARM64 client compilation but failed
+  SDK host prerequisite path. Fixed by unsetting compiler STAGING_DIR before
+  feeds/make and setting compiler staging to toolchain. Cargo cache populated;
+  latest package compilation/native APK test awaits new CI.
 
-## Checks actually completed
+## Ownership and next sequence
 
-- PR run36634479898 at450df5: Rust337 passed/7ignored. Go/Node passed.
-  Shell job failed on absent install.sh, now present. Android compiled/tested,
-  lint failed on API33 readNBytes, now replaced. SDK skipped. Latest source
-  changes still need a new Rust/Android run.
-- Latest local Node policy/LuCI:31 passed/0failed.
-- POSIX sh syntax passed: install.sh, build-sdk.sh, test-native-policy.sh.
-- Python py_compile passed: export-github-tree.py, release-manifest.py,
-  verify-release.py, network-smoke.py. git diff --check passed.
-- Broker go test/go vet passed earlier; ARM64 Linux cross-build exists ignored.
-- CI36637150431 at18baa7d: checks passed; Android Kotlin,13 JVM tests,
-  lintDebug and assembleDebug passed. Native ucode failed on missing semicolons
-  after exported functions; fixed for rerun. Rust compiled with339passed,
-  1failed/7ignored: TURN prepare_channel timed out. Added receive-stage
-  diagnostics and immediate server failure reporting; separately gated a
-  confirmed data-phase single-buffer fixture race. No production TURN fix.
-  SDK skipped; now scheduled after checks concurrently with native/Rust jobs.
-- Broker latest go test/go vet passed after65536-byte escaped-token body fix
-  and stale HTTP cancel/replacement race regression. Native identity log leak
-  (upstream Device ID/device_id fields) suppressed with a new Rust regression.
-- Installer isolated tests passed24 scenarios, then10 hardened/rollback cases;
-  final portable full suite/upgrade service lifecycle adjustments in progress.
-- CI36638062416 atd10c559: checks including installer scenarios passed;
-  Android passed again. Native ucode assertions, all model/nft/DNS comparisons,
-  dnsmasq syntax and initial WAN/blocked/local traffic passed. Healthy simulated
-  VPN failed because wildcard echo sent replies from a different source IP;
-  exact-source sockets and connected UDP fixtures fix it, pending rerun.
-- Rust focused TURN fixture and full-suite TURN passed;340passed/1failed/7ignored
-  overall. Remaining failure was the new redaction test's dummy password value
-  triggering the existing keyword filter; fixture corrected, pending rerun.
-- SDK reached ARM64 musl Rust compilation and failed4libc ABI errors (ioctl,
-  sendmmsg/recvmmsg flags, private msghdr padding). Portable ABI fixes saved;
-  SDK now also checks musl test compilation before release build. Target CXX
-  compiler set explicitly. Cargo caches/per-job CI scheduling added.
-- Installer final local checks cover27 isolated scenarios across6 test methods;
-  upgrade restarts installed core/CAPTCHA versions. Real native APK signature,
-  staging/cache checks are implemented in scripts/test-native-apk.sh and now
-  hooked after SDK compilation, before project signing. Native execution pending.
-- CI36638972094 at88d8189 is the current run for musl and network fixture fixes.
-  Inspect its current jobs before claiming success. Later SDK script edits add
-  native APK checks and remove stale manifests/packages from repeated builds.
-- Native complete traffic suite, latest Rust/musl source, SDK packages, signed installation,
-  real router/VK/CAPTCHA have not passed yet.
+Check collaboration.list_agents before reuse; previous sessions may end.
+backend_validate owns backend/policy/native DNS tests, milestone completed.
+android_validate completed Android. core_ci_fix completed musl/fixture fixes.
+installer_validate completed installer/native APK source. Root owns broker,
+SDK/CI/release, top-level docs and Git. No previous process may be assumed alive.
 
-## Agent ownership
+1. Publish latest checkpoint and resolve fresh native DNS/SDK/APK failures.
+2. Confirm three APK packages and helper artifact; inspect package contents,
+   executable permissions, dependencies, UCI/procd/fw4/control contracts.
+3. Configure signing secret and validate signed preview only after builds pass.
+   Android debug signature is not a permanent update/release identity.
+4. Authorized real GL-MT6000/server tests: mixed WAN/VPN clients, crash/stop,
+   DNS/IPv6, firewall/boot, existing flows, manual CAPTCHA from blocked phone.
+   Record results before stable release. No live tests run yet.
 
-Check collaboration.list_agents; sessions may disappear.
-backend_validate: backend milestone complete; reviewing network-smoke healthy
-tunnel/transitions, owns backend/tests/policy/POLICY_STATUS.
-android_validate: milestone complete; Android source/status saved.
-installer_validate: install.sh/tests/installer/INSTALLER_STATUS, tests pending.
-Root: broker, CI/SDK/release, native shell runner, top-level docs/Git/integration.
-
-## Remaining sequence
-
-1. Publish checkpoint; inspect new CI concise errors and resolve failures.
-2. Finish installer rollback tests and verify native APK semantics.
-3. Check compiled component paths, permissions, service/control contracts and
-   DNS/routing transitions; save and push meaningful checkpoints.
-4. Configure signing secret for signed preview after SDK succeeds. Android
-   debug APK does not have a permanent release/update signing identity.
-5. Real authorized GL-MT6000/server tests: mixed clients, tunnel crash/stop,
-   DNS/IPv6, firewall/boot, existing flows, manual phone CAPTCHA.
-   Record results before stable release.
-
-See IMPLEMENTATION for contracts. Do not repeat settled questions, GitHub
-login/repo creation, upstream clone, tooling installation or finished work.
+Known limit: DNS caches/shared IPs/DoH affect classification. Unused nft
+chains/sets can accumulate after frequent edits; not garbage-collected yet.
+Do not repeat settled questions, GitHub login/create, cloning or tooling setup.

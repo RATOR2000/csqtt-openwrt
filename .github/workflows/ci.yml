@@ -31,6 +31,8 @@ jobs:
           go vet ./...
       - name: Installer failure and rollback scenarios
         run: python3 tests/installer/installer_test.py
+      - name: Release artifact integrity
+        run: python3 tests/release/release_test.py
       - name: Shell syntax
         run: |
           bash -n scripts/build-sdk.sh

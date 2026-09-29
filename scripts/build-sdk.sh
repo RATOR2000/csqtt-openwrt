@@ -19,7 +19,7 @@ fi
 SDK="$WORK/$SDK_NAME"
 # Build with the release SDK's actual musl linker and headers.
 TOOLCHAIN=$(find "$SDK/staging_dir" -maxdepth 1 -type d -name 'toolchain-aarch64*' -print -quit)
-export STAGING_DIR="$SDK/staging_dir"
+export STAGING_DIR="$TOOLCHAIN"
 export PATH="$TOOLCHAIN/bin:$PATH"
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-openwrt-linux-musl-gcc
 export CC_aarch64_unknown_linux_musl=aarch64-openwrt-linux-musl-gcc
@@ -31,6 +31,9 @@ cargo +1.97.1 check --tests --manifest-path "$ROOT/vendor/csqtt/rust-client/Carg
 cargo +1.97.1 build --manifest-path "$ROOT/vendor/csqtt/rust-client/Cargo.toml" --release --locked --target aarch64-unknown-linux-musl
 (cd "$ROOT/captcha-broker" && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o "$ROOT/dist/csqtt-captcha" .)
 CORE="$ROOT/vendor/csqtt/rust-client/target/aarch64-unknown-linux-musl/release/client"
+# SDK make derives its target/host staging paths itself. The compiler's staging
+# directory must not override those make variables.
+unset STAGING_DIR
 cd "$SDK"
 ./scripts/feeds update -a
 ./scripts/feeds install -a

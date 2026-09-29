@@ -1,13 +1,13 @@
 # Rust core checkpoint
 
 Updated: 2026-09-30. Owner: `core_ci_fix` (check live agents before delegation).
-Source integration is complete. Linux Rust CI passed at commit
-`450df529d1435f2be6e63f51d335f70fa97075d4`: **337 tests passed, 7 ignored**
-(result reported by the root agent). Subsequent changes listed below still
-need CI. Live TUN/VK operation has not been verified. Root owns CI,
+Linux Rust CI at `88d8189304b328ba92f888331806eb1a4320ad57`, run36638972094,
+passed **341 tests, 0 failed, 7 ignored**, plus the focused TURN fixture.
+The next run54141e4 core job also passed. ARM64 musl SDK build is still in
+progress; live TUN/VK operation has not been verified. Root owns CI,
 checkpoints and publication.
 
-Latest CI at `18baa7d` compiled the core but reported **339 passed, 1 failed,
+Earlier CI at `18baa7d` compiled the core but reported **339 passed, 1 failed,
 7 ignored**. The failure is
 `turn::integration_tests::authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_copy`:
 the fixture server's UDP receive timed out after 3 seconds, then the client's

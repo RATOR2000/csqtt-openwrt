@@ -1,9 +1,10 @@
 # OpenWrt policy/backend checkpoint
 
 Updated: 2026-09-30. Owner for this session: `backend_validate`.
-Source implementation and host checks passed. Pinned native ucode, generated
-nft/DNS/model comparisons, dnsmasq syntax and initial namespace traffic passed
-in Linux CI at `d10c559`; complete traffic, OpenWrt integration and real router
+Source implementation and host checks passed. The full native policy traffic
+suite passed in Linux CI run `36638972094` at `88d8189`, including pinned ucode,
+generated nft/DNS/model comparisons, dnsmasq syntax and all routing checks.
+Actual group DNS resolution/set insertion, OpenWrt integration and real router
 behavior remain unverified. Root owns commits, CI and SDK packaging.
 
 ## Completed source and review
@@ -43,6 +44,19 @@ behavior remain unverified. Root owns commits, CI and SDK packaging.
   learned domain-set persistence and unassigned clients. Server startup is
   synchronized and ARP/NDP state is flushed after a fixture MAC changes.
   Namespaces have per-process names and all links are created inside them.
+- New `dns-smoke.py` runs actual generated group dnsmasq configs inside the
+  existing test namespaces. Synthetic exact-source upstreams exist on WAN and
+  VPN paths, so unavailable endpoints cannot hide unintended WAN fallback.
+  Unique real port-53 queries check defaults/exceptions, local names, parent/
+  child nftset insertion and resolver behavior through tunnel route up/down.
+  Test PID/config files stay in the runner's temporary output directory.
+- Pinned dnsmasq 2.93 source review confirmed that `domain-needed` rejects plain
+  local names and rebind checks strip private local answers from 127.0.0.1.
+  Compiler removes that option and adds rebind exceptions only for plain/local
+  names; internet rules under the configured local suffix are rejected so they
+  cannot replace local delegation. Native DNS rerun must verify this behavior.
+  Review used the [official source archive](https://thekelleys.org.uk/dnsmasq/dnsmasq-2.93.tar.xz)
+  with the same SHA256 pinned by CI.
 
 ## Exact host checks
 
@@ -67,13 +81,24 @@ behavior remain unverified. Root owns commits, CI and SDK packaging.
   now binds every destination address and uses connected UDP clients to require
   exact reply sources. A host UDP probe confirmed wildcard/exact-bind source
   behavior; latest Python syntax and scoped whitespace checks passed. Complete
-  Linux traffic rerun is pending. Failure-only namespace diagnostics were added.
+  Linux traffic rerun subsequently passed at `88d8189`. Failure-only namespace
+  diagnostics were added.
+- CI `36638972094` at `88d8189`: **native policy job passed**, including healthy
+  simulated csqtt0, down/routing-loss, guarded-source, learned-set reload,
+  maintenance/local access, IPv6/ULA and unassigned-client traffic.
+- After new DNS source/config changes: `node --test tests/policy/*.test.mjs`
+  passed **24/24** (includes root's safe local-domain status test);
+  `node tests/policy/render.mjs .work/policy-render` and scoped
+  `git diff --check` passed. Python syntax passed for `dns-smoke.py` and
+  `network-smoke.py`; an in-memory synthetic DNS A-response roundtrip and
+  truncated-reply checks passed. Actual new resolver/set-insertion traffic
+  remains pending the next Linux CI run.
 
 ## Next concrete checks
 
-1. Root reruns the corrected native namespace smoke in Linux CI. Complete the
-   healthy csqtt0, down/routing-loss, reload and IPv6 traffic checks before
-   claiming the full native suite passed.
+1. Root runs the new group DNS traffic helper in Linux CI. Confirm actual
+   resolver upstream selection, local private answers and nftset insertion;
+   correct failures before claiming DNS behavior is verified.
 2. Build packages through the pinned 25.12.5 SDK and confirm installed fw4,
    procd, UCI and dnsmasq integration on the exact target.
 3. Real GL-MT6000 acceptance still needs server/VK details from the user: mixed

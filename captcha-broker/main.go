@@ -29,6 +29,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode"
 )
 
 type object = map[string]any
@@ -115,6 +116,8 @@ func (b *broker) revokeLocked() {
 	b.current = nil
 }
 func (b *broker) pair() (object, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	r, e := b.core(object{"command": "captcha_get"})
 	if e != nil {
 		return nil, e
@@ -127,8 +130,6 @@ func (b *broker) pair() (object, error) {
 	if e != nil || r["ok"] != true {
 		return nil, errors.New("manual_takeover_failed")
 	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
 	b.revokeLocked()
 	b.current = &job{Challenge: c, Grant: randomToken(), Session: randomToken(), Connections: map[net.Conn]bool{}}
 	q := url.Values{"host": {b.host}, "port": {b.port}, "grant": {b.current.Grant}, "pin": {b.pin}, "id": {c.ID}}
@@ -137,9 +138,9 @@ func (b *broker) pair() (object, error) {
 }
 func (b *broker) cancel() (object, error) {
 	b.mu.Lock()
+	defer b.mu.Unlock()
 	j := b.current
 	b.revokeLocked()
-	b.mu.Unlock()
 	if j == nil {
 		return object{"ok": true}, nil
 	}
@@ -147,13 +148,24 @@ func (b *broker) cancel() (object, error) {
 }
 func (b *broker) cancelExpected(j *job) (object, error) {
 	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.current != j {
-		b.mu.Unlock()
 		return nil, errors.New("stale_challenge")
 	}
 	b.revokeLocked()
-	b.mu.Unlock()
 	return b.core(object{"command": "captcha_cancel", "id": j.Challenge.ID})
+}
+func (b *broker) submitResult(j *job, token string) (object, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.current != j || j.Challenge.Expires <= time.Now().Unix() {
+		return nil, errors.New("stale_challenge")
+	}
+	out, err := b.core(object{"command": "captcha_result", "id": j.Challenge.ID, "token": token})
+	if err == nil && out["ok"] == true {
+		b.revokeLocked()
+	}
+	return out, err
 }
 func (b *broker) authorize(r *http.Request, claim bool) (*job, bool) {
 	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
@@ -212,20 +224,15 @@ func (b *broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 65536))
 		dec.DisallowUnknownFields()
-		if dec.Decode(&v) != nil || v.ID != j.Challenge.ID || len(v.Token) < 1 || len(v.Token) > 16384 || strings.ContainsAny(v.Token, "\r\n\x00") {
+		if dec.Decode(&v) != nil || dec.Decode(&struct{}{}) != io.EOF || v.ID != j.Challenge.ID || len(v.Token) > 16384 || strings.TrimSpace(v.Token) == "" || strings.IndexFunc(v.Token, unicode.IsControl) >= 0 {
 			response(w, 400, object{"error": "invalid_result"})
 			return
 		}
-		out, e := b.core(object{"command": "captcha_result", "id": v.ID, "token": v.Token})
+		out, e := b.submitResult(j, v.Token)
 		if e != nil || out["ok"] != true {
 			response(w, 409, object{"error": "result_rejected"})
 			return
 		}
-		b.mu.Lock()
-		if b.current == j {
-			b.revokeLocked()
-		}
-		b.mu.Unlock()
 		response(w, 200, object{"ok": true})
 		return
 	}

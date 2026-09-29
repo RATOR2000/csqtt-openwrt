@@ -61,6 +61,8 @@ test('settings enforce core capacity, password bytes and valid addresses', () =>
 	for (const value of ['https://example.org:443', 'example.org', 'example.org:0', '999.1.1.1:4', 'a..b:43']) assert.equal(model.validPeer(value), false);
 	for (const value of ['example.org', 'sub.example.org.', '203.0.113.7', '203.0.113.0/24', '0.0.0.0/0']) assert.equal(model.validDestination(value), true);
 	for (const value of ['*.example.org', 'https://example.org', 'example.org/path', '::1', '203.0.113.0/33', 'example.org/24']) assert.equal(model.validDestination(value), false);
+	for (const value of ['printer.lab.lan', 'LAB.LAN.', 'host.lab.lan.']) assert.equal(model.validDestination(value, 'lab.lan'), false);
+	for (const value of ['example.org', '203.0.113.7', '203.0.113.0/24', 'other.lan']) assert.equal(model.validDestination(value, 'lab.lan'), true);
 	assert.equal(model.validMac('02:12:34:56:78:9a'), true);
 	for (const value of ['ff:ff:ff:ff:ff:ff', '00:00:00:00:00:00', '01:00:00:00:00:01', '<script>']) assert.equal(model.validMac(value), false);
 });
@@ -180,12 +182,15 @@ test('policy device validator rejects duplicate membership and preserves rule or
 	const entries = { group: [{ '.name': 'home', name: 'Дом' }], device: [{ '.name': 'a', mac: '02:12:34:56:78:9A', group: 'home' }, { '.name': 'b', mac: '02:12:34:56:78:9B', group: 'home' }] };
 	const uci = { sections: (_package, type) => entries[type] || [] };
 	const view = load('view/csqtt/policies.js', { view: extend, E, L, ui, form, uci, model, api: {} });
-	await view.render([null, { devices: [{ name: '<img onerror=evil>', mac: '02:12:34:56:78:9A', ip: '192.168.1.3' }] }]);
+	await view.render([null, { devices: [{ name: '<img onerror=evil>', mac: '02:12:34:56:78:9A', ip: '192.168.1.3' }] }, { local_domain: 'lab.lan' }]);
 	const devices = view.map.sections.find(s => s.type === 'device');
 	const mac = devices.options.find(o => o.key === 'mac');
 	assert.notEqual(mac.validate('b', '02:12:34:56:78:9a'), true);
 	assert.equal(mac.validate('b', '02:12:34:56:78:9b'), true);
 	assert.equal(view.map.sections.find(s => s.type === 'rule').sortable, true);
+	const destination = view.map.sections.find(s => s.type === 'rule').options.find(o => o.key === 'destination');
+	assert.notEqual(destination.validate('r', 'printer.lab.lan'), true);
+	assert.equal(destination.validate('r', 'example.org'), true);
 	await view.map.sections.find(s => s.type === 'group').handleRemove('home');
 	assert.match(text(ui.notifications[0]), /Сначала/);
 });

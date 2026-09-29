@@ -61,6 +61,9 @@ test('managed IPv4 and IPv6 DNS are redirected, each listener checks its own MAC
   assert.match(nft, /th dport 5400-5415 drop/);
   assert.match(nft, /ip saddr 198.18.0.1 oifname != "csqtt0" reject/);
   assert.match(dns[0].config, /server=\/lan\/127.0.0.1/);
+  assert.match(dns[0].config, /rebind-domain-ok=\/lan\//);
+  assert.match(dns[0].config, /rebind-domain-ok=\/\//);
+  assert.doesNotMatch(dns[0].config, /domain-needed/);
   assert.match(dns[0].config, /no-resolv/);
 });
 
@@ -100,6 +103,19 @@ test('IPv4 prefixes are canonical before being emitted to nftables', () => {
   assert.equal(out.model.rules[2].value, '203.0.113.0/24');
   assert.deepEqual([...out.model.locals], ['192.168.1.0/24']);
   assert.ok(out.nft.includes('ip daddr 203.0.113.0/24'));
+});
+
+test('local DNS suffix stays delegated and cannot be replaced by internet rules', () => {
+  for (const [localDomain, destination] of [['lan', 'printer.lan'], ['Home.Example', 'home.example'], ['Home.Example', 'printer.home.example']]) {
+    const data = input(); data.local_domain = localDomain; data.rules[0].destination = destination;
+    assert.throws(() => compile(data), /Local DNS domains/);
+  }
+  const data = input(); data.local_domain = 'Home.Example';
+  assert.equal(compile(data).model.local_domain, 'home.example');
+  for (const localDomain of ['-lan', 'lan-', 'bad..lan', 'lan\nserver=8.8.8.8']) {
+    data.local_domain = localDomain;
+    assert.throws(() => compile(data), /local DNS domain/);
+  }
 });
 
 test('duplicate membership, unknown groups, rule IDs and resource excess are rejected', () => {
