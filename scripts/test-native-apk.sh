@@ -76,8 +76,9 @@ make_fixture() {
 }
 make_fixture csqtt-native-old old --info provides:csqtt-native-dns=1.0-r1
 make_fixture csqtt-native-dependency dependency
-make_fixture csqtt-native-full full --info provides:csqtt-native-dns=1.0-r1 --info depends:csqtt-native-dependency=1.0-r1
+make_fixture csqtt-native-full full --info provides:csqtt-native-dns=1.0-r1 --info 'depends:csqtt-native-dependency=1.0-r1 !csqtt-native-old'
 make_fixture csqtt-native-app app --info depends:csqtt-native-full=1.0-r1
+make_fixture csqtt-native-broken app --info depends:csqtt-native-missing=1.0-r1
 tools_apk --sign-key "$TMP/signing.pem" mkndx --output "$TMP/repo/packages.adb" --pkgname-spec '${name}-${version}.apk' "$TMP/repo/"*.apk
 cp "$TMP/repo/csqtt-native-app-1.0-r1.apk" "$TMP/app.apk"
 cp "$TMP/repo/csqtt-native-old-1.0-r1.apk" "$TMP/original-dns.apk"
@@ -132,6 +133,7 @@ prepare_root "$BASE"
 root_apk "$BASE" add --initdb "$TMP/original-dns.apk" > "$TMP/base-install.txt" 2>&1
 cp "$BASE/etc/apk/world" "$TMP/original-world"
 root_apk "$BASE" query --installed --fields name,version,status --format json > "$TMP/baseline.json"
+if root_apk "$BASE" add --simulate "$TMP/repo/csqtt-native-broken-1.0-r1.apk" > "$TMP/missing-dependency.txt" 2>&1; then die 'An unsatisfied dependency was accepted.'; fi
 if root_apk "$BASE" add --simulate "$TMP/app.apk" csqtt-native-full > "$TMP/conflict.txt" 2>&1; then die 'DNS provider conflict was not detected.'; fi
 cmp "$BASE/etc/apk/world" "$TMP/original-world"
 STAGE="$TMP/stage"
@@ -150,6 +152,11 @@ cmp "$TMP/baseline.json" "$TMP/baseline-after-stage.json"
 kill "$SERVER_PID"
 wait "$SERVER_PID" 2>/dev/null || true
 SERVER_PID=
+MISSING_CACHE="$TMP/missing-cache"
+mkdir -p "$MISSING_CACHE"
+cp -aL "$BASE/." "$MISSING_CACHE/"
+root_apk "$MISSING_CACHE" --no-network del csqtt-native-old > "$TMP/missing-cache.txt" 2>&1
+if root_apk "$MISSING_CACHE" --no-network add --simulate "$TMP/app.apk" csqtt-native-full >> "$TMP/missing-cache.txt" 2>&1; then die 'An incomplete dependency cache was accepted offline.'; fi
 OFFLINE="$TMP/offline"
 mkdir -p "$OFFLINE"
 cp -aL "$BASE/." "$OFFLINE/"

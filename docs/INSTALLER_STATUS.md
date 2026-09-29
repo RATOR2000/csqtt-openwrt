@@ -68,3 +68,29 @@ Next: exercise real signed SDK
 APKs with native APK 3.0.5 in disposable OpenWrt roots before publishing an
 installer command. Live GL-MT6000 testing still requires connection details
 and task scope. Power loss or SIGKILL cannot run shell rollback traps.
+
+## Prepared native APK check
+
+`scripts/test-native-apk.sh /absolute/sdk/staging_dir/host/bin/apk /absolute/dist`
+is intended to run as root in the isolated Linux CI job. All APK commands have
+an explicit disposable --root, and all installation/removal commands disable
+package scripts. It creates an ephemeral P-256 key, signs copies of all three
+compiled SDK APKs, verifies the correct key, rejects a wrong key, and checks
+that the original build artifacts were unchanged. Private fixture keys are
+removed on success and failure; they are never printed or committed.
+
+Native mkpkg/mkndx fixtures use versioned DNS providers, an explicit
+!csqtt-native-old conflict in the full provider's dependencies, and an
+application with a transitive dependency. Checks cover missing dependencies,
+conflict rejection before DNS removal, isolated stage/predownload, dependency
+remaining outside world roots, relative key/cache paths, unchanged baseline,
+missing offline cache rejection, network-free installation after stopping the
+loopback-only repository server, disabled script status, and exact original
+DNS/world restoration. Unsigned and byte-tampered APKs must also be rejected.
+
+Syntax was read from the pinned APK 3.0.5 mkpkg/adbsign/mkndx/package manual
+sources and app_mkpkg.c. Git bundled sh -n passed for the prepared runner;
+scoped git diff --check passed. **The native runner has not been executed.**
+Root owns the CI/build-sdk hookup. The SDK host binary uses the OpenSSL backend;
+passing this runner will still leave the stock router's mbedTLS APK backend,
+real CSQTT package scripts and live router rollback unverified.

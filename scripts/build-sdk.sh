@@ -7,6 +7,10 @@ SDK_SHA=ff4a38a397caa2cfe1c39e18f84ddede14878221b3593c3f2c4cfe24e3ec4c25
 SDK_URL="https://downloads.openwrt.org/releases/$SDK_VERSION/targets/mediatek/filogic/$SDK_NAME.tar.zst"
 WORK=${CSQTT_BUILD_DIR:-"$ROOT/.work/sdk"}
 mkdir -p "$WORK" "$ROOT/dist"
+# Remove only previous outputs of this build; a later failed build cannot leave
+# an old manifest/signature looking like its new result.
+rm -f "$ROOT"/dist/csqtt-*.apk "$ROOT"/dist/luci-app-csqtt-*.apk \
+    "$ROOT/dist/manifest.json" "$ROOT/dist/manifest.sig" "$ROOT/dist/SHA256SUMS"
 if [[ ! -d "$WORK/$SDK_NAME" ]]; then
     curl --fail --location --retry 3 "$SDK_URL" -o "$WORK/sdk.tar.zst"
     printf '%s  %s\n' "$SDK_SHA" "$WORK/sdk.tar.zst" | sha256sum -c -
@@ -31,7 +35,7 @@ cd "$SDK"
 ./scripts/feeds update -a
 ./scripts/feeds install -a
 mkdir -p package/csqtt-local
-cp -R "$ROOT/openwrt/"* package/csqtt-local/
+rsync -a --delete "$ROOT/openwrt/" package/csqtt-local/
 cat >> .config <<'EOF'
 CONFIG_PACKAGE_csqtt=m
 CONFIG_PACKAGE_csqtt-captcha=m
@@ -46,6 +50,7 @@ make defconfig
 make package/csqtt-local/csqtt/compile package/csqtt-local/csqtt-captcha/compile package/csqtt-local/luci-app-csqtt/compile -j2 V=s \
     CSQTT_BINARY="$CORE" CSQTT_CAPTCHA_BINARY="$ROOT/dist/csqtt-captcha"
 find bin -type f \( -name 'csqtt-*.apk' -o -name 'luci-app-csqtt-*.apk' \) -exec cp '{}' "$ROOT/dist/" ';'
+sudo sh "$ROOT/scripts/test-native-apk.sh" "$SDK/staging_dir/host/bin/apk" "$ROOT/dist"
 if [[ -n "${CSQTT_SIGNING_KEY:-}" ]]; then
     umask 077
     KEYFILE=$(mktemp)

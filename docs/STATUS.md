@@ -14,7 +14,7 @@ tests and save later corrections in another small checkpoint.
 
 - Public: https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR: https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Last confirmed remote: d10c559943326cd2f0e4c7dd7c585ebccaec0173.
+- Last confirmed remote: 88d8189304b328ba92f888331806eb1a4320ad57.
   Actual Git HEAD/status are authority for subsequent changes.
 - Local push lacks authentication; GitHub connector tree/commit/ref APIs work.
   scripts/export-github-tree.py exports committed delta to .work/publish-delta.
@@ -100,7 +100,11 @@ tests and save later corrections in another small checkpoint.
   compiler set explicitly. Cargo caches/per-job CI scheduling added.
 - Installer final local checks cover27 isolated scenarios across6 test methods;
   upgrade restarts installed core/CAPTCHA versions. Real native APK signature,
-  staging/cache checks are being prepared by installer_validate in a new script.
+  staging/cache checks are implemented in scripts/test-native-apk.sh and now
+  hooked after SDK compilation, before project signing. Native execution pending.
+- CI36638972094 at88d8189 is the current run for musl and network fixture fixes.
+  Inspect its current jobs before claiming success. Later SDK script edits add
+  native APK checks and remove stale manifests/packages from repeated builds.
 - Native complete traffic suite, latest Rust/musl source, SDK packages, signed installation,
   real router/VK/CAPTCHA have not passed yet.
 
