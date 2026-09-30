@@ -33,7 +33,7 @@ return view.extend({
 				if (!Array.isArray(values)) values = [values];
 				return model.callLink(values[slot]);
 			};
-			call.validate = function(id, value) { return (!value && slot !== 0) || model.validCallLink(value) || 'Вставьте полную ссылку вида https://vk.com/call/join/…'; };
+			call.validate = function(id, value) { return (!value && slot !== 0) || model.validCallLink(value) || 'Вставьте полную ссылку вида https://vk.com/call/join/… или https://vk.ru/call/join/…'; };
 			// Only the existing list belongs in UCI; the six fields are a view of it.
 			call.write = slot === 0 ? function(id) { return uci.set('csqtt', id, 'vk_hashes', self.callValues(id).map(model.normalizeHash)); } : function() {};
 			call.remove = function() {};
@@ -63,10 +63,12 @@ return view.extend({
 		o = s.taboption('advanced', form.Value, 'captcha_timeout_secs', 'Время ожидания CAPTCHA, с');
 		o.default = '180'; o.datatype = 'range(30,600)'; o.rmempty = false;
 		o = s.taboption('advanced', form.DynamicList, 'lan_device', 'Локальные интерфейсы', 'Политики применяются только к устройствам за этими интерфейсами.');
-		o.default = ['br-lan']; o.rmempty = false;
+		o.default = ['br-lan']; o.rmempty = false; this.lanOption = o;
 		o.validate = function(id, value) {
+			// DynamicList also validates its empty input for adding the next item.
+			if (value === '') return true;
 			var list = Array.isArray(value) ? value : [value];
-			return list.every(function(v) { return /^[a-zA-Z0-9_.:-]{1,15}$/.test(v) && v !== 'csqtt0' && v !== 'lo'; }) || 'Укажите локальный интерфейс, например br-lan.';
+			return list.length > 0 && list.every(function(v) { return /^[a-zA-Z0-9_.:-]{1,15}$/.test(v) && v !== 'csqtt0' && v !== 'lo'; }) || 'Укажите локальный интерфейс, например br-lan.';
 		};
 		o = s.taboption('advanced', form.Value, 'vpn_dns', 'DNS для запросов через VPN', 'Запросы VPN-групп проходят через туннель; при обрыве прямого резервного DNS нет.');
 		o.datatype = 'ip4addr'; o.default = '1.1.1.1'; o.rmempty = false;
@@ -97,6 +99,11 @@ return view.extend({
 		return this.callOptions.map(function(option) { return String(option.formvalue(id) || '').trim(); }).filter(function(value) { return value !== ''; });
 	},
 	handleSave: function(ev) {
+		var lan = this.lanOption.formvalue('main');
+		if (!Array.isArray(lan) || this.lanOption.validate('main', lan) !== true) {
+			ui.addNotification(null, E('p', {}, 'Добавьте локальный интерфейс, например br-lan.'), 'error');
+			return Promise.reject(new Error('Некорректные локальные интерфейсы.'));
+		}
 		var links = this.callValues('main'), values = links.map(model.normalizeHash), workers = Number(this.workersOption.formvalue('main'));
 		if (!links.every(model.validCallLink) || !model.validHashes(values)) {
 			ui.addNotification(null, E('p', {}, 'Добавьте от одной до шести разных полных ссылок на звонки VK.'), 'error');

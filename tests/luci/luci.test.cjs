@@ -166,6 +166,7 @@ test('saving settings rejects over-capacity workers and duplicate hashes before 
 	const ui = uiStub(), form = formStub(), uci = { load: async () => {}, set() {} };
 	const view = load('view/csqtt/settings.js', { view: extend, E, L, ui, form, uci, model });
 	await view.render();
+	view.lanOption.current = ['br-lan'];
 	view.callOptions[0].current = model.callLink(hash); view.workersOption.current = '36';
 	await assert.rejects(view.handleSave());
 	assert.equal(view.map.saves, 0);
@@ -175,6 +176,19 @@ test('saving settings rejects over-capacity workers and duplicate hashes before 
 	view.callOptions[1].current = model.callLink(hash2); view.workersOption.current = '54';
 	await view.handleSave();
 	assert.equal(view.map.saves, 1);
+});
+
+test('LAN DynamicList accepts an empty add field but requires valid saved interfaces', async () => {
+	const view = load('view/csqtt/settings.js', { view: extend, E, L, ui: uiStub(), form: formStub(), uci: {}, model });
+	await view.render();
+	assert.equal(view.lanOption.validate('main', ''), true);
+	assert.equal(view.lanOption.validate('main', ['br-lan']), true);
+	for (const value of [[], ['lo'], ['csqtt0'], ['bad interface']]) {
+		assert.notEqual(view.lanOption.validate('main', value), true);
+		view.lanOption.current = value;
+		await assert.rejects(view.handleSave(), /локальные интерфейсы/);
+	}
+	assert.equal(view.map.saves, 0);
 });
 
 test('six separate call fields display full links and save compatible hashes', async () => {

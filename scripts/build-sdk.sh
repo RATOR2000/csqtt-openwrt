@@ -72,7 +72,10 @@ run_logged defconfig make defconfig
 # Cached dependencies may stay compiled; our three packages must always use
 # this checkout's source and newly built binaries.
 run_logged package-clean make package/csqtt-local/csqtt/clean package/csqtt-local/csqtt-captcha/clean package/csqtt-local/luci-app-csqtt/clean CSQTT_PACKAGE_RELEASE="$PACKAGE_RELEASE"
-find bin -type f \( -name 'csqtt-[0-9]*.apk' -o -name 'csqtt-captcha-[0-9]*.apk' -o -name 'luci-app-csqtt-[0-9]*.apk' \) -delete
+# A fresh SDK has no package output directory until its first compile.
+if [[ -d bin ]]; then
+    find bin -type f \( -name 'csqtt-[0-9]*.apk' -o -name 'csqtt-captcha-[0-9]*.apk' -o -name 'luci-app-csqtt-[0-9]*.apk' \) -delete
+fi
 # LuCI depends on both other local packages. One leaf target compiles all three
 # once; separate top-level targets repeat SDK dependency/kernel compilation.
 run_logged packages make package/csqtt-local/luci-app-csqtt/compile -j2 V=s \
