@@ -6,7 +6,7 @@ Actual files/Git/CI are authority.
 
 ## First unfinished action
 
-Publish/re-run the native APK query correction after CI36683192758 ataa5b35f,
+CI36685991129 at19b1e7c re-runs the native APK query correction after CI36683192758 ataa5b35f,
 SDK job109783468912. Checks/core/Android/native-policy passed. SDK compiled
 all three packages; required payloads/modes/dependencies/license, strict
 signatures/wrong-key, stripped ARM64 smoke and real Linux TUN lifecycle passed.
@@ -34,8 +34,9 @@ Do not repeat passed Rust/Android work or completed installer doubles.
 - Go1.26.8 already in .work/tools/go/bin; Node/Python available. No local Rust,
   WSL or Docker. Pristine .work/upstream exists. Do not reinstall/reclone.
 - Private signing key .work/signing/release.pem is ignored; never print/commit.
-  Public release/csqtt-public.pem is embedded in installer. Actions secret
-  CSQTT_SIGNING_KEY not configured. See BUILD.md.
+  Public release/csqtt-public.pem is embedded in installer. User confirmed
+  Actions secret was added as secret1 on2026-09-30. Workflows now accept it as
+  fallback to CSQTT_SIGNING_KEY. Actual pinned-key signing still needs CI proof.
 
 ## Settled scope
 
@@ -149,11 +150,11 @@ scripts/test-arm64-tun.py for isolated real Linux TUN lifecycle under QEMU;
 root integrated it into SDK/CI. All three stopped edits. Root owns broker,
 SDK/CI/release, top-level docs and Git. No previous process may be assumed alive.
 
-1. Publish the native query correction and inspect its next SDK job. Signing
-   secret requested from user; GitHub form shown and local private-file tab
-   queued for them. No key value read or sent by agent. Await explicit user
-   'готово' before treating Actions secret as configured. Native rollback
-   proof still pending. Do not redo corrected d762 query failure.
+1. Publish the secret1 workflow alias and inspect its signed SDK job. The user
+   configured secret1; the preceding CI started with the old secret name and
+   may be cancelled once the signed replacement is queued. No key value read
+   or sent by agent. Native rollback and real project-key signatures pending.
+   Do not redo corrected d762 query failure.
 2. Confirm three APK packages and helper artifact; inspect package contents,
    executable permissions, dependencies, UCI/procd/fw4/control contracts.
 3. Configure signing secret and validate signed preview only after builds pass.

@@ -18,7 +18,7 @@ jobs:
         id: release
         env:
           RELEASE_TAG: ${{ inputs.tag }}
-          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY }}
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
         run: |
           python3 - <<'PY'
           import os, re

@@ -159,7 +159,7 @@ jobs:
       - name: Native OpenWrt packages
         id: packages
         env:
-          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY }}
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
           CSQTT_PACKAGE_RELEASE: ${{ inputs.package_release || '1' }}
         run: bash scripts/build-sdk.sh
       - uses: actions/cache/save@v4
