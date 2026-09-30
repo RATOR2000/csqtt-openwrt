@@ -13,8 +13,13 @@ Installer checks both configured architecture values now. Realistic double
 reproduced old failure for first/repeat installs before the fix; all6 methods /
 30 scenarios passed after it in119.069s, including missing/wrong architecture
 rejections without changes. sh -n, node --check and git diff --check passed.
-New asset install-openwrt25.sh publication is pending; signed packages and tag
-remain unchanged. Successful router install and VK connection remain unverified.
+Fix source bb2df3a00096238338560ebe4a9014270a979029 is pushed. Additional asset
+install-openwrt25.sh is public, 13963bytes, SHA256
+d59b2f6fa4df904ec3fe116f0aa0ac3370ea58991bfb889eff713ec1e1af856a.
+Public download matches source exactly; release API confirms all9 asset sizes /
+digests and original8 unchanged. Notes point to new command; old install.sh asset
+retains its old guard. Signed packages/manifest/tag unchanged; no full CI rebuild.
+Successful router install and VK connection remain unverified; owner retry next.
 
 Authoritative latest result: CI36719698753 at eb461d9, SDK job109901822944,
 passed the complete native APK suite: strict/negative signatures, payload

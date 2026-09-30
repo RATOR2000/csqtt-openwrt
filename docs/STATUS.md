@@ -9,9 +9,19 @@ authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-Publish corrected installer as additional preview.1 asset `install-openwrt25.sh`
-and update release command, then ask owner to retry manually in Termius.
-Source fix and full installer harness pass locally; asset publication is pending.
+Owner retries installation manually in Termius using corrected preview.1 asset
+`install-openwrt25.sh`, then sends terminal result. Exact command in BUILD.md.
+Architecture fix **bb2df3a00096238338560ebe4a9014270a979029**, tree
+3e9006ff67cf65230ebda5b29088c8f517d293ba, committed/pushed on development branch.
+Additional asset and updated release notes are public and verified:
+13963bytes, SHA256 d59b2f6fa4df904ec3fe116f0aa0ac3370ea58991bfb889eff713ec1e1af856a.
+Release API confirms nine assets, all sizes/digests match local bytes, eight
+original assets unchanged, new public download matches tested source exactly.
+Release description matches prepared text (ignoring surrounding whitespace).
+Tag still eb461d9. .work/preview.1/provenance.json records fix separately with
+published/public_download_verified true. Browser shows fix heading/Assets11
+(two source archives); release tab left open. Original install.sh asset retains
+the old guard; use the additional asset. No deletion, tag move or package rebuild.
 Owner manually ran original release installer: `Unsupported package architecture`
 before temporary files/package/config changes. Read-only owner output confirms:
 `apk --print-arch` = aarch64; `/etc/apk/arch` and DISTRIB_ARCH = aarch64_cortex-a53.
