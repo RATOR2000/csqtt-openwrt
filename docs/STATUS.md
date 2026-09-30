@@ -27,6 +27,10 @@ afterfix `python tests/installer/installer_test.py` all6 methods/30scenarios pas
 in117.224s. Both install.sh/test-native-apk.sh sh -n, Node --check, diff check pass.
 Native suite adds isolated empty-index failure/direct-fetch success, signature/
 byte equality and unchanged state. Linux execution of this new check is pending.
+Focused CI36729783098 atd0d4057 (same tree as65ee35e) built pinnedAPK3.0.5;
+published manifest/hashes, native payload, ARM64/TUN passed. New direct-fetch
+check failed; its isolated diagnostics were not printed. Added only fresh-fetch
+diagnostic output on failure; rerun next to resolve real behavior before publishing.
 preview_review owns ONLY .github/workflows/installer-smoke.yml creation: pinned
 native APK build plus existing published binaries/native tests, no SDK/Rust/Android
 rebuild or release private key. Root owns installer/tests/docs/publish. Recheck agents.

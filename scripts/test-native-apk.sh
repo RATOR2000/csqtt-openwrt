@@ -212,7 +212,10 @@ fetch_original() {
     "$APK" --root "$FETCH_ROOT" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --repositories-file "$FETCH_ROOT/etc/apk/repositories" "$@" fetch --output "$TMP/fetched" csqtt-native-old=1.0-r1
 }
 if fetch_original > "$TMP/fresh-fetch.txt" 2>&1; then die 'An empty index cache unexpectedly satisfied a read-only fetch.'; fi
-fetch_original --no-cache >> "$TMP/fresh-fetch.txt" 2>&1 || die 'Direct signed-index fetch failed; inspect fresh-fetch.txt.'
+if ! fetch_original --no-cache >> "$TMP/fresh-fetch.txt" 2>&1; then
+    cat "$TMP/fresh-fetch.txt" >&2
+    die 'Direct signed-index fetch failed.'
+fi
 tools_apk verify "$TMP/fetched/csqtt-native-old-1.0-r1.apk" >/dev/null
 cmp "$TMP/fetched/csqtt-native-old-1.0-r1.apk" "$TMP/original-dns.apk"
 [ ! -e "$FETCH_ROOT/etc/apk/world" ] && [ ! -e "$FETCH_ROOT/lib/apk/db/installed" ] || die 'Read-only fetch changed package state.'
