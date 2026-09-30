@@ -7,7 +7,14 @@ Actual files/Git/CI are authority.
 ## First unfinished action
 
 Inspect SDK/native APK results in CI36679945450 at defa7f0c, job109773381996,
-then the next CI checkpoint (record its SHA/run after publishing).
+then CI36682022994 at587e1d7, SDK job109779735578. Its checks/core/Android/
+native-policy jobs passed; SDK waits for the preceding job. This run adds the
+real Linux TUN lifecycle check on the extracted packaged binary.
+New local SDK compile optimization is about to publish: one LuCI leaf target
+builds all three packages through DEPENDS, avoiding three separate SDK
+submakes/kernel builds. Record its CI SHA/run after publication; prefer it
+over the superseded queued job. The current long SDK job may be cancelled
+once the replacement is queued; no complete native transaction result yet.
 Native DNS/policy (including IPv6 DNS transport), checks, Rust and Android
 passed there. CI36677864570 at d7627c3d compiled all three packages and passed
 raw ARM64 QEMU plus strict SDK signatures/wrong-key rejection, then failed on
@@ -19,7 +26,7 @@ Do not repeat passed Rust/Android work or completed installer doubles.
 
 - Public https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Development branch codex/csqtt-openwrt. Last confirmed remote defa7f0c6845c38ff0cfca2313a2d83b5a7520d0; inspect HEAD for later commits.
+- Development branch codex/csqtt-openwrt. Last confirmed remote587e1d78935320c1aae0df17dbbcb8765d8d513b; inspect HEAD for later commits.
 - Local push lacks auth; GitHub connector tree/commit/ref APIs work.
   scripts/export-github-tree.py exports committed delta to .work/publish-delta.
   Publish with manifest base_tree/parent, fetch, compare tree hashes and align.
@@ -117,6 +124,14 @@ Do not repeat passed Rust/Android work or completed installer doubles.
   tag-specific preview install and workflow_dispatch's default-branch condition.
   Four shell blocks/Python AST/diff checks passed; actual signed draft awaits
   signing secret and a verified tagged source on main. No new access token.
+- SDK compilation now requests only the LuCI leaf; all three own packages are
+  still cleaned and both binaries/revision supplied. Official v25.12.5 source
+  (package-metadata.pl, package/Makefile, subdir.mk and toplevel.mk) confirms
+  runtime DEPENDS generate compile prerequisites and each explicit SDK goal
+  invokes a separate submake. Historical b30 log showed three kernel builds
+  of429/417/413seconds and repeated core/CAPTCHA compilation. Local portable
+  sh syntax/diff checks passed; the attempted bundled bash path was absent.
+  Actual three-artifact proof is required from the next SDK job.
 
 ## Ownership and next sequence
 
@@ -129,8 +144,8 @@ scripts/test-arm64-tun.py for isolated real Linux TUN lifecycle under QEMU;
 root integrated it into SDK/CI. All three stopped edits. Root owns broker,
 SDK/CI/release, top-level docs and Git. No previous process may be assumed alive.
 
-1. Publish latest TUN lifecycle/preview workflow checkpoint and resolve fresh
-   SDK/APK failures. Do not redo corrected d762 query failure.
+1. Inspect the two recorded SDK jobs and resolve fresh APK/TUN failures.
+   Source checkpoint is published; do not redo corrected d762 query failure.
 2. Confirm three APK packages and helper artifact; inspect package contents,
    executable permissions, dependencies, UCI/procd/fw4/control contracts.
 3. Configure signing secret and validate signed preview only after builds pass.
