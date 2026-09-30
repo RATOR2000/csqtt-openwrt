@@ -4,7 +4,8 @@ Updated 2026-09-30. Signed experimental **v0.1.0-preview.1 published**:
 https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.1
 All five CI jobs passed; release bytes/signatures verified. First real router
 attempt stopped at architecture preflight; second stopped at DNS backup fetch.
-Both installer fixes are published; corrected DNS retry and VPN acceptance pending.
+Corrected installer succeeded on the router; runtime/UI fixes are deployed.
+Signed preview2 build and real VK/policy acceptance are pending.
 Read this, then IMPLEMENTATION.md. Files/Git/CI are
 authority; historical component notes do not override this checkpoint.
 
@@ -58,7 +59,16 @@ ID differs from clientmain). Root runtimefix restored deviceRPC; both fixeslive.
 Agent reports native-runtime stdinrealucode pass + shell/Python syntax; no agent
 routerwrites. preview_review/runtime_release_plan work complete; recheck liveness.
 
-Next build: .github/workflows/preview-build.yml thin push wrapper on
+Corrected source/dev checkpoint **6ee2bad410a0d02293ef09e71e0cf8be884ef738**,
+tree **56a82c4c423b1c7a9cb80eb4484bd125411675e4**, local/remote aligned before
+this docs checkpoint. **Preview2 run36757684228 dispatched**, exact buildSHA
+**ed15182e51f45b9335ccea96b049496002ae97ce** (same tree), branch
+codex/preview.2-build. First jobs success: native-policy110031973942 and
+checks110031974856. Android110031974509/core110031974649/SDK110032580125 running
+at last check. Ignored .work/preview.2/ci-status.py BUILD_SHA writesci.json and
+prints compact statuses. Fetch completed logs for failures, don't repeat unchanged
+polls or rebuild. Artifact/signature/revision checks remain before publication.
+Build: .github/workflows/preview-build.yml thin push wrapper on
 codex/preview.2-build calls existing reusableCI once with package_release2,
 secretsinherit. Source/dev checkpoints skipCI; triggerwrapper commit without
 skipmarker. After all5 jobs pass, tag EXACT testedSHA v0.1.0-preview.2 and publish
