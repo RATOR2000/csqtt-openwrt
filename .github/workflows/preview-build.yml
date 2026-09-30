@@ -1,0 +1,155 @@
+name: Preview 2 build
+on:
+  push:
+    branches: [codex/preview.2-build]
+permissions:
+  contents: read
+  actions: read
+env:
+  PREVIOUS_RUN_ID: '36757684228'
+  PREVIOUS_COMMIT: ed15182e51f45b9335ccea96b049496002ae97ce
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm unchanged components retain prior validation
+        run: |
+          git fetch --no-tags --depth=1 origin "$PREVIOUS_COMMIT"
+          git diff --exit-code "$PREVIOUS_COMMIT" HEAD -- \
+            vendor/csqtt/rust-client captcha-broker android-helper \
+            openwrt/csqtt/files tests/policy scripts/test-native-policy.sh \
+            .github/workflows/ci.yml install.sh tests/installer
+      - name: Authenticate prior successful checks and Android artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = { owner: context.repo.owner, repo: context.repo.repo };
+            const run_id = Number(process.env.PREVIOUS_RUN_ID);
+            const { data: run } = await github.rest.actions.getWorkflowRun({ ...repo, run_id });
+            if (run.head_sha !== process.env.PREVIOUS_COMMIT || run.status !== 'completed')
+              throw new Error('Prior validation commit or completion mismatch');
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,
+              { ...repo, run_id, filter: 'latest', per_page: 100 });
+            for (const name of ['build / core', 'build / android', 'build / native-policy', 'build / checks']) {
+              if (!jobs.some(job => job.name === name && job.conclusion === 'success'))
+                throw new Error('Required prior validation did not pass: ' + name);
+            }
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts,
+              { ...repo, run_id, per_page: 100 });
+            const artifact = artifacts.find(item => item.name === 'android-helper-debug');
+            if (!artifact || artifact.expired || artifact.id !== 11117296798 ||
+                artifact.digest !== 'sha256:899fbb70a9f373b0fb1e7394690f321fae81f1518aeae834aa4cc0f9de0810a3')
+              throw new Error('Prior Android artifact provenance mismatch');
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Updated policy, LuCI and release tests
+        run: |
+          node --test tests/policy/*.test.* tests/luci/*.test.* tests/release/*.test.cjs
+          python3 tests/release/release_test.py
+          bash -n scripts/build-sdk.sh
+          sh -n scripts/test-native-apk.sh
+          sh -n install.sh
+  openwrt:
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-openwrt
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Require release signing configuration
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: node scripts/check-signing-key.cjs --required
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-helper-debug
+          run-id: ${{ env.PREVIOUS_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: dist/android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-helper-debug
+          path: dist/android/*.apk
+          if-no-files-found: error
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.8'
+          cache: false
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang cmake ninja-build gawk gettext git iproute2 kmod libncurses-dev libssl-dev python3 python3-setuptools qemu-user rsync swig unzip zlib1g-dev file wget zstd
+          sudo modprobe tun
+          test -c /dev/net/tun
+          rustup toolchain install 1.97.1 --profile minimal
+      - uses: actions/cache/restore@v4
+        id: sdk-cache
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            vendor/csqtt/rust-client/target
+          key: cargo-musl-${{ runner.os }}-1.97.1-openwrt25.12.5-${{ hashFiles('vendor/csqtt/rust-client/Cargo.lock') }}
+      - uses: actions/cache/restore@v4
+        id: sdk-dependencies
+        with:
+          path: .work/sdk/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64
+          key: sdk-dependencies-${{ runner.os }}-25.12.5-filogic-v1
+      - name: Native OpenWrt packages
+        id: packages
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+          CSQTT_PACKAGE_RELEASE: '2'
+        run: bash scripts/build-sdk.sh
+      - uses: actions/cache/save@v4
+        if: always() && steps.sdk-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            vendor/csqtt/rust-client/target
+          key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
+      - uses: actions/cache/save@v4
+        if: always() && steps.packages.outputs.sdk_ready == 'true' && steps.sdk-dependencies.outputs.cache-hit != 'true'
+        with:
+          path: .work/sdk/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64
+          key: ${{ steps.sdk-dependencies.outputs.cache-primary-key }}
+      - name: Compress SDK diagnostics
+        if: always()
+        run: |
+          for log in .work/sdk/*.log; do
+            [ ! -f "$log" ] || gzip -f "$log"
+          done
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: sdk-build-diagnostics
+          path: .work/sdk/*.log.gz
+      - name: Require signed revision 2 artifacts
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          root = pathlib.Path('dist')
+          expected = {'csqtt-0.1.0-r2.apk', 'csqtt-captcha-0.1.0-r2.apk', 'luci-app-csqtt-0.1.0-r2.apk'}
+          assert {p.name for p in root.glob('*.apk')} == expected, 'Unexpected package revisions'
+          manifest = json.loads((root / 'manifest.json').read_text())
+          assert {p['name'] for p in manifest['packages']} == expected, 'Unexpected manifest revisions'
+          PY
+          openssl dgst -sha256 -verify release/csqtt-public.pem -signature dist/manifest.sig dist/manifest.json
+          python3 scripts/verify-release.py dist
+          (cd dist && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-25.12.5-aarch64-cortex-a53
+          path: |
+            dist/*.apk
+            dist/manifest.json
+            dist/manifest.sig
+            dist/SHA256SUMS
+          if-no-files-found: error
