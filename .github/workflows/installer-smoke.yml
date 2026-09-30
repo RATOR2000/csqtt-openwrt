@@ -12,8 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install native test dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential curl git iproute2 kmod libssl-dev lua5.3 meson ninja-build openssl pkg-config python3 qemu-user wget zlib1g-dev
+          sudo timeout 180 apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+          sudo timeout 300 apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y build-essential curl git iproute2 kmod libssl-dev lua5.3 meson ninja-build openssl pkg-config python3 qemu-user wget zlib1g-dev
       - name: Build pinned APK 3.0.5
         env:
           VERSION: '3.0.5'
@@ -23,7 +23,10 @@ jobs:
           COMMIT=b5a31c0d865342ad80be10d68f1bb3d3ad9b0866
           git init "$SOURCE"
           git -C "$SOURCE" remote add origin https://github.com/alpinelinux/apk-tools.git
-          git -C "$SOURCE" fetch --depth=1 origin "$COMMIT"
+          for ATTEMPT in 1 2; do
+            if timeout 120 git -C "$SOURCE" fetch --depth=1 origin "$COMMIT"; then break; fi
+            test "$ATTEMPT" -lt 2 || exit 1
+          done
           git -C "$SOURCE" checkout --detach FETCH_HEAD
           test "$(git -C "$SOURCE" rev-parse HEAD)" = "$COMMIT"
           meson setup "$BUILD" "$SOURCE" \
@@ -38,7 +41,7 @@ jobs:
           BASE=https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.1
           mkdir -p "$PACKAGES"
           for ASSET in csqtt-0.1.0-r1.apk csqtt-captcha-0.1.0-r1.apk luci-app-csqtt-0.1.0-r1.apk manifest.json manifest.sig SHA256SUMS; do
-            curl --fail --location --retry 3 "$BASE/$ASSET" --output "$PACKAGES/$ASSET"
+            curl --fail --location --connect-timeout 15 --max-time 90 --retry 2 --retry-delay 2 --retry-max-time 180 "$BASE/$ASSET" --output "$PACKAGES/$ASSET"
           done
           openssl dgst -sha256 -verify release/csqtt-public.pem -signature "$PACKAGES/manifest.sig" "$PACKAGES/manifest.json"
           python3 scripts/verify-release.py "$PACKAGES"

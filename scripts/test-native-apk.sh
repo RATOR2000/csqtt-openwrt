@@ -134,16 +134,32 @@ make_fixture() {
     name=$1
     payload=$2
     shift 2
-    tools_apk --compression none --sign-key "$TMP/signing.pem" mkpkg --output "$TMP/repo/$name-1.0-r1.apk" --files "$TMP/payloads/$payload" --info "name:$name" --info version:1.0-r1 --info arch:aarch64_cortex-a53 --info license:MIT --info 'description:isolated native APK fixture' --script "post-install:$TMP/post-install" "$@"
-    tools_apk verify "$TMP/repo/$name-1.0-r1.apk" >/dev/null
+    unsigned=0
+    if [ "${1:-}" = --unsigned ]; then
+        [ "$name" = csqtt-native-old ] || die 'Only the original DNS fixture may be unsigned.'
+        unsigned=1
+        shift
+        set -- mkpkg "$@"
+    else
+        set -- --sign-key "$TMP/signing.pem" mkpkg "$@"
+    fi
+    tools_apk --compression none "$@" --output "$TMP/repo/$name-1.0-r1.apk" --files "$TMP/payloads/$payload" --info "name:$name" --info version:1.0-r1 --info arch:aarch64_cortex-a53 --info license:MIT --info 'description:isolated native APK fixture' --script "post-install:$TMP/post-install"
+    if [ "$unsigned" = 1 ]; then
+        if tools_apk verify "$TMP/repo/$name-1.0-r1.apk" > "$TMP/original-unsigned.txt" 2>&1; then die 'The original DNS fixture unexpectedly has a trusted standalone signature.'; fi
+    else
+        tools_apk verify "$TMP/repo/$name-1.0-r1.apk" >/dev/null
+    fi
 }
-make_fixture csqtt-native-old old --info provides:csqtt-native-dns=1.0-r1
+make_fixture csqtt-native-old old --unsigned --info provides:csqtt-native-dns=1.0-r1
 make_fixture csqtt-native-dependency dependency
 make_fixture csqtt-native-full full --info provides:csqtt-native-dns=1.0-r1 --info 'depends:csqtt-native-dependency=1.0-r1 !csqtt-native-old'
 make_fixture csqtt-native-app app --info depends:csqtt-native-full=1.0-r1
 make_fixture csqtt-native-broken app --info depends:csqtt-native-missing=1.0-r1
-tools_apk --sign-key "$TMP/signing.pem" mkndx --output "$TMP/repo/packages.adb" --pkgname-spec '${name}-${version}.apk' "$TMP/repo/"*.apk
+# Index creation accepts only these locally generated inputs. Verification and
+# every installation below require trust, including the unsigned DNS package.
+tools_apk --allow-untrusted --sign-key "$TMP/signing.pem" mkndx --output "$TMP/repo/packages.adb" --pkgname-spec '${name}-${version}.apk' "$TMP/repo/"*.apk
 tools_apk verify "$TMP/repo/packages.adb" >/dev/null
+if "$APK" --root "$TOOLS" --keys-dir etc/apk/wrong-keys verify "$TMP/repo/packages.adb" > "$TMP/wrong-index.txt" 2>&1; then die 'The repository index was accepted with the wrong key.'; fi
 cp "$TMP/repo/csqtt-native-app-1.0-r1.apk" "$TMP/app.apk"
 cp "$TMP/repo/csqtt-native-old-1.0-r1.apk" "$TMP/original-dns.apk"
 cp "$TMP/app.apk" "$TMP/unsigned.apk"
@@ -197,14 +213,20 @@ root_apk() {
     case "$root" in "$TMP/"*) ;; *) die 'APK root escaped the disposable directory.' ;; esac
     "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-scripts "$@"
 }
+root_read_apk() {
+    root=$1
+    shift
+    case "$root" in "$TMP/"*) ;; *) die 'Read-only APK root escaped the disposable directory.' ;; esac
+    "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk "$@"
+}
 root_query() {
     root=$1
     case "$root" in "$TMP/"*) ;; *) die 'Query root escaped the disposable directory.' ;; esac
     # Unlike info, query requires a selection term; no arguments return [].
     "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network query --installed --all-matches --fields name,version,status --format json '*'
 }
-# A fresh router can have no cached index. Unlike add, fetch does not refresh
-# it automatically; exercise the installer's explicit direct-index read.
+# OpenWrt signs its index rather than individual DNS APKs. Cache the signed
+# index and its authenticated package identity before any DNS replacement.
 FETCH_ROOT="$TMP/fetch-root"
 prepare_root "$FETCH_ROOT"
 mkdir -p "$TMP/fetched"
@@ -214,25 +236,41 @@ fetch_original() {
     shift 2
     "$APK" --root "$FETCH_ROOT" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --repositories-file "$FETCH_ROOT/etc/apk/repositories" fetch "$@" --output "$fetch_output" "csqtt-native-old=$fetch_version"
 }
-if fetch_original 1.0-r1 "$TMP/fetched" > "$TMP/fresh-fetch.txt" 2>&1; then die 'An empty index cache unexpectedly satisfied a read-only fetch.'; fi
+# An unconstrained name distinguishes a missing index from the separate
+# name=version matching bug in the ordinary APK 3.0.5 query.
+if root_read_apk "$FETCH_ROOT" fetch --output "$TMP/fetched" csqtt-native-old > "$TMP/fresh-fetch.txt" 2>&1; then die 'An empty index cache unexpectedly satisfied a read-only fetch.'; fi
 # APK 3.0.5's ordinary query compares name with the entire name=version term.
 if fetch_original 1.0-r1 "$TMP/fetched" --no-cache >> "$TMP/fresh-fetch.txt" 2>&1; then die 'The pinned ordinary name=version query unexpectedly matched.'; fi
-if ! fetch_original 1.0-r1 "$TMP/fetched" --no-cache --recursive >> "$TMP/fresh-fetch.txt" 2>&1; then
+if ! root_read_apk "$FETCH_ROOT" update >> "$TMP/fresh-fetch.txt" 2>&1; then
     cat "$TMP/fresh-fetch.txt" >&2
-    die 'Direct signed-index fetch failed.'
+    die 'Signed-index cache update failed.'
 fi
-tools_apk verify "$TMP/fetched/csqtt-native-old-1.0-r1.apk" >/dev/null
-cmp "$TMP/fetched/csqtt-native-old-1.0-r1.apk" "$TMP/original-dns.apk"
+if ! fetch_original 1.0-r1 "$FETCH_ROOT/var/cache/apk" --recursive --pkgname-spec '${name}-${version}.${hash:8}.apk' >> "$TMP/fresh-fetch.txt" 2>&1; then
+    cat "$TMP/fresh-fetch.txt" >&2
+    die 'Unsigned DNS fetch through the signed index failed.'
+fi
+set -- "$FETCH_ROOT/var/cache/apk"/csqtt-native-old-1.0-r1.*.apk
+[ "$#" -eq 1 ] && [ -f "$1" ] || die 'The exact original DNS package is missing from the fresh cache.'
+ORIGINAL_CACHE_NAME=${1##*/}
+cmp "$1" "$TMP/original-dns.apk"
+if tools_apk verify "$1" > "$TMP/fetched-unsigned.txt" 2>&1; then die 'Standalone verification unexpectedly authenticated the unsigned DNS cache.'; fi
 # fetch ignores solver failure in its exit status. The installer also requires
 # an exact file in its fresh rollback directory; no download means rejection.
 mkdir -p "$TMP/missing-version"
-fetch_original 9.0-r1 "$TMP/missing-version" --no-cache --recursive >> "$TMP/fresh-fetch.txt" 2>&1 || true
+fetch_original 9.0-r1 "$TMP/missing-version" --recursive >> "$TMP/fresh-fetch.txt" 2>&1 || true
 [ -z "$(find "$TMP/missing-version" -type f -name '*.apk' -print)" ] || die 'An unavailable exact version was replaced by a different version.'
 [ ! -e "$FETCH_ROOT/etc/apk/world" ] && [ ! -e "$FETCH_ROOT/lib/apk/db/installed" ] || die 'Read-only fetch changed package state.'
-echo 'native APK: fresh signed-index exact-version fetch passed; ordinary selection and unavailable version rejected; package/state verified.'
+WRONG_INDEX="$TMP/wrong-index-root"
+prepare_root "$WRONG_INDEX"
+cp "$TOOLS/etc/apk/wrong-keys/fixture.pem" "$WRONG_INDEX/etc/apk/keys/fixture.pem"
+root_read_apk "$WRONG_INDEX" update > "$TMP/wrong-index-update.txt" 2>&1 || true
+if root_apk "$WRONG_INDEX" --no-network add --initdb csqtt-native-old=1.0-r1 >> "$TMP/wrong-index-update.txt" 2>&1; then die 'An unsigned DNS package was installed through an untrusted index.'; fi
+
+echo 'native APK: unsigned original DNS fetched through a signed index; wrong index key, ordinary selection and unavailable version rejected.'
 BASE="$TMP/base"
 prepare_root "$BASE"
-root_apk "$BASE" add --initdb "$TMP/original-dns.apk" > "$TMP/base-install.txt" 2>&1
+cp -a "$FETCH_ROOT/var/cache/apk/." "$BASE/var/cache/apk/"
+root_apk "$BASE" --no-network --cache-predownload add --initdb csqtt-native-old > "$TMP/base-install.txt" 2>&1
 cp "$BASE/etc/apk/world" "$TMP/original-world"
 root_query "$BASE" > "$TMP/baseline.json"
 python3 - "$TMP/baseline.json" <<'NATIVE_APK_BASELINE'
@@ -240,6 +278,51 @@ import json, pathlib, sys
 packages = json.loads(pathlib.Path(sys.argv[1]).read_text())
 assert packages == [{'name': 'csqtt-native-old', 'version': '1.0-r1', 'status': ['installed']}], packages
 NATIVE_APK_BASELINE
+ROLLBACK_CACHE="$TMP/rollback-cache"
+mkdir -p "$ROLLBACK_CACHE"
+cp -aL "$BASE/var/cache/apk/." "$ROLLBACK_CACHE/"
+RESTORE_PROOF="$TMP/restore-proof"
+mkdir -p "$RESTORE_PROOF"
+cp -aL "$BASE/." "$RESTORE_PROOF/"
+root_apk "$RESTORE_PROOF" --no-network del csqtt-native-old > "$TMP/restore-proof.txt" 2>&1
+cp -aL "$ROLLBACK_CACHE/." "$RESTORE_PROOF/var/cache/apk/"
+if ! root_apk "$RESTORE_PROOF" --no-network add csqtt-native-old=1.0-r1 >> "$TMP/restore-proof.txt" 2>&1; then
+    cat "$TMP/restore-proof.txt" >&2
+    die 'The unsigned original DNS package could not be restored offline before replacement.'
+fi
+root_query "$RESTORE_PROOF" > "$TMP/restore-proof-installed.json"
+cmp "$TMP/baseline.json" "$TMP/restore-proof-installed.json"
+# Restore the original unpinned world only after the exact-version add succeeds.
+cp "$TMP/original-world" "$RESTORE_PROOF/etc/apk/world"
+cmp "$TMP/original-world" "$RESTORE_PROOF/etc/apk/world"
+cmp "$TMP/payloads/old/usr/share/csqtt-native-test/dns.txt" "$RESTORE_PROOF/usr/share/csqtt-native-test/dns.txt"
+echo 'native APK: unsigned original DNS restored offline by exact version before replacement; installed state, payload and original world verified.'
+# Verify both the unsigned package metadata identity and its payload hashes.
+# Only disposable guard roots change; the installed BASE state stays intact.
+for KIND in metadata payload; do
+    GUARDED="$TMP/guard-$KIND"
+    mkdir -p "$GUARDED"
+    cp -aL "$BASE/." "$GUARDED/"
+    root_apk "$GUARDED" --no-network del csqtt-native-old > "$TMP/guard-$KIND.txt" 2>&1
+    cp -aL "$ROLLBACK_CACHE/." "$GUARDED/var/cache/apk/"
+    python3 - "$GUARDED/var/cache/apk/$ORIGINAL_CACHE_NAME" "$KIND" <<'NATIVE_APK_UNSIGNED_TAMPER'
+import pathlib, sys
+path, kind = pathlib.Path(sys.argv[1]), sys.argv[2]
+data = path.read_bytes()
+original = b'isolated native APK fixture' if kind == 'metadata' else b'original DNS fixture\n'
+changed = b'Isolated native APK fixture' if kind == 'metadata' else b'Original DNS fixture\n'
+assert data.startswith(b'ADB.') and data.count(original) == 1, 'Unexpected unsigned DNS fixture format'
+path.write_bytes(data.replace(original, changed, 1))
+NATIVE_APK_UNSIGNED_TAMPER
+    if root_apk "$GUARDED" --no-network add csqtt-native-old=1.0-r1 >> "$TMP/guard-$KIND.txt" 2>&1; then
+        cat "$TMP/guard-$KIND.txt" >&2
+        die 'A changed unsigned DNS package was accepted against the signed index.'
+    fi
+done
+root_query "$BASE" > "$TMP/baseline-after-guards.json"
+cmp "$TMP/baseline.json" "$TMP/baseline-after-guards.json"
+cmp "$TMP/original-world" "$BASE/etc/apk/world"
+echo 'native APK: unsigned DNS metadata and payload corruption rejected before replacement; original installed state and world preserved.'
 # Exercise the installer's read-only preflight command against the real CLI.
 "$APK" --root "$BASE" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network info --from installed > "$TMP/installed-names.txt"
 [ "$(cat "$TMP/installed-names.txt")" = csqtt-native-old ] || die 'Installed-package name query differs from installer assumptions.'
@@ -283,10 +366,12 @@ assert all(item['version'] == '1.0-r1' for item in packages), packages
 assert all(item.get('status') == ['installed'] for item in packages), packages
 NATIVE_APK_ASSERT
 root_apk "$OFFLINE" --no-network del csqtt-native-app csqtt-native-full >> "$TMP/offline.txt" 2>&1
-root_apk "$OFFLINE" --no-network add "$TMP/original-dns.apk" >> "$TMP/offline.txt" 2>&1
+root_apk "$OFFLINE" --cache-dir "$ROLLBACK_CACHE" --no-network add csqtt-native-old=1.0-r1 >> "$TMP/offline.txt" 2>&1
 root_query "$OFFLINE" > "$TMP/rollback-installed.json"
 cmp "$TMP/baseline.json" "$TMP/rollback-installed.json"
+cp "$TMP/original-world" "$OFFLINE/etc/apk/world"
 cmp "$TMP/original-world" "$OFFLINE/etc/apk/world"
+cmp "$TMP/payloads/old/usr/share/csqtt-native-test/dns.txt" "$OFFLINE/usr/share/csqtt-native-test/dns.txt"
 [ -z "$(find "$TMP" -name native-script-ran -print)" ] || die 'A package script executed despite no-scripts.'
 rm -f "$TMP/signing.pem" "$TMP/wrong-signing.pem"
-echo 'native APK: three SDK package signatures verified; wrong-key, unsigned and tampered APKs rejected; isolated DNS conflict/replacement, staged dependency cache, offline install and exact rollback passed.'
+echo 'native APK: three SDK package signatures verified; unsigned DNS authenticated through a signed index; isolated DNS conflict/replacement, staged dependency cache, offline install and exact original DNS/world rollback passed.'

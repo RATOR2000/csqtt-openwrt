@@ -126,9 +126,18 @@ class InstallerTest(unittest.TestCase):
                 self.assertEqual(len(live_deletes), 0 if repeat else 1)
                 self.assertEqual(any(call['command'] == 'service:csqtt' and call['args'] == ['restart'] for call in calls), repeat)
                 self.assertTrue(any(call['command'] == 'service:csqtt-captcha' and call['args'] == ['restart'] for call in calls))
+                if not repeat:
+                    restore = next(i for i, call in enumerate(calls) if call['command'] == 'apk' and 'add' in call['args'] and 'dnsmasq=2.91-r2' in call['args'])
+                    mutation = next(i for i, call in enumerate(calls) if call in live_deletes)
+                    self.assertLess(restore, mutation, 'Unsigned DNS must be authenticated by an actual offline restore before live removal')
+                    self.assertIn('--root', calls[restore]['args'])
+                    self.assertIn('--no-network', calls[restore]['args'])
+                    self.assertIn('--no-scripts', calls[restore]['args'])
+                    self.assertNotIn('--simulate', calls[restore]['args'])
+                    self.assertFalse(any(call['command'] == 'apk' and 'verify' in call['args'] and 'dnsmasq-' in call['args'][-1] for call in calls))
 
     def test_preflight_failures_preserve_dns_and_configs(self):
-        for scenario in ['board', 'architecture', 'missing_architecture', 'release_architecture', 'missing_release_architecture', 'space', 'manifest_target', 'filename', 'duplicate', 'download', 'package_signature', 'manifest_signature', 'checksum', 'rollback_cache', 'dependency', 'prefetch', 'remove_other']:
+        for scenario in ['board', 'architecture', 'missing_architecture', 'release_architecture', 'missing_release_architecture', 'space', 'manifest_target', 'filename', 'duplicate', 'download', 'package_signature', 'manifest_signature', 'checksum', 'rollback_cache', 'rollback_index_key', 'rollback_index_missing', 'rollback_index_tamper', 'rollback_cache_tamper', 'rollback_restore', 'restore_changes_version', 'dependency', 'prefetch', 'remove_other']:
             with self.subTest(scenario=scenario):
                 result, calls, installed, backups, _, world, original_world = self.run_installer(scenario)
                 self.assertNotEqual(result.returncode, 0, scenario)
@@ -157,7 +166,11 @@ class InstallerTest(unittest.TestCase):
                 self.assertEqual(world, original_world)
                 self.assertEqual(len(backups), 1)
                 self.assertEqual(len(leftovers), 1)
-                self.assertTrue(any(call['command'] == 'apk' and any(arg.endswith('/rollback/dnsmasq-2.91-r2.apk') or arg.endswith('\\rollback\\dnsmasq-2.91-r2.apk') for arg in call['args']) for call in calls))
+                restores = [call for call in calls if call['command'] == 'apk' and 'add' in call['args'] and 'dnsmasq=2.91-r2' in call['args'] and '--root' not in call['args']]
+                self.assertEqual(len(restores), 1)
+                self.assertIn('--no-network', restores[0]['args'])
+                cache = restores[0]['args'][restores[0]['args'].index('--cache-dir') + 1]
+                self.assertTrue(cache.replace('\\', '/').endswith('/rollback-cache'))
 
     def test_upgrade_transport_restart_failure_retains_full_dns(self):
         result, calls, installed, backups, leftovers, _, _ = self.run_installer('csqtt_restart', repeat=True)
