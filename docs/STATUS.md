@@ -6,18 +6,20 @@ Actual files/Git/CI are authority.
 
 ## First unfinished action
 
-Inspect SDK/native APK results in CI36677864570 at d7627c3d, then finish any
-failed APK mechanics and publish the package-license/usage/audit checkpoint.
-Native DNS/policy, checks and core passed there; Android also passed. SDK is
-still building. CI36640955080 at b30a0b76 compiled all three SDK packages but
-failed in native APK adbsign/verify. SDK staging is now fixed.
+Inspect SDK/native APK results in CI36679945450 at defa7f0c, job109773381996,
+then the next CI checkpoint (record its SHA/run after publishing).
+Native DNS/policy (including IPv6 DNS transport), checks, Rust and Android
+passed there. CI36677864570 at d7627c3d compiled all three packages and passed
+raw ARM64 QEMU plus strict SDK signatures/wrong-key rejection, then failed on
+the already corrected query --no-scripts flag. SDK dependencies cache saved.
+The latest checkpoint includes that correction and extracted-payload audit.
 Do not repeat passed Rust/Android work or completed installer doubles.
 
 ## Saved repository/tooling
 
 - Public https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Development branch codex/csqtt-openwrt. Last confirmed remote d7627c3d9c5949e2788b1b7fbddf8797e3ffc1c1; inspect HEAD for later commits.
+- Development branch codex/csqtt-openwrt. Last confirmed remote defa7f0c6845c38ff0cfca2313a2d83b5a7520d0; inspect HEAD for later commits.
 - Local push lacks auth; GitHub connector tree/commit/ref APIs work.
   scripts/export-github-tree.py exports committed delta to .work/publish-delta.
   Publish with manifest base_tree/parent, fetch, compare tree hashes and align.
@@ -69,7 +71,9 @@ Do not repeat passed Rust/Android work or completed installer doubles.
   build-sdk and native APK runner, Python syntax for DNS/QEMU and diff checks
   passed. CI36677864570 at d7627c3d: native DNS and complete native policy traffic
   passed (exact WAN/VPN resolver path, local names, nftset population, tunnel
-  up/down); QEMU execution and corrected native APK suite await SDK job result.
+  up/down). CI36679945450 also passed the new IPv6 DNS transport cases.
+  d7627c3d passed raw ARM64 Cortex-A53 QEMU config/broker execution; the latest
+  extracted-payload audit and complete native APK transaction suite await SDK.
 - Android13 JVM tests, Kotlin/lintDebug/assembleDebug passed in CI; see
   ANDROID_STATUS. No actual phone/WebView/VK acceptance.
 - Broker latest local go test/go vet passed: pairing/result/cancel serialized;
@@ -100,20 +104,33 @@ Do not repeat passed Rust/Android work or completed installer doubles.
   source ready, actual run pending. APK read commands no longer receive the
   add/del-only no-scripts flag; tightened installer doubles27scenarios passed
   again. Added native info preflight command check. New IPv6 DNS transport
-  cases through LAN/public redirect compiled/wire-checked, await native CI.
+  cases through LAN/public redirect passed CI36679945450.
   Preview.N now produces all three package revisions0.1.0-rN, allowing upgrades;
   revision wiring awaits workflow/SDK verification. See INSTALLER_STATUS.
+- Added isolated real Linux TUN lifecycle for the extracted ARM64 client:
+  private control/status, graceful stop/SIGTERM, SIGKILL TUN removal and stale
+  socket restart. Python syntax and native runner shell syntax passed locally;
+  actual QEMU/kernel execution awaits the next SDK job. CI installs iproute2/
+  kmod and checks /dev/net/tun. No server/VK or OpenWrt boot success is claimed.
+- Preview preflight now requires an existing tag matching GITHUB_SHA before
+  building; release uses --verify-tag and includes install.sh. BUILD documents
+  tag-specific preview install and workflow_dispatch's default-branch condition.
+  Four shell blocks/Python AST/diff checks passed; actual signed draft awaits
+  signing secret and a verified tagged source on main. No new access token.
 
 ## Ownership and next sequence
 
 Check collaboration.list_agents before reuse; previous sessions may end.
-Prior sessions ended. apk_signature_fix completed the signing runner fix and
-the SDK APK extracted-payload audit; runtime_acceptance completed the first-apply
-persistent hold correction and IPv6 DNS checks. Both stopped edits. Root fixed
-the DNS fixture and owns broker,
+apk_signature_fix finished preview tag preflight/verified existing tag
+and install.sh release asset in draft-release.yml/BUILD.md. runtime_acceptance
+completed a focused first-start service/RPC/package contract audit, found no
+new definite blocker and stopped edits. tun_lifecycle finished the new
+scripts/test-arm64-tun.py for isolated real Linux TUN lifecycle under QEMU;
+root integrated it into SDK/CI. All three stopped edits. Root owns broker,
 SDK/CI/release, top-level docs and Git. No previous process may be assumed alive.
 
-1. Publish latest checkpoint and resolve fresh native DNS/SDK/APK failures.
+1. Publish latest TUN lifecycle/preview workflow checkpoint and resolve fresh
+   SDK/APK failures. Do not redo corrected d762 query failure.
 2. Confirm three APK packages and helper artifact; inspect package contents,
    executable permissions, dependencies, UCI/procd/fw4/control contracts.
 3. Configure signing secret and validate signed preview only after builds pass.

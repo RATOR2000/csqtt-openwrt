@@ -1,7 +1,8 @@
 # Android helper checkpoint
 
-Updated: 2026-09-30. Owner: `android_validate` subagent during the current root
-turn; recheck live agents before assigning follow-up work.
+Updated: 2026-09-30. Latest CI36679945450 at defa7f0c passed
+testDebugUnitTest, lintDebug and assembleDebug. Root owns current checkpoints;
+recheck live agents before assigning follow-up work. No actual phone/VK test.
 
 ## Source implementation
 

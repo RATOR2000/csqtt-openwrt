@@ -117,6 +117,7 @@ assert (extracted / 'core/etc/config/csqtt').read_bytes() == (source / 'openwrt/
 print('native APK: required payloads, permissions, architecture, dependencies and upstream license passed.')
 NATIVE_APK_PAYLOAD
 python3 "$ROOT/scripts/test-arm64.py" "$TMP/extracted/core/usr/bin/csqtt-client" "$TMP/extracted/captcha/usr/bin/csqtt-captcha"
+python3 "$ROOT/scripts/test-arm64-tun.py" "$TMP/extracted/core/usr/bin/csqtt-client"
 # These synthetic packages exercise the same conflict, dependency and cache
 # mechanics as the installer. No architecture-specific payload is executed.
 mkdir -p "$TMP/payloads/old/usr/share/csqtt-native-test" "$TMP/payloads/full/usr/share/csqtt-native-test" "$TMP/payloads/dependency/usr/share/csqtt-native-test" "$TMP/payloads/app/usr/share/csqtt-native-test"

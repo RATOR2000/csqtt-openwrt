@@ -64,13 +64,14 @@ Root owns commits, CI and SDK packaging.
   `[2001:db8:2::2]:53` (redirected isolated external DNS fixture) from managed
   clients a/b. A-record answers still use the configured guarded IPv4
   upstreams. Cases cover default/exception routing, local names and simulated
-  tunnel up/down; unique names prevent cached successes. Native CI is pending
-  for these new queries; no AAAA-answer behavior is claimed.
+  tunnel up/down; unique names prevent cached successes. CI36679945450 at
+  defa7f0c passed these IPv4/IPv6 transport checks and the full native policy
+  traffic suite. No AAAA-answer behavior is claimed.
 - Pinned dnsmasq 2.93 source review confirmed that `domain-needed` rejects plain
   local names and rebind checks strip private local answers from 127.0.0.1.
   Compiler removes that option and adds rebind exceptions only for plain/local
   names; internet rules under the configured local suffix are rejected so they
-  cannot replace local delegation. Native DNS rerun must verify this behavior.
+  cannot replace local delegation. Native DNS CI36679945450 verified this behavior.
   Review used the [official source archive](https://thekelleys.org.uk/dnsmasq/dnsmasq-2.93.tar.xz)
   with the same SHA256 pinned by CI.
 

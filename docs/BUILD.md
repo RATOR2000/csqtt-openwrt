@@ -11,8 +11,11 @@ Workflow `Validate and build` проверяет Node/Go, Rust, Android и по�
 Исходники ucode, dnsmasq, upstream CSQTT и SDK закреплены версией или хешем.
 Собранные ARM64-бинарники дополнительно запускаются через QEMU Cortex-A53:
 проверяются отказ от некорректного конфигурационного файла и команда брокера.
-Это проверка исполняемых файлов; подключение к VK и работу TUN подтверждают
-отдельно на роутере. SDK кеширует зависимости, но три пакета проекта каждый
+Извлечённый клиент дополнительно создаёт настоящий Linux TUN в namespace
+без внешней сети: проверяются private control/status, stop, SIGTERM, удаление
+TUN после SIGKILL и запуск после оставшегося socket. Подключение к серверу/VK
+и работу прошивки подтверждают отдельно на роутере. SDK кеширует зависимости,
+но три пакета проекта каждый
 раз очищаются и собираются из текущих исходников. Полные журналы SDK сжимаются
 и сохраняются как диагностика при ошибке.
 
@@ -29,13 +32,48 @@ Workflow `Validate and build` проверяет Node/Go, Rust, Android и по�
 Скрипт сборки проверяет соответствие публичному ключу проекта и подписи всех
 трёх пакетов. Перед сборкой зависимостей ключ удаляется из их окружения.
 
-`Build signed draft release` запускается вручную с тегом вида
-`v0.1.0-preview.1`. Он требует настроенного ключа, выполняет весь CI, проверяет
-подпись manifest и хеши пакетов, затем создаёт черновик предварительного выпуска.
-Этот workflow не публикует стабильную версию.
+`Build signed draft release` запускается вручную с уже существующим тегом вида
+`v0.1.0-preview.1`. Владелец создаёт тег на commit, прошедшем проверки, и
+отправляет его в репозиторий. В следующей схеме замените `N` номером preview,
+а `VERIFIED_COMMIT_SHA` полным хешем проверенного commit:
+
+```sh
+git tag v0.1.0-preview.N VERIFIED_COMMIT_SHA
+git push origin refs/tags/v0.1.0-preview.N
+gh workflow run draft-release.yml --ref v0.1.0-preview.N -f tag=v0.1.0-preview.N
+```
+
+Для первого ручного запуска файл workflow должен быть в default branch
+`main`; там же он должен находиться для появления кнопки **Run workflow**.
+При запуске через интерфейс выберите ref с тем же commit, на который указывает
+тег. [Условия workflow_dispatch](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch).
+
+Preflight проверяет наличие ключа, формат тега и точное совпадение commit тега
+с `GITHUB_SHA` до долгой сборки. Затем workflow выполняет весь CI, проверяет
+подпись manifest и хеши пакетов и создаёт черновик предварительного выпуска
+с `--verify-tag`. Существующий тег позволяет использовать штатный
+`GITHUB_TOKEN`, не создавая им тег на commit с изменёнными workflow.
+[Условия создания release](https://docs.github.com/en/rest/releases/releases#create-a-release).
+
 Номер `N` в `v0.1.0-preview.N` задаёт ревизию всех трёх пакетов `0.1.0-rN`.
 Для следующей сборки увеличивайте его: APK должен видеть более новую версию,
 чтобы обновление действительно заменило установленные файлы.
+
+## Установка опубликованного preview
+
+Проверенного установочного релиза пока нет. После проверки и публикации
+preview его assets будут содержать `install.sh`, три пакета OpenWrt,
+подписанный manifest, контрольные суммы и отладочный APK помощника.
+Для GL-MT6000 с OpenWrt 25.12.5 схема команды от root выглядит так;
+замените оба `N` номером опубликованного preview:
+
+```sh
+uclient-fetch -O /tmp/csqtt-install.sh https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.N/install.sh && sh /tmp/csqtt-install.sh v0.1.0-preview.N
+```
+
+Аргумент тега выбирает assets этого preview. `latest` предназначен для
+полного опубликованного release: GitHub не назначает prerelease или draft
+последним release. [Правила latest](https://docs.github.com/en/rest/releases/releases#create-a-release).
 
 ## Локальная Linux-сборка
 
