@@ -1,15 +1,19 @@
 # Development status — resume here
 
 Updated 2026-09-30. All five CI jobs passed at `19b1e7c`; project-key signing
-is being verified at `8cf1ae4`. No published installable preview and no real
+is being verified at `e430c0b`. No published installable preview and no real
 router/VK acceptance. Read this, then IMPLEMENTATION.md. Files/Git/CI are
 authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-Inspect signed CI run **36686878030**, commit
-`8cf1ae456c504c9a67576f126305d3702781d728`, SDK job **109795114647**.
-Checks, core, native-policy and Android already passed; SDK failed before project-key signing: the tamper fixture sometimes changed only compression padding. The fixture now changes known signed metadata in an uncompressed APK; corrected rerun is next.
+Inspect signed CI run **36714458987**, commit
+`e430c0b29fca41f74412a6128d1c394f75e34934`, SDK job **109884388142**.
+Checks, core, native-policy and Android passed; SDK is compiling packages.
+This includes both the deterministic tamper fixture and runtime diagnostics.
+Previous signed attempt36686878030 at8cf1ae4 failed before signing because
+its tamper fixture sometimes changed only compression padding. The corrected
+fixture uses uncompressed APK and changes a known signed metadata value.
 User added the private release key as Actions secret `secret1`. Both workflows
 accept `CSQTT_SIGNING_KEY || secret1`; no key value was read by the agent.
 Verify project-key signatures/manifest and the complete native APK result.
@@ -35,8 +39,9 @@ Earlier failed/superseded SDK jobs are historical, not work to repeat.
 
 - Public https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Branch `codex/csqtt-openwrt`; last confirmed remote/local `8cf1ae4`, tree
-  `06b0a3734271f2f15bdec6bfc369bd0851dc941b`. Inspect HEAD for later checkpoints.
+- Branch `codex/csqtt-openwrt`; latest tested source under CI `e430c0b`, tree
+  `9dd7286f0f6fd0c35d598e7d100dfc47d3b2302a`. Local/remote aligned. Inspect
+  HEAD for later documentation checkpoints; they do not replace tested SHA.
 - Local push lacks auth. GitHub connector tree/commit/ref APIs work.
   `scripts/export-github-tree.py` exports committed delta to `.work/publish-delta`.
   Publish using manifest base_tree/parent, fetch, compare tree hashes and align.
@@ -105,7 +110,9 @@ tests: six known daemon error codes are now exported safely, and tun.ok
 requires connected state. Focused runtime tests16passed. All subagents ended. No router
 actions. tun_lifecycle finished. Never assume prior sessions/processes alive.
 
-1. Publish corrected tamper fixture plus diagnostics; inspect new signed CI. Run36686878030 failed with Tampered APK accepted after payload/ARM64/TUN passed. Project-key match/signatures were not reached. Secret was present and masked.
+1. Source checkpoint e430c0b published; inspect signed CI36714458987 as above.
+   Project-key match/signatures still pending. Secret presence was masked in
+   the failed predecessor logs; no actual key was read.
 2. Local checks after corrections passed: Node policy/LuCI37/37; portable
    sh -n scripts/test-native-apk.sh; all five embedded Python blocks compiled;
    same-length metadata mutation assertion; git diff --check. Final preview
