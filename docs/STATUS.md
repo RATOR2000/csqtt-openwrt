@@ -54,20 +54,44 @@ binaries; no SDK/Rust/Android rebuild or private signing key. Source checkpoints
 use [skip ci]; to trigger focused run create commit with smokehead parent plus
 newdev additional parent and newdevtree, then update smoke ref. Frozen tag and
 three project APK/manifest remain unchanged. No direct router control/details.
-Root implementation complete; actual staging restore compares the full installed
-name/version set, including other packages. Doubles now model unsigned DNS,
-signed cached index, hashed cache filename, zero-exit/no-file fetch failure and
-pinned world after exact restore. New fault cases cover wrong/missing/changed
-index, corrupted original cache, offline restore failure and unrelated version
-change. Native agent changes reviewed statically; full36-scenario harness running
-in local execsession19530 at this checkpoint (do not assume session persists).
-Bootstrap, first/repeat install, offline failures and all6 live failure rollback
-scenarios passed so far. Final preflight/upgrade tests are still pending.
-Node syntax, shell -n (installer/native), Python AST and diff check passed.
+Implementation complete and pushed: **077a39263ec2188eaaf3f8f53ed9f5dd4af82552**,
+tree **4ec2cec94fef16661a88ad13ec316a26c3aec7c9**. Local/remote aligned.
+Full harness: `python tests/installer/installer_test.py`, **6 methods/36 scenarios
+passed in255.489s**. Node syntax, installer/native shell -n, Python AST and diff
+check passed. Native embedded Python/workflow shell syntax passed by agent.
+Read-only review found no blocker: full installed version set comparison,
+actual extraction through signed index, independent cache snapshot and absolute
+cache-dir all match pinned APK semantics. No real router mutation performed.
+
+New focused smoke SHA **613a90e3c57b3e3700876d6abfe56acb3bb7c18e** is dispatched
+with the exact source tree above, parent682759f plus source077a392. It must pass
+before publication. Run **36737840894**, job **109964115818**, failed in native fixture setup:
+FETCH_ROOT update had no lib/apk/db, so APK could not acquire a DB lock. Native
+APK3.0.5 build, published manifest/hashes, required payload/license, ARM64 smoke
+and TUN lifecycle all passed before this. Production STAGE already clones the
+installed database, so source installer is unchanged. preview_review now owns
+ONLY native fixture correction: initialize an empty DB with no network/scripts;
+snapshot/query empty installed state and world before cache update/fetch;
+initialize wrong-index root too so signature negative cannot pass on missing DB.
+Root owns STATUS/checkpoint/CI. New native run is required; do not publish r2 yet.
+Use ignored dns-fix-ci-status.py with this SHA, then fetch completed logs; do not assume prior tool/process sessions.
+Run only the short APK native suite; signed release binaries/tag stay unchanged.
+Native fixture correction is now implemented: scoped no-network/no-scripts
+empty DB initialization, before/after empty installed-state/world comparison,
+and explicit UNTRUSTED diagnostic required for wrong index key. Installer source
+and its36-scenario checks are unchanged. Recheck future agent liveness; root
+owns next CI result, release asset and docs checkpoint.
+
 Ignored prepare-dns-fix.py now accepts sourceSHA/smokeSHA arguments, requires a
-passing CI, and describes signed-index unsigned-DNS authentication. It has not
-been executed; no r2 asset/provenance publication. verify-dns-fix.py will verify
-all10 assets after upload. Local r2 draft bytes must still be replaced.
+passing CI, and accurately describes signed-index unsigned-DNS authentication.
+install-openwrt25-r2.sh has been copied from git show077a392:install.sh; invoke
+prepare-dns-fix.py only after the native run passes.
+No new r2 asset/provenance publication; verify-dns-fix.py will verify all10 assets
+after upload. Current r2 draft copied from077a392: 16247 bytes; SHA256
+1bf8b9270a973283e51ce21e10364fc1d6a3d1236ce9d69b625fdaf6f9caa9ad. If CI passes, prepare
+notes/provenance, add r2 file in existing preview1 release (no deletion/tagmove),
+update command/body, then verify public new bytes + all existing asset digests,
+checkpoint STATUS/BUILD and give owner the new command to retry manually.
 
 Previous architecture fix (published, now superseded for next retry):
 Architecture fix **bb2df3a00096238338560ebe4a9014270a979029**, tree

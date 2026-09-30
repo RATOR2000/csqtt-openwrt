@@ -229,6 +229,13 @@ root_query() {
 # index and its authenticated package identity before any DNS replacement.
 FETCH_ROOT="$TMP/fetch-root"
 prepare_root "$FETCH_ROOT"
+if ! root_apk "$FETCH_ROOT" --no-network add --initdb > "$TMP/fetch-init.txt" 2>&1; then
+    cat "$TMP/fetch-init.txt" >&2
+    die 'The empty fetch database could not be initialized.'
+fi
+root_query "$FETCH_ROOT" > "$TMP/fetch-installed-before.json"
+python3 -c 'import json, sys; assert json.load(open(sys.argv[1])) == []' "$TMP/fetch-installed-before.json"
+cp "$FETCH_ROOT/etc/apk/world" "$TMP/fetch-world-before"
 mkdir -p "$TMP/fetched"
 fetch_original() {
     fetch_version=$1
@@ -259,12 +266,28 @@ if tools_apk verify "$1" > "$TMP/fetched-unsigned.txt" 2>&1; then die 'Standalon
 mkdir -p "$TMP/missing-version"
 fetch_original 9.0-r1 "$TMP/missing-version" --recursive >> "$TMP/fresh-fetch.txt" 2>&1 || true
 [ -z "$(find "$TMP/missing-version" -type f -name '*.apk' -print)" ] || die 'An unavailable exact version was replaced by a different version.'
-[ ! -e "$FETCH_ROOT/etc/apk/world" ] && [ ! -e "$FETCH_ROOT/lib/apk/db/installed" ] || die 'Read-only fetch changed package state.'
+root_query "$FETCH_ROOT" > "$TMP/fetch-installed-after.json"
+cmp "$TMP/fetch-installed-before.json" "$TMP/fetch-installed-after.json"
+cmp "$TMP/fetch-world-before" "$FETCH_ROOT/etc/apk/world"
 WRONG_INDEX="$TMP/wrong-index-root"
 prepare_root "$WRONG_INDEX"
+if ! root_apk "$WRONG_INDEX" --no-network add --initdb > "$TMP/wrong-index-init.txt" 2>&1; then
+    cat "$TMP/wrong-index-init.txt" >&2
+    die 'The empty wrong-key database could not be initialized.'
+fi
+root_query "$WRONG_INDEX" > "$TMP/wrong-index-installed-before.json"
+cmp "$TMP/fetch-installed-before.json" "$TMP/wrong-index-installed-before.json"
+cp "$WRONG_INDEX/etc/apk/world" "$TMP/wrong-index-world-before"
 cp "$TOOLS/etc/apk/wrong-keys/fixture.pem" "$WRONG_INDEX/etc/apk/keys/fixture.pem"
 root_read_apk "$WRONG_INDEX" update > "$TMP/wrong-index-update.txt" 2>&1 || true
-if root_apk "$WRONG_INDEX" --no-network add --initdb csqtt-native-old=1.0-r1 >> "$TMP/wrong-index-update.txt" 2>&1; then die 'An unsigned DNS package was installed through an untrusted index.'; fi
+if ! grep -q 'UNTRUSTED' "$TMP/wrong-index-update.txt"; then
+    cat "$TMP/wrong-index-update.txt" >&2
+    die 'The wrong-key index was not rejected by its signature.'
+fi
+if root_apk "$WRONG_INDEX" --no-network add csqtt-native-old=1.0-r1 >> "$TMP/wrong-index-update.txt" 2>&1; then die 'An unsigned DNS package was installed through an untrusted index.'; fi
+root_query "$WRONG_INDEX" > "$TMP/wrong-index-installed-after.json"
+cmp "$TMP/wrong-index-installed-before.json" "$TMP/wrong-index-installed-after.json"
+cmp "$TMP/wrong-index-world-before" "$WRONG_INDEX/etc/apk/world"
 
 echo 'native APK: unsigned original DNS fetched through a signed index; wrong index key, ordinary selection and unavailable version rejected.'
 BASE="$TMP/base"
