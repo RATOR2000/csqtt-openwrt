@@ -24,8 +24,13 @@ Private backup /etc/csqtt/backups/20260930-175413-32114. DNS/rpcd/CAPTCHA runnin
 WAN up, local127.0.0.1 DNS resolves example.com, DHCP config compared with backup.
 csqtt status stopped/enabledfalse/groups0/devices0/policiesinactive.
 
-**First unfinished action: real LAN policy traffic acceptance and signed preview2
-rebuild.** Root has authorized LuCI browser2/tab2 at http://192.168.1.1; user
+**First unfinished action: verify/publish signed preview2 assets, then upgrade the
+router through its installer and confirm saved settings and traffic.** SDK build
+36763376001 SUCCESS at exactSHA9e95e812a05480ab458bad49a106cc3866eb2ebf;
+checks110051305537 and SDK110051407012 success. runtime_release_plan owns ignored
+artifact download/verification and preparation; root owns publication/router/docs.
+Recheck liveness. Real IPv4 LAN acceptance completed below. Root has authorized
+LuCI browser2/tab2 at http://192.168.1.1; user
 explicitly authorized provided private server/VK parameters for tests. Those
 values were entered directly in LuCI and remain only on the router/chat; never
 copy them into source, fixtures, STATUS or logs. Reuse router saved settings.
@@ -43,12 +48,27 @@ SSH checked only peer/password booleans and hashcount1. **Real VK connected**:
 csqtt0 tunnel, 9workers; ping-Icsqtt0 3/3, curl HTTPS boundcsqtt0 succeeds and
 exitIP differs from WAN-bound curl. No raw logs/secrets printed.
 Temporary testdevice name Проверка формы, unused MAC02:12:34:56:78:9A, assigned
-to existing groupdisplayname main / IDcfg0246f2; UI Save/Apply succeeded. Status
-groups1/devices1/policiesactive true, policy_error empty, groupDNSrunning and
-localDNShealthy. Owner then added two real entries: devices3; SSH source MAC
-known and management_assigned=false verified without printing MAC/IP. This
-temporary entry must be removed after acceptance. preview_review owns read-only investigation
-of ephemeral virtual LAN test capability; root owns browser/router mutations.
+to existing groupdisplayname main / IDcfg0246f2; UI Save/Apply succeeded. Root
+then tested that same MAC as an ephemeral veth LAN client, benchmark198.19.0.2/30,
+secondarybridge198.19.0.1/30, isolated temporary VPN group and domainWANrule.
+**Real packet checks PASS**: managedDNS+router access; namespace HTTPS VPN exit
+differsWAN; domainapi.ipify.org exception usesWAN; after transport fully stops,
+previously successful directIPping1.1.1.1 blocked, while WANexception and router
+remain available; afterrestart directIPping and VPNHTTPS recover. Scriptexit0,
+trap cleanup PASS. First run failed at an overly immediate stopped-state assertion
+because procd termination is asynchronous; cleanup restored connection. Added
+wait for runningfalse+TUNremoved within20s, second run all checks PASS. This was
+a test timing error, not evidence of a transport stop failure. Script ignored at
+.work/preview.2/router-policy-test.sh; first failure private logs retained at
+/tmp/csqtt-router-probe.NlppNf, do not print rawlogs. `fw4 check`+`fw4 reload` also
+passed with VPNHTTPS/groupDNS/localDNS intact. No real boot/crash/manualCAPTCHA
+or routedIPv6 acceptance: WANIPv6default absent; prior native tests remain separate.
+All temporary namespaces/veth/subnet/group/rule/resolver removed; dummyUCIdevice
+cfg030f15 removed and manageapply passed; added kmod-veth purged. Owner added three
+real devices to main during tests, final groups1/devices3/policiesactive true,
+connected9workers/noerror, groupDNS/localDNShealthy. SSH management MAC checked
+known+unassigned before tests; do not assign it blindly. preview_review completed
+test script/review; root executed and fixed procd timing. No live agent writes.
 runtime_release_plan completed focused preview-build workflow reusing proven
 Android artifact and cargo cache; scripts/build-sdk.sh guard fix done. Recheck agents.
 `node --test tests/policy/*.test.mjs tests/luci/*.test.cjs`: **44/44 PASS**;
@@ -101,8 +121,15 @@ reuses artifact and Cargo/SDK caches, requires signingsecret1 fallback, verifies
 three exact r2 filenames/manifest/signatures/hashes. Prior ARM64 binary was not
 uploaded; SDK builds it incrementally from Cargo cache. Agent workflow syntax,
 SDK step equivalence, source guard, Node46/46 including release2, Pythonrelease4/4
-passed. New focused build must be triggered after source checkpoint; freeze exact
-new testedSHA for preview2. Ignored .work/preview.2/ci-status.py BUILD_SHA writesci.json and
+passed. Updated source checkpoint **f8bc6c865efdcbd96c99e1742f4bbc2fa65a19a4**,
+tree **33e0fe6c32541f2f0a9a7f6a00dfc74839e3dbe0**, pushed/local aligned.
+Focused buildSHA **9e95e812a05480ab458bad49a106cc3866eb2ebf**, same tree;
+run **36763376001 SUCCESS**, checks110051305537 and SDK110051407012 SUCCESS.
+Freeze exact testedSHA for preview2; no extra
+workflow dispatch. Root installed official **kmod-veth6.12.94-r1** on matching
+kernel6.12.94 for ephemeral virtualLAN test; package subsequently purged and all
+test interfaces/subnet/group/device removed after passing acceptance.
+Ignored .work/preview.2/ci-status.py BUILD_SHA writesci.json and
 prints compact statuses. Fetch completed logs for failures, don't repeat unchanged
 polls or rebuild. Artifact/signature/revision checks remain before publication.
 Build: .github/workflows/preview-build.yml thin push wrapper on
