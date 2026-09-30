@@ -3,15 +3,16 @@
 Updated 2026-09-30. Owner: apk_signature_fix subagent; root owns release signing,
 SDK builds, release workflow and repository checkpoints.
 
-Authoritative latest result: CI36717531786 at b21f3dd, SDK job109894580250,
+Authoritative latest result: CI36719698753 at eb461d9, SDK job109901822944,
 passed the complete native APK suite: strict/negative signatures, payload
 audit, packaged ARM64 smoke, real TUN lifecycle, staged dependency cache,
 offline install and exact baseline/world rollback. The query enumeration fix
-is verified. Corrected secret1 passed actual pinned-key preflight. Project
-signing verified the core APK but left CAPTCHA/LuCI unsigned: APK3.0.5 adbsign
-retains signatures_written across its file arguments. build-sdk now calls a
-new process per APK, rejects diagnostics and strictly verifies each. This same
-per-file pattern passed native fixture signing; full project rerun pending.
+is verified. Corrected secret1 passed pinned-key preflight. Per-file signing
+strictly verified all three project APKs and manifest; signed preview.1 published.
+All eight published asset sizes/digests and public installer/manifest downloads
+matched local verified bytes. Real router acceptance is still pending.
+Earlier multi-file failure came from APK3.0.5 adbsign retaining signatures_written;
+new processes, diagnostic rejection and strict per-file verify fix it.
 The prior8cf1ae4 last-byte tamper fixture sometimes changed compression padding;
 uncompressed packages with a known signed description byte fix this. The
 corrected real native suite passed at e430c0b, including exact rollback.

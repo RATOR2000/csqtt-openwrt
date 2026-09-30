@@ -1,16 +1,43 @@
 # Development status — resume here
 
-Updated 2026-09-30. SDK/native validation passed; corrected secret1 is verified
-against the pinned project key. Per-package signing fix awaits CI. No preview or real
-router/VK acceptance. Read this, then IMPLEMENTATION.md. Files/Git/CI are
+Updated 2026-09-30. Signed experimental **v0.1.0-preview.1 published**:
+https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.1
+All five CI jobs passed; release bytes/signatures verified. Real router/VK
+acceptance has not run. Read this, then IMPLEMENTATION.md. Files/Git/CI are
 authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-Inspect **CI36719698753**, source
-**eb461d9c6a57fb5594880348e771b27e19e11251**, SDK **109901822944**.
-Checks/core/native-policy/Android passed; SDK compiling. This is the per-file
-project-signing correction. Do not start a duplicate run.
+First real install/connection test on GL-MT6000. Asked owner whether to run
+commands manually or supply SSH address/port/auth method and live scope.
+Question is pending; no router details/scope and no live changes. Do not infer
+an answer from time passing. Credentials/server/VK values stay private in LuCI.
+Start with wired management outside groups; install preview with exact tag,
+connect without groups, then one test device and WAN exception. See ACCEPTANCE.
+
+Verified **CI36719698753**, source/tag
+**eb461d9c6a57fb5594880348e771b27e19e11251**, SDK **109901822944**:
+all five jobs SUCCESS. Per-file project signing verified all three APKs, then
+manifest signature Verified OK. Native payload/license/modes/dependencies,
+ARM64 Cortex-A53 execution, actual Linux TUN lifecycle, DNS/cache/offline and
+exact rollback all passed. No duplicate rebuild or owner key setup needed.
+Node37, release Node2/Python4, Rust341(+focused TURN), Android13, Go race/vet
+and installer27 scenarios passed. OpenWrt/mbedTLS/package scripts and VK/phone
+remain real-test obligations; do not describe this preview as stable or live-tested.
+
+Published eight assets (three0.1.0-r1APK, manifest.json/.sig, SHA256SUMS,
+install.sh and app-debug.apk). Release API confirmed public prerelease/draftfalse,
+all eight sizes/digests match verified local bytes; public installer/manifest/
+signature downloads match byte-for-byte. Fetched tag points exactly to eb461d9.
+Final ignored files/provenance are in .work/preview.1, verified=true/published=true.
+SDK artifact11100510550, ZIP SHA256
+757f5a04beb24e587e835401bc7b8f385102c48a2c59704dd25fb578b765ea13;
+Android artifact11097333273, ZIP SHA256
+09d27a0e77398f46bed6b935c3c2c9c9126f424ee9861cb03b1a86b02b62cf4e.
+Local Node verified pinned manifest signature; verify-release.py verified exact
+roles/target/sizes/hashes; SHA256SUMS checked. Frozen codex/preview.1 branch is
+at tested source, avoiding a duplicate release workflow build or main merge.
+Source record below describes historical failures; do not repeat those repairs.
 CI36717531786 atb21f3dd, SDK109894580250, passed all native/runtime/transaction
 checks and actual project-key preflight: readable PEM, pinned match and probe
 signature. Actual strict project verification passed core APK, but CAPTCHA/
@@ -122,12 +149,8 @@ verified CI artifacts if provenance/revision/all assets are checked.
 See BUILD.md. Android debug signing is not permanent update identity.
 Unused nft objects can accumulate after repeated edits; no garbage collection.
 
-Prepared ignored files in .work/preview.1: install.sh copied byte-for-byte from
-b21f3dd, draft release-notes.md, provenance.json and android/app-debug.apk.
-Android artifact11096628199 from run36717531786 downloaded; ZIP digest
-50b4b571a58df9cf7711b856b8dadbba02a0023e27258e921163cf8a899d30cb verified.
-Replace staged assets/provenance with final successful run before publication.
-No router APK or signed manifest is staged; provenance verified=false.
+Final files in .work/preview.1 belong to successful run36719698753/sourceeb461d9;
+all signed router assets, installer and helper staged; provenance verified=true.
 For lean preview1, use successful final run's artifacts, verify manifest with
 Node crypto and verify-release.py, then create a frozen codex/preview.1 branch
 at that exact source SHA and use authenticated GitHub UI to create tag/release.
@@ -144,16 +167,15 @@ passed Node37 plus CI. preview_review confirmed deterministic signed metadata
 mutation and early key validator semantics; no edits/secrets/remote changes.
 All agents finished. No router actions. Never assume sessions/processes alive.
 
-1. Inspect CI36719698753/SDK109901822944 with per-file signing. Key is verified; no owner
-   action is needed. Complete all three strict project signatures and manifest.
+1. Real router test choice/details pending; signed preview and all artifact
+   checks complete. No further signing/build setup is needed.
    No agent reads/transmits the key. Signing and installable artifacts pending.
 2. Local checks after corrections passed: Node policy/LuCI37/37; portable
    sh -n scripts/test-native-apk.sh; all five embedded Python blocks compiled;
    same-length metadata mutation assertion; git diff --check. Final preview
    must include both corrections and verified project signatures.
-3. Prepare experimental preview from exact verified source; update PR/docs.
-   Save small checkpoints. Do not call preview stable.
-4. Obtain minimum router connection details/scope after concrete preview is
-   reviewable, then test installation/server, mixed WAN/VPN, crash/stop,
+3. Preview published, PR/docs updated; preserve small checkpoints. Keep stable
+   release gated on actual acceptance.
+4. Obtain test choice/details/scope, then test installation/server, mixed WAN/VPN, crash/stop,
    DNS/IPv6, firewall/boot, existing flows and helper CAPTCHA.
    Keep private data out of chat/logs; record results before stable release.
