@@ -37,6 +37,13 @@ exact constraints through solver; additional downloaded dependencies stay privat
 and are not used as world roots. Native regression checks both old failure modes,
 exact solver download/strict signature/byte equality, missing-version rejection
 and unchanged state. Local full harness/native rerun pending after this second fix.
+Final installer harness all6 methods/30scenarios passed in201.904s (after solver
+flag); no production edits since. CI36730351333 confirmed fresh-index/nonrecursive
+failure. CI36731100060 atffe4fdd downloaded and strictly verified exact1.0-r1,
+then test wrongly expected nonzero exit for absent9.0. APK fetch ignores solver
+failure and exits0 without downloading; production already requires exact file
+in fresh rollback directory and its signature. Native negative now uses a separate
+empty output directory and asserts no APK, matching real behavior. Final rerun next.
 preview_review owns ONLY .github/workflows/installer-smoke.yml creation: pinned
 native APK build plus existing published binaries/native tests, no SDK/Rust/Android
 rebuild or release private key. Root owns installer/tests/docs/publish. Recheck agents.

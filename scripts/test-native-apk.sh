@@ -210,19 +210,24 @@ prepare_root "$FETCH_ROOT"
 mkdir -p "$TMP/fetched"
 fetch_original() {
     fetch_version=$1
-    shift
-    "$APK" --root "$FETCH_ROOT" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --repositories-file "$FETCH_ROOT/etc/apk/repositories" fetch "$@" --output "$TMP/fetched" "csqtt-native-old=$fetch_version"
+    fetch_output=$2
+    shift 2
+    "$APK" --root "$FETCH_ROOT" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --repositories-file "$FETCH_ROOT/etc/apk/repositories" fetch "$@" --output "$fetch_output" "csqtt-native-old=$fetch_version"
 }
-if fetch_original 1.0-r1 > "$TMP/fresh-fetch.txt" 2>&1; then die 'An empty index cache unexpectedly satisfied a read-only fetch.'; fi
+if fetch_original 1.0-r1 "$TMP/fetched" > "$TMP/fresh-fetch.txt" 2>&1; then die 'An empty index cache unexpectedly satisfied a read-only fetch.'; fi
 # APK 3.0.5's ordinary query compares name with the entire name=version term.
-if fetch_original 1.0-r1 --no-cache >> "$TMP/fresh-fetch.txt" 2>&1; then die 'The pinned ordinary name=version query unexpectedly matched.'; fi
-if ! fetch_original 1.0-r1 --no-cache --recursive >> "$TMP/fresh-fetch.txt" 2>&1; then
+if fetch_original 1.0-r1 "$TMP/fetched" --no-cache >> "$TMP/fresh-fetch.txt" 2>&1; then die 'The pinned ordinary name=version query unexpectedly matched.'; fi
+if ! fetch_original 1.0-r1 "$TMP/fetched" --no-cache --recursive >> "$TMP/fresh-fetch.txt" 2>&1; then
     cat "$TMP/fresh-fetch.txt" >&2
     die 'Direct signed-index fetch failed.'
 fi
 tools_apk verify "$TMP/fetched/csqtt-native-old-1.0-r1.apk" >/dev/null
 cmp "$TMP/fetched/csqtt-native-old-1.0-r1.apk" "$TMP/original-dns.apk"
-if fetch_original 9.0-r1 --no-cache --recursive >> "$TMP/fresh-fetch.txt" 2>&1; then die 'An unavailable exact version was replaced by a different version.'; fi
+# fetch ignores solver failure in its exit status. The installer also requires
+# an exact file in its fresh rollback directory; no download means rejection.
+mkdir -p "$TMP/missing-version"
+fetch_original 9.0-r1 "$TMP/missing-version" --no-cache --recursive >> "$TMP/fresh-fetch.txt" 2>&1 || true
+[ -z "$(find "$TMP/missing-version" -type f -name '*.apk' -print)" ] || die 'An unavailable exact version was replaced by a different version.'
 [ ! -e "$FETCH_ROOT/etc/apk/world" ] && [ ! -e "$FETCH_ROOT/lib/apk/db/installed" ] || die 'Read-only fetch changed package state.'
 echo 'native APK: fresh signed-index exact-version fetch passed; ordinary selection and unavailable version rejected; package/state verified.'
 BASE="$TMP/base"
