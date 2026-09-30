@@ -22,11 +22,17 @@ return view.extend({
 			o.renderWidget = function(sectionId, optionIndex, cfgvalue) {
 				var option = this; // GridSection clones options for its add/edit modal.
 				this.keylist = []; this.vallist = [];
-				uci.sections('csqtt', 'group').forEach(function(g) { option.value(g['.name'], E('span', {}, [g.name || g['.name']])); });
+				// Native select options render text, not nested HTML elements.
+				uci.sections('csqtt', 'group').forEach(function(g) { option.value(g['.name'], String(g.name || g['.name'])); });
 				return form.ListValue.prototype.renderWidget.call(this, sectionId, optionIndex, cfgvalue);
 			};
 			o.validate = function(id, value) {
 				return uci.sections('csqtt', 'group').some(function(g) { return g['.name'] === value; }) || 'Сначала добавьте и сохраните группу.';
+			};
+			o.textvalue = function(id) {
+				var value = this.cfgvalue(id);
+				var group = uci.sections('csqtt', 'group').find(function(g) { return g['.name'] === value; });
+				return E('span', {}, [String(group ? group.name || value : value || '—')]);
 			};
 			return o;
 		}

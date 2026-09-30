@@ -59,11 +59,13 @@ test('device and rule modals receive group choices on the cloned option', async 
     const modal = modalClone(parent, form);
     const widget = modal.renderWidget('new-row', 0, null);
     assert.deepEqual(widget.keys, ['cfg000aaa']);
-    assert.deepEqual(widget.labels[0].children, ['main']);
+    assert.equal(widget.labels[0], 'main', 'native select options require a text label');
     assert.deepEqual(parent.keylist, ['cfg000aaa'], 'rendering a modal must not mutate its parent choices');
     assert.notEqual(modal.keylist, parent.keylist);
     assert.equal(modal.validate('new-row', 'cfg000aaa'), true);
     assert.notEqual(modal.validate('new-row', 'main'), true, 'client section main is not a group ID');
+    parent.cfgvalue = () => 'cfg000aaa';
+    assert.deepEqual(parent.textvalue('existing-row').children, ['main']);
   }
 });
 
@@ -76,7 +78,7 @@ test('reopened group selectors include new groups and current display names', as
   entries.push({ '.type': 'group', '.name': 'new001abc', name: 'Работа' });
   const widget = modal.renderWidget('new-row', 0, 'new001abc');
   assert.deepEqual(widget.keys, ['cfg000aaa', 'new001abc']);
-  assert.deepEqual(widget.labels.map(label => label.children[0]), ['Дом', 'Работа']);
+    assert.deepEqual(widget.labels, ['Дом', 'Работа']);
   assert.equal(modal.validate('new-row', 'new001abc'), true);
   entries.splice(1, 1);
   assert.notEqual(modal.validate('new-row', 'cfg000aaa'), true);

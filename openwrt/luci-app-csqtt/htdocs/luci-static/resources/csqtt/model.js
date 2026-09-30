@@ -24,7 +24,7 @@ function validPeer(value) {
 }
 
 function normalizeHash(value) {
-	return String(value || '').trim().replace(/^(?:https?:\/\/)?(?:m\.)?vk\.com\/call\/join\//i, '').replace(/[?#].*$/, '');
+	return String(value || '').trim().replace(/^(?:https?:\/\/)?(?:m\.)?vk\.(?:com|ru)\/call\/join\//i, '').replace(/[?#].*$/, '');
 }
 
 function validHash(value) {
@@ -40,7 +40,7 @@ function validCallLink(value) {
 	if (typeof value !== 'string' || !/^https?:\/\//i.test(value.trim())) return false;
 	try {
 		var url = new URL(value.trim());
-		return !url.username && !url.password && !url.port && /^(?:m\.)?vk\.com$/i.test(url.hostname) &&
+		return !url.username && !url.password && !url.port && /^(?:m\.)?vk\.(?:com|ru)$/i.test(url.hostname) &&
 			/^\/call\/join\/[A-Za-z0-9_-]{16,1024}$/.test(url.pathname) && validHash(normalizeHash(value));
 	} catch (e) { return false; }
 }

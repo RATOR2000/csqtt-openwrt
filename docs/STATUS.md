@@ -4,7 +4,8 @@ Updated 2026-09-30. Signed experimental **v0.1.0-preview.1 published**:
 https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.1
 All five CI jobs passed; release bytes/signatures verified. First real router
 attempt stopped at architecture preflight; second stopped at DNS backup fetch.
-Both installer fixes are published; corrected DNS retry and VPN acceptance pending.
+Corrected installer succeeded; runtime/UI fixes are deployed and real VK connects.
+Signed preview2 rebuild and real LAN policy acceptance are pending.
 Read this, then IMPLEMENTATION.md. Files/Git/CI are
 authority; historical component notes do not override this checkpoint.
 
@@ -23,11 +24,37 @@ Private backup /etc/csqtt/backups/20260930-175413-32114. DNS/rpcd/CAPTCHA runnin
 WAN up, local127.0.0.1 DNS resolves example.com, DHCP config compared with backup.
 csqtt status stopped/enabledfalse/groups0/devices0/policiesinactive.
 
-**First unfinished action:** wait for owner to privately enter server/password/full
-VK links in LuCI and report ready, then test connection without assigning the
-management PC to VPN. A pending async question also asks whether main now appears
-in the device modal after Ctrl+F5. Do not ask for secret values in chat or print
-UCI/runtimeclientJSON. SSH direct scope remains authorized, announce mutations.
+**First unfinished action: real LAN policy traffic acceptance and signed preview2
+rebuild.** Root has authorized LuCI browser2/tab2 at http://192.168.1.1; user
+explicitly authorized provided private server/VK parameters for tests. Those
+values were entered directly in LuCI and remain only on the router/chat; never
+copy them into source, fixtures, STATUS or logs. Reuse router saved settings.
+Actual browser reproduced empty group option: native select contained a nested
+span. Plain string label fixed it; browser now shows main and saves a temporary
+device successfully. Group table now uses an escaped DOM label for displayname;
+latest source deployed, browser table shows main after reload. VK domain was vk.ru, absent
+from allowlist; model now accepts vk.com/m.vk.com/vk.ru/m.vk.ru, keeps rawhash
+protocol and canonical full-link display. Actual save exposed another blocker:
+LAN DynamicList's empty add-item input was incorrectly rejected although br-lan
+already existed. Empty add-input now valid; final saved list must be nonempty
+and valid. Model/settings/policies live patches saved with private backups.
+Real LuCI Android import + fullVKlink Save/Apply succeeded, no invalid fields;
+SSH checked only peer/password booleans and hashcount1. **Real VK connected**:
+csqtt0 tunnel, 9workers; ping-Icsqtt0 3/3, curl HTTPS boundcsqtt0 succeeds and
+exitIP differs from WAN-bound curl. No raw logs/secrets printed.
+Temporary testdevice name Проверка формы, unused MAC02:12:34:56:78:9A, assigned
+to existing groupdisplayname main / IDcfg0246f2; UI Save/Apply succeeded. Status
+groups1/devices1/policiesactive true, policy_error empty, groupDNSrunning and
+localDNShealthy. Owner then added two real entries: devices3; SSH source MAC
+known and management_assigned=false verified without printing MAC/IP. This
+temporary entry must be removed after acceptance. preview_review owns read-only investigation
+of ephemeral virtual LAN test capability; root owns browser/router mutations.
+runtime_release_plan completed focused preview-build workflow reusing proven
+Android artifact and cargo cache; scripts/build-sdk.sh guard fix done. Recheck agents.
+`node --test tests/policy/*.test.mjs tests/luci/*.test.cjs`: **44/44 PASS**;
+git diff--check PASS. Native select proof and real saves supersede earlier
+Node-only UI confidence. Router remains installedr1 with test patches, no new
+signed package yet. Preserve management and announce mutations before action.
 
 Real runtime blocker FIXED: actual ucode85922056-r2 rejected escaped-NUL regex
 and POSIX hash quantifier1024. Explicit ASCII scan and separate length checks
@@ -48,17 +75,37 @@ compatibility internally. Original model/settings/policies files backed up as
 *.preview1 in private install backup, then all3 reviewedJS files deployed over
 SSH. Remote/local SHA256 match all4 patchedfiles. Router remains packageversion
 0.1.0-r1 WITH LOCAL TEST PATCHES, not a newly signed release. These must be included
-in proper signed preview2 packages. Live UI confirmation still pending Ctrl+F5.
+in proper signed preview2 packages. Live UI confirmation FAILED after Ctrl+F5; see first unfinished action.
 
 User couldn't add devices to main: actual GridSection clones formoptions, closure
 filled parent instead of modalclone. policies.js now fills this(optionclone);
 new tests fail beforefix and pass after. Displayname main is valid (anonymousUCI
-ID differs from clientmain). Root runtimefix restored deviceRPC; both fixeslive.
+ID differs from clientmain). Root runtimefix restored deviceRPC; both code fixeslive but actual UI remains failing.
 `node --test tests/policy/*.test.mjs tests/luci/*.test.cjs`: **41/41 PASS**.
 Agent reports native-runtime stdinrealucode pass + shell/Python syntax; no agent
 routerwrites. preview_review/runtime_release_plan work complete; recheck liveness.
 
-Next build: .github/workflows/preview-build.yml thin push wrapper on
+Corrected source/dev checkpoint **6ee2bad410a0d02293ef09e71e0cf8be884ef738**,
+tree **56a82c4c423b1c7a9cb80eb4484bd125411675e4**, local/remote aligned before
+this docs checkpoint. **Preview2 run36757684228 dispatched**, exact buildSHA
+**ed15182e51f45b9335ccea96b049496002ae97ce** (same tree), branch
+codex/preview.2-build. First jobs success: native-policy110031973942 and
+checks110031974856. Android110031974509 and core110031974649 SUCCESS; SDK110032580125
+FAILED before package compilation: clean SDK lacked bin, unconditional find
+exited1. Guard -d bin fixed; original failure reproduced and empty/cached cleanup
+tested. Native APK/signing did NOT run in this failed run. Log .work/preview.2/sdk.log.
+Focused preview-build wrapper now runs updated Node/release checks + SDK only;
+guards unchanged core/broker/Android/native/installer source against ed15182,
+authenticates prior four successjobs and Android artifact11117296798/digest,
+reuses artifact and Cargo/SDK caches, requires signingsecret1 fallback, verifies
+three exact r2 filenames/manifest/signatures/hashes. Prior ARM64 binary was not
+uploaded; SDK builds it incrementally from Cargo cache. Agent workflow syntax,
+SDK step equivalence, source guard, Node46/46 including release2, Pythonrelease4/4
+passed. New focused build must be triggered after source checkpoint; freeze exact
+new testedSHA for preview2. Ignored .work/preview.2/ci-status.py BUILD_SHA writesci.json and
+prints compact statuses. Fetch completed logs for failures, don't repeat unchanged
+polls or rebuild. Artifact/signature/revision checks remain before publication.
+Build: .github/workflows/preview-build.yml thin push wrapper on
 codex/preview.2-build calls existing reusableCI once with package_release2,
 secretsinherit. Source/dev checkpoints skipCI; triggerwrapper commit without
 skipmarker. After all5 jobs pass, tag EXACT testedSHA v0.1.0-preview.2 and publish
