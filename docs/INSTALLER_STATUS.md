@@ -3,6 +3,17 @@
 Updated 2026-09-30. Root owns current architecture fix/tests/publication;
 preview_review completed read-only source verification. Older ownership is historical.
 
+Second router attempt passed architecture, native project signatures, manifest
+and checksums; stopped before DNS replacement at exact rollback fetch. Owner has
+dnsmasq2.93-r1, also available in official25.12.5 base feed, and no local cached APK.
+APK fetch opens read-only and does not fetch a missing index cache; -U alone is
+insufficient. --no-cache reads the signed index directly, retaining exact version
+selection/strict package signature. See [APK database](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/database.c#L1493-L1530).
+Realistic double reproduced identical failure before fix; after fix all6methods/
+30scenarios passed in117.224s. Both shell files, Node syntax and diff check pass.
+New native empty-index/direct-fetch regression and focused Linux job are pending;
+next asset install-openwrt25-r2.sh is not yet published. No exact-version bypass.
+
 First real preview.1 attempt stopped before mutation at the incorrect
 `apk --print-arch` guard. Owner confirmed generic aarch64 from that command,
 but aarch64_cortex-a53 in both /etc/apk/arch and DISTRIB_ARCH. APK's command

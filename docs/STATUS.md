@@ -3,14 +3,37 @@
 Updated 2026-09-30. Signed experimental **v0.1.0-preview.1 published**:
 https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.1
 All five CI jobs passed; release bytes/signatures verified. First real router
-installer attempt stopped at architecture preflight; VPN acceptance is pending.
+attempt stopped at architecture preflight; second stopped at DNS backup fetch.
+VPN acceptance is pending.
 Read this, then IMPLEMENTATION.md. Files/Git/CI are
 authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-Owner retries installation manually in Termius using corrected preview.1 asset
-`install-openwrt25.sh`, then sends terminal result. Exact command in BUILD.md.
+Run focused native APK regression, publish additional corrected preview.1 asset
+`install-openwrt25-r2.sh` and update release command, then owner retries manually.
+Second router attempt used install-openwrt25.sh and passed architecture, all three
+stock APK signature checks, manifest signature and package checksums. It stopped
+before live DNS/config changes: `dnsmasq: unable to select package (or its dependencies)`;
+`The exact original DNS package must be cached before replacement.` Temporary
+diagnostics at /tmp/csqtt-install.gpCMMm. Owner read-only query confirms installed
+dnsmasq-2.93-r1; no matching file under /var/cache/apk. Same2.93-r1 is in official
+25.12.5 base feed. APK3.0.5 fetch opens READ|NO_STATE; missing cached index is not
+downloaded automatically. -U alone does not fix that read-only path. Installer
+uses explicit --no-cache for exact rollback fetch; signed remote indexes and
+strict original APK verify still required. Missing exact version still aborts.
+Realistic command double reproduced identical first-install failure beforefix;
+afterfix `python tests/installer/installer_test.py` all6 methods/30scenarios passed
+in117.224s. Both install.sh/test-native-apk.sh sh -n, Node --check, diff check pass.
+Native suite adds isolated empty-index failure/direct-fetch success, signature/
+byte equality and unchanged state. Linux execution of this new check is pending.
+preview_review owns ONLY .github/workflows/installer-smoke.yml creation: pinned
+native APK build plus existing published binaries/native tests, no SDK/Rust/Android
+rebuild or release private key. Root owns installer/tests/docs/publish. Recheck agents.
+Dedicated codex/installer-smoke branch will trigger this single job; source/tag/
+three signed APK/manifest remain unchanged. No direct router control/SSH details.
+
+Previous architecture fix (published, now superseded for next retry):
 Architecture fix **bb2df3a00096238338560ebe4a9014270a979029**, tree
 3e9006ff67cf65230ebda5b29088c8f517d293ba, committed/pushed on development branch.
 Additional asset and updated release notes are public and verified:

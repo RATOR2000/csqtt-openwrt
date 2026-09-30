@@ -203,6 +203,19 @@ root_query() {
     # Unlike info, query requires a selection term; no arguments return [].
     "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network query --installed --all-matches --fields name,version,status --format json '*'
 }
+# A fresh router can have no cached index. Unlike add, fetch does not refresh
+# it automatically; exercise the installer's explicit direct-index read.
+FETCH_ROOT="$TMP/fetch-root"
+prepare_root "$FETCH_ROOT"
+mkdir -p "$TMP/fetched"
+fetch_original() {
+    "$APK" --root "$FETCH_ROOT" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --repositories-file "$FETCH_ROOT/etc/apk/repositories" "$@" fetch --output "$TMP/fetched" csqtt-native-old=1.0-r1
+}
+if fetch_original > "$TMP/fresh-fetch.txt" 2>&1; then die 'An empty index cache unexpectedly satisfied a read-only fetch.'; fi
+fetch_original --no-cache >> "$TMP/fresh-fetch.txt" 2>&1 || die 'Direct signed-index fetch failed; inspect fresh-fetch.txt.'
+tools_apk verify "$TMP/fetched/csqtt-native-old-1.0-r1.apk" >/dev/null
+cmp "$TMP/fetched/csqtt-native-old-1.0-r1.apk" "$TMP/original-dns.apk"
+[ ! -e "$FETCH_ROOT/etc/apk/world" ] && [ ! -e "$FETCH_ROOT/lib/apk/db/installed" ] || die 'Read-only fetch changed package state.'
 BASE="$TMP/base"
 prepare_root "$BASE"
 root_apk "$BASE" add --initdb "$TMP/original-dns.apk" > "$TMP/base-install.txt" 2>&1
