@@ -1,22 +1,29 @@
 # Development status — resume here
 
-Updated 2026-09-30. All five CI jobs passed at `19b1e7c`; project-key signing
-is being verified at `e430c0b`. No published installable preview and no real
+Updated 2026-09-30. SDK/native validation passed at `e430c0b`; project signing
+awaits CI after the owner corrected secret1. No installable preview or real
 router/VK acceptance. Read this, then IMPLEMENTATION.md. Files/Git/CI are
 authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-Inspect signed CI run **36714458987**, commit
+Owner explicitly confirmed готово, я исправил секрет on2026-09-30. Trigger and inspect the new CI with early key validation. Never read or print the private key; do not ask for correction again unless CI reports a new concrete failure.
+
+Latest CI **36714458987**, commit
 `e430c0b29fca41f74412a6128d1c394f75e34934`, SDK job **109884388142**.
-Checks, core, native-policy and Android passed; SDK is compiling packages.
-This includes both the deterministic tamper fixture and runtime diagnostics.
+Checks, core, native-policy and Android passed. SDK compiled all three packages;
+payload/signature negatives, ARM64/TUN, offline/cache and exact rollback all
+passed. It then failed at openssl pkey: "Could not read key". No project-key
+signature/manifest acceptance and no installable OpenWrt artifact was uploaded.
+This includes tested deterministic tamper fixture and runtime diagnostics.
 Previous signed attempt36686878030 at8cf1ae4 failed before signing because
 its tamper fixture sometimes changed only compression padding. The corrected
 fixture uses uncompressed APK and changes a known signed metadata value.
 User added the private release key as Actions secret `secret1`. Both workflows
 accept `CSQTT_SIGNING_KEY || secret1`; no key value was read by the agent.
-Verify project-key signatures/manifest and the complete native APK result.
+New scripts/check-signing-key.cjs validates PEM, pinned public DER and an actual
+SHA256 signature in memory before expensive SDK work; constant errors only.
+Both CI and draft workflow call it. Two local ephemeral-key/redaction tests, four release CLI tests, Node syntax and diff checks passed. Owner correction confirmed; publish current checkpoint without [skip ci] to trigger CI including preflight. Do not rerun old36714458987, which lacks the early key preflight.
 
 Previous CI **36685991129**, commit `19b1e7c`, completed **all five jobs
 successfully**, including SDK job **109792330330**. It used the old secret
@@ -101,18 +108,29 @@ verified CI artifacts if provenance/revision/all assets are checked.
 See BUILD.md. Android debug signing is not permanent update identity.
 Unused nft objects can accumulate after repeated edits; no garbage collection.
 
+Prepared ignored files in .work/preview.1: install.sh copied byte-for-byte from
+e430c0b, draft release-notes.md, provenance.json and android/app-debug.apk.
+Android artifact11095795820 from run36714458987 was downloaded and its ZIP
+digest ca282d177366d37c52a10c7b8d08d1ee33c9e4f25fa048e93be36df84a7db386 verified.
+No router APK or signed manifest is staged; provenance verified=false.
+For lean preview1, use successful final run's artifacts, verify manifest with
+Node crypto and verify-release.py, then create a frozen codex/preview.1 branch
+at that exact source SHA and use authenticated GitHub UI to create tag/release.
+Connector lacks release/tag/upload APIs. No main merge/full duplicate build
+needed. Current browser form is unsaved/unpublished; do not assume session live.
+Use first tag v0.1.0-preview.1 only with package revision0.1.0-r1; next preview
+requires increased revision through the draft build workflow.
+
 ## Ownership and next sequence
 
-Check `collaboration.list_agents` before reuse. Root owns SDK/signing/release,
-top-level status and Git checkpoints. apk_signature_fix reviews preview path.
-runtime_acceptance left completed runtime.uc diagnostic edits and focused
-tests: six known daemon error codes are now exported safely, and tun.ok
-requires connected state. Focused runtime tests16passed. All subagents ended. No router
-actions. tun_lifecycle finished. Never assume prior sessions/processes alive.
+Check collaboration.list_agents before reuse. Root owns SDK/signing/release,
+status and checkpoints. Prior runtime diagnostic edits were integrated and
+passed Node37 plus CI. preview_review confirmed deterministic signed metadata
+mutation and early key validator semantics; no edits/secrets/remote changes.
+All agents finished. No router actions. Never assume sessions/processes alive.
 
-1. Source checkpoint e430c0b published; inspect signed CI36714458987 as above.
-   Project-key match/signatures still pending. Secret presence was masked in
-   the failed predecessor logs; no actual key was read.
+1. Owner confirmed secret correction. Publish/inspect new CI including early key validation. No further owner action unless actual validation fails.
+   No agent reads/transmits the key. Signing and installable artifacts pending.
 2. Local checks after corrections passed: Node policy/LuCI37/37; portable
    sh -n scripts/test-native-apk.sh; all five embedded Python blocks compiled;
    same-length metadata mutation assertion; git diff --check. Final preview

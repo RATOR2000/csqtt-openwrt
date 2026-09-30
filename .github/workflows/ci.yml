@@ -37,7 +37,9 @@ jobs:
       - name: Installer failure and rollback scenarios
         run: python3 tests/installer/installer_test.py
       - name: Release artifact integrity
-        run: python3 tests/release/release_test.py
+        run: |
+          python3 tests/release/release_test.py
+          node --test tests/release/*.test.cjs
       - name: Shell syntax
         run: |
           bash -n scripts/build-sdk.sh
@@ -132,6 +134,13 @@ jobs:
     needs: checks
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check release signing configuration
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: node scripts/check-signing-key.cjs
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26.8'

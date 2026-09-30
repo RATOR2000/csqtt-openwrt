@@ -3,15 +3,15 @@
 Updated 2026-09-30. Owner: apk_signature_fix subagent; root owns release signing,
 SDK builds, release workflow and repository checkpoints.
 
-Authoritative latest result: CI36685991129 at19b1e7c, SDK job109792330330,
+Authoritative latest result: CI36714458987 at e430c0b, SDK job109884388142,
 passed the complete native APK suite: strict/negative signatures, payload
 audit, packaged ARM64 smoke, real TUN lifecycle, staged dependency cache,
 offline install and exact baseline/world rollback. The query enumeration fix
-is verified. CI36686878030 at8cf1ae4 is checking project-key signing using the
-user-configured secret1 alias, but stopped before signing: the last-byte tamper
-fixture sometimes modified only compression padding. The fixture now uses
-uncompressed packages and alters a known signed description byte, preserving
-offsets/structure. Shell syntax and five Python blocks pass; real rerun pending.
+is verified. Project signing then failed because secret1 is not readable PEM;
+owner correction is pending. New early key validation is locally tested.
+The prior8cf1ae4 last-byte tamper fixture sometimes changed compression padding;
+uncompressed packages with a known signed description byte fix this. The
+corrected real native suite passed at e430c0b, including exact rollback.
 Older pending/failure notes below are history.
 Stock OpenWrt mbedTLS APK, BusyBox ash, package scripts and live DNS rollback
 still require actual router acceptance.

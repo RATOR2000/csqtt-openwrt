@@ -29,6 +29,13 @@ jobs:
               output.write('package_release=' + tag[1] + '\n')
           PY
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate release key before building
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: node scripts/check-signing-key.cjs --required
       - name: Check existing preview tag matches this commit
         env:
           RELEASE_TAG: ${{ inputs.tag }}

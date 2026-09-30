@@ -1,12 +1,12 @@
 # Rust core checkpoint
 
 Updated: 2026-09-30. Root owns current checkpoints; check live agents before delegation.
-Authoritative latest validation: CI36685991129 at19b1e7c passed the focused
+Authoritative latest validation: CI36714458987 at e430c0b and CI36685991129 at19b1e7c passed the focused
 TURN fixture and full suite:341 passed,0 failed,7 ignored. Its SDK job109792330330
 passed ARM64 musl compilation, extracted/stripped Cortex-A53 QEMU execution
 and real Linux TUN lifecycle (stop/SIGTERM/SIGKILL/stale socket restart).
-CI36686878030 at8cf1ae4 also passed the host Rust suite and ARM64/TUN checks;
-its native tamper fixture failed before project-key signing was reached.
+The latest SDK109884388142 passed compilation, extracted ARM64/TUN and complete
+native APK transactions; it then failed on an unreadable Actions signing key.
 Subsequent paragraphs are historical records, not work to repeat. No live
 OpenWrt/server/VK acceptance has run.
 Linux Rust CI at `88d8189304b328ba92f888331806eb1a4320ad57`, run36638972094,
