@@ -31,6 +31,12 @@ Focused CI36729783098 atd0d4057 (same tree as65ee35e) built pinnedAPK3.0.5;
 published manifest/hashes, native payload, ARM64/TUN passed. New direct-fetch
 check failed; its isolated diagnostics were not printed. Added only fresh-fetch
 diagnostic output on failure; rerun next to resolve real behavior before publishing.
+Pinned query.c also leaves full name=version in exact name matching: nonrecursive
+fetch misses even a downloaded index. Installer now uses --recursive to route
+exact constraints through solver; additional downloaded dependencies stay private
+and are not used as world roots. Native regression checks both old failure modes,
+exact solver download/strict signature/byte equality, missing-version rejection
+and unchanged state. Local full harness/native rerun pending after this second fix.
 preview_review owns ONLY .github/workflows/installer-smoke.yml creation: pinned
 native APK build plus existing published binaries/native tests, no SDK/Rust/Android
 rebuild or release private key. Root owns installer/tests/docs/publish. Recheck agents.
