@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=csqtt
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=1
+PKG_RELEASE:=$(if $(CSQTT_PACKAGE_RELEASE),$(CSQTT_PACKAGE_RELEASE),1)
 PKG_LICENSE:=PolyForm-Noncommercial-1.0.0
 
 include $(INCLUDE_DIR)/package.mk
@@ -30,12 +30,13 @@ define Build/Compile
 endef
 
 define Package/csqtt/install
-	$(INSTALL_DIR) $(1)/usr/bin $(1)/usr/libexec/csqtt $(1)/usr/share/csqtt $(1)/etc/config $(1)/etc/init.d $(1)/etc/csqtt $(1)/etc/hotplug.d/iface
+	$(INSTALL_DIR) $(1)/usr/bin $(1)/usr/libexec/csqtt $(1)/usr/share/csqtt $(1)/usr/share/licenses/csqtt $(1)/etc/config $(1)/etc/init.d $(1)/etc/csqtt $(1)/etc/hotplug.d/iface
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/csqtt-client $(1)/usr/bin/csqtt-client
 	$(INSTALL_BIN) ./files/manage $(1)/usr/libexec/csqtt/manage
 	$(INSTALL_BIN) ./files/tun-hook $(1)/usr/libexec/csqtt/tun-hook
 	$(INSTALL_DATA) ./files/policy.uc $(1)/usr/share/csqtt/policy.uc
 	$(INSTALL_DATA) ./files/runtime.uc $(1)/usr/share/csqtt/runtime.uc
+	$(INSTALL_DATA) ./files/LICENSE $(1)/usr/share/licenses/csqtt/LICENSE
 	$(INSTALL_CONF) ./files/csqtt.config $(1)/etc/config/csqtt
 	$(INSTALL_CONF) ./files/guard.nft $(1)/etc/csqtt/policy.nft
 	$(INSTALL_BIN) ./files/csqtt.init $(1)/etc/init.d/csqtt

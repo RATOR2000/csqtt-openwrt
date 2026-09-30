@@ -3,10 +3,11 @@
 Updated: 2026-09-30. Owner for this session: `runtime_acceptance` (completed;
 root owns publish/CI and the current DNS fixture).
 Source implementation and host checks passed. The full native policy traffic
-suite passed in Linux CI run `36638972094` at `88d8189`, including pinned ucode,
-generated nft/DNS/model comparisons, dnsmasq syntax and all routing checks.
-Actual group DNS resolution/set insertion, OpenWrt integration and real router
-behavior remain unverified. Root owns commits, CI and SDK packaging.
+suite passed in Linux CI run `36677864570` at `d7627c3`, including pinned ucode,
+generated nft/DNS/model comparisons, actual IPv4 group DNS resolution/set
+insertion, dnsmasq syntax and routing checks. New IPv6 DNS transport cases,
+OpenWrt integration and real router behavior remain unverified.
+Root owns commits, CI and SDK packaging.
 
 ## Completed source and review
 
@@ -59,6 +60,12 @@ behavior remain unverified. Root owns commits, CI and SDK packaging.
   Unique real port-53 queries check defaults/exceptions, local names, parent/
   child nftset insertion and resolver behavior through tunnel route up/down.
   Test PID/config files stay in the runner's temporary output directory.
+- IPv6 DNS transport follow-up queries both `[fd00:1::1]:53` (LAN router) and
+  `[2001:db8:2::2]:53` (redirected isolated external DNS fixture) from managed
+  clients a/b. A-record answers still use the configured guarded IPv4
+  upstreams. Cases cover default/exception routing, local names and simulated
+  tunnel up/down; unique names prevent cached successes. Native CI is pending
+  for these new queries; no AAAA-answer behavior is claimed.
 - Pinned dnsmasq 2.93 source review confirmed that `domain-needed` rejects plain
   local names and rebind checks strip private local answers from 127.0.0.1.
   Compiler removes that option and adds rebind exceptions only for plain/local
@@ -111,12 +118,19 @@ behavior remain unverified. Root owns commits, CI and SDK packaging.
   `network-smoke.py`; an in-memory synthetic DNS A-response roundtrip and
   truncated-reply checks passed. Actual new resolver/set-insertion traffic
   remains pending the next Linux CI run.
+- Root confirmed CI `36677864570` at `d7627c3` passed the native policy/DNS job,
+  including actual group resolver selection, local private answers and nftset
+  insertion. New IPv6 transport source passed
+  `python -m py_compile tests/policy/dns-smoke.py`, scoped `git diff --check`
+  and an in-memory DNS wire roundtrip for IPv4/IPv6 socket selection,
+  connected port-53 destination and A-answer decoding. The new namespace
+  IPv6 DNS cases require the next Linux CI run.
 
 ## Next concrete checks
 
-1. Root runs the new group DNS traffic helper in Linux CI. Confirm actual
-   resolver upstream selection, local private answers and nftset insertion;
-   correct failures before claiming DNS behavior is verified.
+1. Root reruns the native DNS job with the new IPv6 transport cases. Confirm
+   LAN listeners, external-DNS redirection and local names through route loss;
+   correct failures before claiming IPv6 DNS behavior is verified.
 2. Build packages through the pinned 25.12.5 SDK and confirm installed fw4,
    procd, UCI and dnsmasq integration on the exact target.
 3. Real GL-MT6000 acceptance still needs server/VK details from the user: mixed

@@ -12,7 +12,8 @@ case "$APK" in /*) ;; *) die 'Pass an absolute SDK apk path.' ;; esac
 [ -x "$APK" ] || die 'SDK apk is not executable.'
 [ "$(id -u)" = 0 ] || die 'Run this isolated native check as root in the Linux CI job.'
 PACKAGE_DIR=$(cd "$2" && pwd -P)
-for TOOL in openssl python3 sha256sum cp find grep cmp; do command -v "$TOOL" >/dev/null || die "Missing host tool: $TOOL"; done
+ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+for TOOL in openssl python3 sha256sum cp find grep cmp qemu-aarch64; do command -v "$TOOL" >/dev/null || die "Missing host tool: $TOOL"; done
 set -- "$PACKAGE_DIR"/*.apk
 [ "$#" -eq 3 ] || die 'Expected exactly three compiled SDK APKs.'
 TMP=$(mktemp -d /tmp/csqtt-native-apk.XXXXXX)
@@ -50,19 +51,72 @@ CORE= CAPTCHA= LUCI=
 for PACKAGE in "$PACKAGE_DIR"/*.apk; do
     NAME=${PACKAGE##*/}
     case "$NAME" in
-        csqtt-captcha-[0-9]*.apk) [ -z "$CAPTCHA" ] || die 'Duplicate CAPTCHA APK.'; CAPTCHA=$NAME ;;
-        luci-app-csqtt-[0-9]*.apk) [ -z "$LUCI" ] || die 'Duplicate LuCI APK.'; LUCI=$NAME ;;
-        csqtt-[0-9]*.apk) [ -z "$CORE" ] || die 'Duplicate core APK.'; CORE=$NAME ;;
+        csqtt-captcha-[0-9]*.apk) [ -z "$CAPTCHA" ] || die 'Duplicate CAPTCHA APK.'; CAPTCHA=$NAME; KIND=captcha ;;
+        luci-app-csqtt-[0-9]*.apk) [ -z "$LUCI" ] || die 'Duplicate LuCI APK.'; LUCI=$NAME; KIND=luci ;;
+        csqtt-[0-9]*.apk) [ -z "$CORE" ] || die 'Duplicate core APK.'; CORE=$NAME; KIND=core ;;
         *) die 'Unexpected SDK APK filename.' ;;
     esac
     cp "$PACKAGE" "$TMP/signed-sdk/$NAME"
     fixture_adbsign --sign-key "$TMP/signing.pem" --reset-signatures "$TMP/signed-sdk/$NAME"
     tools_apk verify "$TMP/signed-sdk/$NAME" >/dev/null
     if "$APK" --root "$TOOLS" --keys-dir etc/apk/wrong-keys verify "$TMP/signed-sdk/$NAME" > "$TMP/wrong-key.txt" 2>&1; then die 'An SDK APK was accepted with the wrong key.'; fi
+    mkdir -p "$TMP/extracted/$KIND"
+    # extract never executes package scripts; APK 3.0.5 accepts --no-scripts
+    # only for the add/del applets.
+    tools_apk extract --destination "$TMP/extracted/$KIND" "$TMP/signed-sdk/$NAME" > "$TMP/extract-$KIND.txt" 2>&1 || die "SDK payload extraction failed; inspect extract-$KIND.txt."
+    tools_apk adbdump --format json "$TMP/signed-sdk/$NAME" > "$TMP/extracted/$KIND.json"
 done
 [ -n "$CORE" ] && [ -n "$CAPTCHA" ] && [ -n "$LUCI" ] || die 'Missing SDK package kind.'
 sha256sum "$PACKAGE_DIR"/*.apk > "$TMP/sdk-after.sha256"
 cmp "$TMP/sdk-before.sha256" "$TMP/sdk-after.sha256"
+python3 - "$TMP/extracted" "$ROOT" <<'NATIVE_APK_PAYLOAD'
+import json, pathlib, re, stat, sys
+extracted, source = map(pathlib.Path, sys.argv[1:])
+packages = {
+    'core': ('csqtt', 'aarch64_cortex-a53', {
+        'kmod-tun', 'ip-full', 'firewall4', 'nftables-json', 'dnsmasq-full',
+        'ucode', 'ucode-mod-fs', 'ucode-mod-uci', 'ucode-mod-ubus', 'jsonfilter', 'conntrack',
+    }, {
+        'usr/bin/csqtt-client': 0o755,
+        'usr/libexec/csqtt/manage': 0o755, 'usr/libexec/csqtt/tun-hook': 0o755,
+        'etc/init.d/csqtt': 0o755, 'etc/init.d/csqtt-dns': 0o755,
+        'etc/hotplug.d/iface/90-csqtt': 0o755,
+        'etc/config/csqtt': 0o600, 'etc/csqtt/policy.nft': 0o600,
+        'usr/share/csqtt/policy.uc': 0o644, 'usr/share/csqtt/runtime.uc': 0o644,
+        'usr/share/licenses/csqtt/LICENSE': 0o644,
+    }),
+    'captcha': ('csqtt-captcha', 'aarch64_cortex-a53', {'csqtt', 'ca-bundle'}, {
+        'usr/bin/csqtt-captcha': 0o755, 'etc/init.d/csqtt-captcha': 0o755,
+        'etc/hotplug.d/iface/91-csqtt-captcha': 0o755,
+    }),
+    'luci': ('luci-app-csqtt', 'noarch', {'csqtt', 'csqtt-captcha', 'luci-base', 'rpcd'}, {
+        'usr/libexec/rpcd/csqtt': 0o755, 'etc/uci-defaults/90-luci-csqtt': 0o644,
+        'usr/share/rpcd/acl.d/luci-app-csqtt.json': 0o644,
+        'usr/share/luci/menu.d/luci-app-csqtt.json': 0o644,
+        **{'www/luci-static/resources/view/csqtt/' + page + '.js': 0o644
+           for page in ('overview', 'settings', 'policies', 'diagnostics')},
+        **{'www/luci-static/resources/csqtt/' + asset: 0o644
+           for asset in ('api.js', 'model.js', 'style.css')},
+    }),
+}
+for kind, (name, architecture, dependencies, files) in packages.items():
+    info = json.loads((extracted / (kind + '.json')).read_text())['info']
+    assert info['name'] == name and info['arch'] == architecture, name + ': metadata mismatch'
+    declared = {re.split(r'[<>=~]', dependency, maxsplit=1)[0]
+                for dependency in info.get('depends', []) if not dependency.startswith('!')}
+    assert dependencies <= declared, name + ': missing required dependencies'
+    for relative, mode in files.items():
+        path = extracted / kind / relative
+        metadata = path.lstat()
+        assert stat.S_ISREG(metadata.st_mode) and metadata.st_size > 0, name + ': invalid payload ' + relative
+        assert stat.S_IMODE(metadata.st_mode) == mode, name + ': wrong mode ' + relative
+        if relative.endswith('.json'):
+            json.loads(path.read_text())
+assert (extracted / 'core/usr/share/licenses/csqtt/LICENSE').read_bytes() == (source / 'vendor/csqtt/LICENSE').read_bytes(), 'Upstream license payload mismatch'
+assert (extracted / 'core/etc/config/csqtt').read_bytes() == (source / 'openwrt/csqtt/files/csqtt.config').read_bytes(), 'Default private UCI configuration mismatch'
+print('native APK: required payloads, permissions, architecture, dependencies and upstream license passed.')
+NATIVE_APK_PAYLOAD
+python3 "$ROOT/scripts/test-arm64.py" "$TMP/extracted/core/usr/bin/csqtt-client" "$TMP/extracted/captcha/usr/bin/csqtt-captcha"
 # These synthetic packages exercise the same conflict, dependency and cache
 # mechanics as the installer. No architecture-specific payload is executed.
 mkdir -p "$TMP/payloads/old/usr/share/csqtt-native-test" "$TMP/payloads/full/usr/share/csqtt-native-test" "$TMP/payloads/dependency/usr/share/csqtt-native-test" "$TMP/payloads/app/usr/share/csqtt-native-test"
@@ -137,11 +191,19 @@ root_apk() {
     case "$root" in "$TMP/"*) ;; *) die 'APK root escaped the disposable directory.' ;; esac
     "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-scripts "$@"
 }
+root_query() {
+    root=$1
+    case "$root" in "$TMP/"*) ;; *) die 'Query root escaped the disposable directory.' ;; esac
+    "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network query --installed --fields name,version,status --format json
+}
 BASE="$TMP/base"
 prepare_root "$BASE"
 root_apk "$BASE" add --initdb "$TMP/original-dns.apk" > "$TMP/base-install.txt" 2>&1
 cp "$BASE/etc/apk/world" "$TMP/original-world"
-root_apk "$BASE" query --installed --fields name,version,status --format json > "$TMP/baseline.json"
+root_query "$BASE" > "$TMP/baseline.json"
+# Exercise the installer's read-only preflight command against the real CLI.
+"$APK" --root "$BASE" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network info --from installed > "$TMP/installed-names.txt"
+[ "$(cat "$TMP/installed-names.txt")" = csqtt-native-old ] || die 'Installed-package name query differs from installer assumptions.'
 if root_apk "$BASE" add --simulate "$TMP/repo/csqtt-native-broken-1.0-r1.apk" > "$TMP/missing-dependency.txt" 2>&1; then die 'An unsatisfied dependency was accepted.'; fi
 if root_apk "$BASE" add --simulate "$TMP/app.apk" csqtt-native-full > "$TMP/conflict.txt" 2>&1; then die 'DNS provider conflict was not detected.'; fi
 cmp "$BASE/etc/apk/world" "$TMP/original-world"
@@ -156,7 +218,7 @@ root_apk "$STAGE" --cache-predownload add "$TMP/app.apk" csqtt-native-full >> "$
 if grep -q '^csqtt-native-dependency' "$STAGE/etc/apk/world"; then die 'A transitive dependency became a world root.'; fi
 [ -n "$(find "$STAGE/var/cache/apk" -type f -name 'csqtt-native-dependency-*.apk' -print)" ] || die 'Dependency was not cached under the relative cache path.'
 cmp "$BASE/etc/apk/world" "$TMP/original-world"
-root_apk "$BASE" query --installed --fields name,version,status --format json > "$TMP/baseline-after-stage.json"
+root_query "$BASE" > "$TMP/baseline-after-stage.json"
 cmp "$TMP/baseline.json" "$TMP/baseline-after-stage.json"
 kill "$SERVER_PID"
 wait "$SERVER_PID" 2>/dev/null || true
@@ -173,7 +235,7 @@ cp -aL "$STAGE/var/cache/apk/." "$OFFLINE/var/cache/apk/"
 root_apk "$OFFLINE" --no-network del csqtt-native-old > "$TMP/offline.txt" 2>&1
 root_apk "$OFFLINE" --no-network add --simulate "$TMP/app.apk" csqtt-native-full >> "$TMP/offline.txt" 2>&1
 root_apk "$OFFLINE" --no-network add "$TMP/app.apk" csqtt-native-full >> "$TMP/offline.txt" 2>&1
-root_apk "$OFFLINE" query --installed --fields name,version,status --format json > "$TMP/offline-installed.json"
+root_query "$OFFLINE" > "$TMP/offline-installed.json"
 python3 - "$TMP/offline-installed.json" <<'NATIVE_APK_ASSERT'
 import json, pathlib, sys
 packages = json.loads(pathlib.Path(sys.argv[1]).read_text())
@@ -183,7 +245,7 @@ assert all('broken-scripts' not in str(item.get('status', '')) for item in packa
 NATIVE_APK_ASSERT
 root_apk "$OFFLINE" --no-network del csqtt-native-app csqtt-native-full >> "$TMP/offline.txt" 2>&1
 root_apk "$OFFLINE" --no-network add "$TMP/original-dns.apk" >> "$TMP/offline.txt" 2>&1
-root_apk "$OFFLINE" query --installed --fields name,version,status --format json > "$TMP/rollback-installed.json"
+root_query "$OFFLINE" > "$TMP/rollback-installed.json"
 cmp "$TMP/baseline.json" "$TMP/rollback-installed.json"
 cmp "$TMP/original-world" "$OFFLINE/etc/apk/world"
 [ -z "$(find "$TMP" -name native-script-ran -print)" ] || die 'A package script executed despite no-scripts.'

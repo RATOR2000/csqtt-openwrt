@@ -68,18 +68,19 @@ def decode_response(packet, ident):
     return {"answers": result, "rcode": flags & 15}
 
 
-def query(name):
+def query(name, server="9.9.9.9"):
     labels = name.encode("ascii").split(b".")
     if any(not label or len(label) > 63 for label in labels):
         raise ValueError("Invalid fixture query")
     ident = int.from_bytes(os.urandom(2), "big")
     packet = struct.pack("!6H", ident, 0x0100, 1, 0, 0, 0)
     packet += b"".join(bytes([len(label)]) + label for label in labels) + b"\0\0\x01\0\x01"
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client:
+    family = socket.AF_INET6 if ":" in server else socket.AF_INET
+    with socket.socket(family, socket.SOCK_DGRAM) as client:
         client.settimeout(1.2)
         # An explicitly configured public DNS server must be intercepted into
         # the client's own group listener, including reply address/port NAT.
-        client.connect(("9.9.9.9", 53))
+        client.connect((server, 53))
         try:
             client.send(packet)
             return decode_response(client.recv(4096), ident)
@@ -116,6 +117,7 @@ def smoke(out, namespaces):
     # These public answers are produced only by the isolated fixture resolvers;
     # the test never connects to the returned addresses.
     wan_answer, vpn_answer, local_answer = "93.184.216.101", "93.184.216.102", "192.168.1.100"
+    ipv6_servers = ("fd00:1::1", "2001:db8:2::2")
 
     def run(namespace, *args, check=True):
         result = subprocess.run(["ip", "netns", "exec", namespaces[namespace], *args],
@@ -132,14 +134,14 @@ def smoke(out, namespaces):
         if not ready or process.stdout.readline().strip() != "ready":
             raise RuntimeError(f"DNS responder did not start in {namespace}")
 
-    def expect(client, suffix, answer):
+    def expect(client, suffix, answer, server="9.9.9.9"):
         nonlocal counter
         counter += 1
         name = f"q{token}-{counter}" + (f".{suffix}" if suffix else "")
-        response = json.loads(run(client, "python3", str(script), "query", name).stdout)
+        response = json.loads(run(client, "python3", str(script), "query", name, server).stdout)
         expected = [] if answer is None else [answer]
         if response["answers"] != expected or (answer and response["rcode"] != 0):
-            raise AssertionError(f"{client} DNS {name}: expected {expected}, got {response}")
+            raise AssertionError(f"{client} DNS {name} via {server}: expected {expected}, got {response}")
 
     def populated(prefix, address):
         model = json.loads((out / "native-model.json").read_text())
@@ -194,6 +196,15 @@ def smoke(out, namespaces):
         expect("b", "lan", local_answer)
         expect("a", "", local_answer)
         expect("b", "", local_answer)
+        # IPv6 client transport must reach the same guarded IPv4 upstreams.
+        # Test both the router's LAN address and redirected external DNS.
+        for server in ipv6_servers:
+            expect("a", "example.invalid", None, server)
+            expect("a", "example.org", wan_answer, server)
+            expect("b", "example.invalid", wan_answer, server)
+            expect("b", "example.net", None, server)
+            expect("a", "lan", local_answer, server)
+            expect("b", "lan", local_answer, server)
         run("router", "ip", "route", "add", "default", "via", "10.66.67.2", "dev", "csqtt0",
             "table", "202", "metric", "10")
         healthy = True
@@ -201,12 +212,20 @@ def smoke(out, namespaces):
         expect("b", "example.net", vpn_answer)
         populated("d_protected_domain_", vpn_answer)
         expect("a", "example.org", wan_answer)
+        for server in ipv6_servers:
+            expect("a", "example.invalid", vpn_answer, server)
+            expect("b", "example.net", vpn_answer, server)
         run("router", "ip", "route", "del", "default", "dev", "csqtt0", "table", "202", "metric", "10")
         healthy = False
         expect("a", "example.invalid", None)
         expect("b", "example.net", None)
         expect("a", "example.org", wan_answer)
-        print("Native DNS traffic checks passed: guarded defaults/exceptions, exact upstream path, local names, nftset population, tunnel up/down")
+        for server in ipv6_servers:
+            expect("a", "example.invalid", None, server)
+            expect("b", "example.net", None, server)
+            expect("a", "lan", local_answer, server)
+            expect("b", "lan", local_answer, server)
+        print("Native DNS traffic checks passed: IPv4/IPv6 transport, guarded defaults/exceptions, exact upstream path, local names, nftset population, tunnel up/down")
     except Exception:
         for process in dnsmasqs:
             process.terminate()
@@ -233,6 +252,6 @@ if __name__ == "__main__":
     if sys.argv[1] == "serve":
         serve(sys.argv[2], sys.argv[3:])
     elif sys.argv[1] == "query":
-        print(json.dumps(query(sys.argv[2])))
+        print(json.dumps(query(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "9.9.9.9")))
     else:
         smoke(pathlib.Path(sys.argv[1]).resolve(), dict(zip(("router", "a", "b", "wan", "vpn"), sys.argv[2:])))

@@ -52,10 +52,11 @@ else if (command === 'uclient-fetch') {
   const index = args.findIndex(arg => ['query', 'verify', 'fetch', 'info', 'add', 'del'].includes(arg));
   if (index < 0) fail('Unknown apk invocation');
   const action = args[index];
+  if (args.includes('--no-scripts') && !['add', 'del'].includes(action)) fail('APK 3.0.5 read applet rejects no-scripts');
   const base = args.includes('--root') ? option('--root') : root;
   if (!path.resolve(base).startsWith(path.resolve(root) + path.sep) && base !== root) fail('APK escaped fixture');
   const staged = base !== root;
-  if (staged && !args.includes('--no-scripts')) fail('Staging scripts are enabled');
+  if (staged && ['add', 'del'].includes(action) && !args.includes('--no-scripts')) fail('Staging scripts are enabled');
   const database = path.join(base, 'lib/apk/db/installed');
   const installed = JSON.parse(fs.readFileSync(database, 'utf8'));
   const world = path.join(base, 'etc/apk/world');

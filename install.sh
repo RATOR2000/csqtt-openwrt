@@ -135,6 +135,8 @@ cp /etc/apk/world "$STAGE/etc/apk/world"
 cp "$TMP/keys/"* "$STAGE/etc/apk/keys/"
 cp "$TMP/repositories" "$STAGE/etc/apk/repositories"
 stage_apk() { apk --root "$STAGE" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-scripts "$@"; }
+# Read applets do not accept the mutation-only --no-scripts option in APK 3.0.5.
+stage_info() { apk --root "$STAGE" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network info --from installed; }
 UPGRADE=0
 apk query --installed --match name --fields name --format json csqtt > "$TMP/core-installed.json"
 [ "$(jsonfilter -i "$TMP/core-installed.json" -e '@[*].name')" != csqtt ] || UPGRADE=1
@@ -154,10 +156,10 @@ if [ "$REPLACE_DNS" = 1 ]; then
     apk --repositories-file "$TMP/repositories" fetch --output "$TMP/rollback" "dnsmasq=$DNS_VERSION" || die 'The exact original DNS package must be cached before replacement.'
     [ -f "$TMP/rollback/$DNS_PACKAGE.apk" ] || die 'Original DNS package cache is missing.'
     apk verify "$TMP/rollback/$DNS_PACKAGE.apk" >/dev/null || die 'Original DNS package signature verification failed.'
-    stage_apk info > "$TMP/installed-before.txt"
+    stage_info > "$TMP/installed-before.txt"
     stage_apk del --simulate dnsmasq > "$TMP/dns-remove.txt" 2>&1 || die 'Cannot safely replace the current DNS package.'
     stage_apk del dnsmasq >> "$TMP/dns-remove.txt" 2>&1 || die 'DNS replacement preflight failed.'
-    stage_apk info > "$TMP/installed-after.txt"
+    stage_info > "$TMP/installed-after.txt"
     awk 'NR==FNR { kept[$0]=1; next } $0 != "dnsmasq" && !($0 in kept) { bad=1 } END { exit bad }' "$TMP/installed-after.txt" "$TMP/installed-before.txt" || die 'DNS replacement would remove other installed packages.'
 fi
 stage_apk add --simulate "$TMP/packages/$CORE" "$TMP/packages/$CAPTCHA" "$TMP/packages/$LUCI" dnsmasq-full > "$TMP/transaction.txt" 2>&1 || die 'Dependency check failed; DNS and configuration are unchanged.'

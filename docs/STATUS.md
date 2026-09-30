@@ -6,16 +6,18 @@ Actual files/Git/CI are authority.
 
 ## First unfinished action
 
-Publish the latest DNS fixture, APK signing and persistent first-apply guard
-fixes, then inspect their new CI. CI36640955080 at b30a0b76 compiled all three
-SDK packages but failed in native APK adbsign/verify. SDK staging is now fixed.
+Inspect SDK/native APK results in CI36677864570 at d7627c3d, then finish any
+failed APK mechanics and publish the package-license/usage/audit checkpoint.
+Native DNS/policy, checks and core passed there; Android also passed. SDK is
+still building. CI36640955080 at b30a0b76 compiled all three SDK packages but
+failed in native APK adbsign/verify. SDK staging is now fixed.
 Do not repeat passed Rust/Android work or completed installer doubles.
 
 ## Saved repository/tooling
 
 - Public https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Development branch codex/csqtt-openwrt. Last confirmed remote b30a0b76ad0d0d2a86d5cdc658cf300e059a8553; inspect HEAD for later commits.
+- Development branch codex/csqtt-openwrt. Last confirmed remote d7627c3d9c5949e2788b1b7fbddf8797e3ffc1c1; inspect HEAD for later commits.
 - Local push lacks auth; GitHub connector tree/commit/ref APIs work.
   scripts/export-github-tree.py exports committed delta to .work/publish-delta.
   Publish with manifest base_tree/parent, fetch, compare tree hashes and align.
@@ -65,7 +67,9 @@ Do not repeat passed Rust/Android work or completed installer doubles.
   including failed-apply shell scenario. Real reboot remains unverified.
   Latest complete Node policy/LuCI run:35passed. Shell syntax for manage,
   build-sdk and native APK runner, Python syntax for DNS/QEMU and diff checks
-  passed. QEMU execution and corrected native DNS/APK suites await Linux CI.
+  passed. CI36677864570 at d7627c3d: native DNS and complete native policy traffic
+  passed (exact WAN/VPN resolver path, local names, nftset population, tunnel
+  up/down); QEMU execution and corrected native APK suite await SDK job result.
 - Android13 JVM tests, Kotlin/lintDebug/assembleDebug passed in CI; see
   ANDROID_STATUS. No actual phone/WebView/VK acceptance.
 - Broker latest local go test/go vet passed: pairing/result/cancel serialized;
@@ -89,12 +93,23 @@ Do not repeat passed Rust/Android work or completed installer doubles.
   failure diagnostics and ARM64 QEMU binary smoke implemented for next run.
   Release signing now strictly verifies project signatures and removes the
   private key from dependency builders' environment; signing secret absent.
+- Package LICENSE/required original attribution added to core and Android APK
+  sources, matching root LICENSE byte-for-byte. USAGE.md and ACCEPTANCE.md
+  describe setup and outstanding real tests. APK extracted-payload audit now
+  checks architecture, dependencies, modes, license and stripped QEMU binaries;
+  source ready, actual run pending. APK read commands no longer receive the
+  add/del-only no-scripts flag; tightened installer doubles27scenarios passed
+  again. Added native info preflight command check. New IPv6 DNS transport
+  cases through LAN/public redirect compiled/wire-checked, await native CI.
+  Preview.N now produces all three package revisions0.1.0-rN, allowing upgrades;
+  revision wiring awaits workflow/SDK verification. See INSTALLER_STATUS.
 
 ## Ownership and next sequence
 
 Check collaboration.list_agents before reuse; previous sessions may end.
-Prior sessions ended. apk_signature_fix completed the signing runner fix;
-runtime_acceptance completed the first-apply persistent hold correction. Root fixed
+Prior sessions ended. apk_signature_fix completed the signing runner fix and
+the SDK APK extracted-payload audit; runtime_acceptance completed the first-apply
+persistent hold correction and IPv6 DNS checks. Both stopped edits. Root fixed
 the DNS fixture and owns broker,
 SDK/CI/release, top-level docs and Git. No previous process may be assumed alive.
 

@@ -4,6 +4,8 @@ set -euo pipefail
 RELEASE_SIGNING_KEY=${CSQTT_SIGNING_KEY:-}
 unset CSQTT_SIGNING_KEY
 export APK_CONFIG=/dev/null
+PACKAGE_RELEASE=${CSQTT_PACKAGE_RELEASE:-1}
+[[ "$PACKAGE_RELEASE" =~ ^[1-9][0-9]{0,6}$ ]] || { echo 'Invalid package release number' >&2; exit 1; }
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SDK_VERSION=25.12.5
 SDK_NAME=openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64
@@ -69,11 +71,12 @@ EOF
 run_logged defconfig make defconfig
 # Cached dependencies may stay compiled; our three packages must always use
 # this checkout's source and newly built binaries.
-run_logged package-clean make package/csqtt-local/csqtt/clean package/csqtt-local/csqtt-captcha/clean package/csqtt-local/luci-app-csqtt/clean
+run_logged package-clean make package/csqtt-local/csqtt/clean package/csqtt-local/csqtt-captcha/clean package/csqtt-local/luci-app-csqtt/clean CSQTT_PACKAGE_RELEASE="$PACKAGE_RELEASE"
+find bin -type f \( -name 'csqtt-[0-9]*.apk' -o -name 'csqtt-captcha-[0-9]*.apk' -o -name 'luci-app-csqtt-[0-9]*.apk' \) -delete
 run_logged packages make package/csqtt-local/csqtt/compile package/csqtt-local/csqtt-captcha/compile package/csqtt-local/luci-app-csqtt/compile -j2 V=s \
-    CSQTT_BINARY="$CORE" CSQTT_CAPTCHA_BINARY="$ROOT/dist/csqtt-captcha"
+    CSQTT_BINARY="$CORE" CSQTT_CAPTCHA_BINARY="$ROOT/dist/csqtt-captcha" CSQTT_PACKAGE_RELEASE="$PACKAGE_RELEASE"
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then printf 'sdk_ready=true\n' >> "$GITHUB_OUTPUT"; fi
-find bin -type f \( -name 'csqtt-*.apk' -o -name 'luci-app-csqtt-*.apk' \) -exec cp '{}' "$ROOT/dist/" ';'
+find bin -type f \( -name 'csqtt-[0-9]*.apk' -o -name 'csqtt-captcha-[0-9]*.apk' -o -name 'luci-app-csqtt-[0-9]*.apk' \) -exec cp '{}' "$ROOT/dist/" ';'
 sudo sh "$ROOT/scripts/test-native-apk.sh" "$SDK/staging_dir/host/bin/apk" "$ROOT/dist"
 if [[ -n "$RELEASE_SIGNING_KEY" ]]; then
     umask 077

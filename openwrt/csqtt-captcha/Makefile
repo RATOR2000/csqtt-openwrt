@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=csqtt-captcha
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=1
+PKG_RELEASE:=$(if $(CSQTT_PACKAGE_RELEASE),$(CSQTT_PACKAGE_RELEASE),1)
 PKG_LICENSE:=PolyForm-Noncommercial-1.0.0
 include $(INCLUDE_DIR)/package.mk
 

@@ -11,20 +11,28 @@ permissions:
 jobs:
   preflight:
     runs-on: ubuntu-24.04
+    outputs:
+      package_release: ${{ steps.release.outputs.package_release }}
     steps:
       - name: Check preview tag and signing configuration
+        id: release
         env:
           RELEASE_TAG: ${{ inputs.tag }}
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY }}
         run: |
           python3 - <<'PY'
           import os, re
-          assert re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+', os.environ['RELEASE_TAG']), 'Use a preview tag'
+          tag = re.fullmatch(r'v0\.1\.0-preview\.([1-9][0-9]{0,6})', os.environ['RELEASE_TAG'])
+          assert tag, 'Use v0.1.0-preview.N with a positive release number'
           assert os.environ.get('CSQTT_SIGNING_KEY'), 'Configure the repository signing secret first'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('package_release=' + tag[1] + '\n')
           PY
   build:
     needs: preflight
     uses: ./.github/workflows/ci.yml
+    with:
+      package_release: ${{ needs.preflight.outputs.package_release }}
     secrets: inherit
   draft:
     needs: build

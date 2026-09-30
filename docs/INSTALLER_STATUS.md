@@ -19,7 +19,8 @@ The signed manifest and APK checksums must pass before DNS, configuration,
 CSQTT packages or persistent trust are changed.
 
 The script copies the installed APK database/world to a private temporary root,
-disables all package scripts there, checks DNS removal for unrelated package
+disables package scripts for every staged add/del operation, checks DNS removal
+for unrelated package
 removals, simulates the release dependency solution, then stages it with cache
 predownload. A fresh clone of the original database proves the same solution
 works offline. The live install uses that cache and adds only release package
@@ -47,6 +48,10 @@ after both first installs and upgrades so the new binary is used.
   3 tests / 9 scenario runs passed in 58 seconds after the upgrade restart edit.
   Together these runs cover all 27 scenarios in the current six test methods.
 - Final shell syntax, Node syntax and scoped `git diff --check`: passed.
+- After the APK3 read/mutation option correction:
+  `python tests/installer/installer_test.py`: all 6 tests / 27 scenarios passed
+  in 121.871 seconds. Shell/Node syntax, compilation of the native runner's
+  four Python blocks, and scoped `git diff --check` passed.
 
 The harness runs the real shell source with only literal router paths rewritten
 into disposable `.work/installer-tests` directories. Command doubles simulate
@@ -97,6 +102,20 @@ build artifacts or removing fixture signatures. Every verify, mkpkg, mkndx and
 install command retains strict trust. Unexpected adbsign diagnostics abort the
 runner because its exit status alone cannot prove success. Each synthetic APK
 and its signed index are explicitly verified before cache/install checks.
+
+The payload audit extracts each verified SDK copy into a separate disposable
+directory with APK3 extract, which never executes package scripts. It checks
+the core/CAPTCHA ARM64 architecture and LuCI's all architecture, required
+dependencies, the executables and LuCI resources, mode 0600 for the UCI config
+and guard, and the original upstream license. Packaged/stripped client and
+broker executables then run the existing Cortex-A53 QEMU smoke script. This
+new audit and packaged-binary execution await the next SDK CI run.
+
+Pinned app_extract.c, app_info.c and app_query.c confirmed that --no-scripts
+belongs to the add/del option group. Native installed-package queries and
+installer stage_info now use read applets without that unsupported flag;
+mutations retain it. The installer command double rejects the unsupported
+combination so the isolated scenarios cover the real CLI boundary.
 
 Review of [context.c](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/context.c),
 [app_adbsign.c](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/app_adbsign.c)
