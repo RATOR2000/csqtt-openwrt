@@ -24,14 +24,21 @@ return view.extend({
 		o.password = true; o.rmempty = false;
 		o.validate = function(id, value) { return model.validPassword(value) || 'Пароль: от 4 до 128 байт UTF-8, без управляющих символов и знака |.'; };
 		var password = o;
-		o = s.taboption('connection', form.DynamicList, 'vk_hashes', 'Хеши звонков ВКонтакте', 'От одного до шести разных хешей. Можно вставить полную ссылку vk.com/call/join/… — останется только хеш.');
-		o.rmempty = false;
-		o.validate = function(id, value) {
-			var list = Array.isArray(value) ? value : [value];
-			return list.every(function(h) { return model.validHash(model.normalizeHash(h)); }) || 'Хеш: от 16 до 1024 латинских букв, цифр, знаков - и _.';
-		};
-		o.write = function(id, value) { return uci.set('csqtt', id, 'vk_hashes', (Array.isArray(value) ? value : [value]).map(model.normalizeHash)); };
-		this.hashesOption = o; var hashes = o;
+		this.callOptions = [];
+		[0, 1, 2, 3, 4, 5].forEach(function(slot) {
+			var call = s.taboption('connection', form.Value, '_vk_link_' + (slot + 1), 'Ссылка на звонок ' + (slot + 1), slot === 0 ? 'Вставьте полную ссылку VK. Каждый звонок — в отдельном поле; остальные поля можно оставить пустыми.' : null);
+			call.placeholder = 'https://vk.com/call/join/…'; call.rmempty = slot !== 0;
+			call.cfgvalue = function(id) {
+				var values = uci.get('csqtt', id, 'vk_hashes') || [];
+				if (!Array.isArray(values)) values = [values];
+				return model.callLink(values[slot]);
+			};
+			call.validate = function(id, value) { return (!value && slot !== 0) || model.validCallLink(value) || 'Вставьте полную ссылку вида https://vk.com/call/join/…'; };
+			// Only the existing list belongs in UCI; the six fields are a view of it.
+			call.write = slot === 0 ? function(id) { return uci.set('csqtt', id, 'vk_hashes', self.callValues(id).map(model.normalizeHash)); } : function() {};
+			call.remove = function() {};
+			self.callOptions.push(call);
+		});
 		o = s.taboption('advanced', form.ListValue, 'workers', 'Число потоков', 'Начните с 9. Больше потоков расходуют больше памяти. На каждый хеш доступно до 27 потоков, всего до 126.');
 		for (var n = 9; n <= 126; n += 9) o.value(String(n));
 		o.default = '9'; o.rmempty = false; this.workersOption = o;
@@ -74,9 +81,9 @@ return view.extend({
 					var imported = model.parseLink(input.value);
 					peer.getUIElement('main').setValue(imported.peer);
 					password.getUIElement('main').setValue(imported.password);
-					if (imported.vk_hashes !== null) hashes.getUIElement('main').setValue(imported.vk_hashes);
+					if (imported.vk_hashes !== null) self.callOptions.forEach(function(option, slot) { option.getUIElement('main').setValue(model.callLink(imported.vk_hashes[slot])); });
 					input.value = '';
-					ui.addNotification(null, E('p', {}, 'Параметры перенесены в форму. Проверьте хеши и нажмите «Сохранить и применить».'), 'info');
+					ui.addNotification(null, E('p', {}, 'Параметры перенесены в форму. Проверьте ссылки на звонки и нажмите «Сохранить и применить».'), 'info');
 				} catch (e) {
 					ui.addNotification(null, E('p', {}, 'Не удалось импортировать ссылку. Нужна ссылка CSQTT v2 с адресом, портом и паролем.'), 'error');
 				} finally {
@@ -86,13 +93,14 @@ return view.extend({
 		]);
 		return m.render().then(function(node) { return E('div', { 'class': 'csqtt-shell' }, [E('link', { rel: 'stylesheet', href: L.resource('csqtt/style.css') }), importPanel, node, E('p', { 'class': 'csqtt-note' }, 'CAPTCHA сначала обрабатывается автоматически. Если понадобится ручное подтверждение, ссылка для Android появится на странице «Обзор». MTU туннеля — 1300.')]); });
 	},
+	callValues: function(id) {
+		return this.callOptions.map(function(option) { return String(option.formvalue(id) || '').trim(); }).filter(function(value) { return value !== ''; });
+	},
 	handleSave: function(ev) {
-		var values = this.hashesOption.formvalue('main') || [], workers = Number(this.workersOption.formvalue('main'));
-		if (!Array.isArray(values)) values = [values];
-		values = values.map(model.normalizeHash);
-		if (!model.validHashes(values)) {
-			ui.addNotification(null, E('p', {}, 'Добавьте от одного до шести разных хешей звонков.'), 'error');
-			return Promise.reject(new Error('Некорректный список хешей.'));
+		var links = this.callValues('main'), values = links.map(model.normalizeHash), workers = Number(this.workersOption.formvalue('main'));
+		if (!links.every(model.validCallLink) || !model.validHashes(values)) {
+			ui.addNotification(null, E('p', {}, 'Добавьте от одной до шести разных полных ссылок на звонки VK.'), 'error');
+			return Promise.reject(new Error('Некорректные ссылки на звонки.'));
 		}
 		if (workers % 9 !== 0 || workers < 9 || workers > model.workerLimit(values.length)) {
 			ui.addNotification(null, E('p', {}, 'Уменьшите число потоков: максимум 27 на хеш и 126 на соединение.'), 'error');

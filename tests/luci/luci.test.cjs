@@ -166,15 +166,32 @@ test('saving settings rejects over-capacity workers and duplicate hashes before 
 	const ui = uiStub(), form = formStub(), uci = { load: async () => {}, set() {} };
 	const view = load('view/csqtt/settings.js', { view: extend, E, L, ui, form, uci, model });
 	await view.render();
-	view.hashesOption.current = [hash]; view.workersOption.current = '36';
+	view.callOptions[0].current = model.callLink(hash); view.workersOption.current = '36';
 	await assert.rejects(view.handleSave());
 	assert.equal(view.map.saves, 0);
-	view.hashesOption.current = [hash, hash]; view.workersOption.current = '9';
+	view.callOptions[1].current = model.callLink(hash); view.workersOption.current = '9';
 	await assert.rejects(view.handleSave());
 	assert.equal(view.map.saves, 0);
-	view.hashesOption.current = [hash, hash2]; view.workersOption.current = '54';
+	view.callOptions[1].current = model.callLink(hash2); view.workersOption.current = '54';
 	await view.handleSave();
 	assert.equal(view.map.saves, 1);
+});
+
+test('six separate call fields display full links and save compatible hashes', async () => {
+	const writes = [], uci = { get: () => [hash, hash2], set: (...args) => writes.push(args) };
+	const view = load('view/csqtt/settings.js', { view: extend, E, L, ui: uiStub(), form: formStub(), uci, model });
+	await view.render();
+	assert.equal(view.callOptions.length, 6);
+	assert.equal(view.callOptions[0].cfgvalue('main'), model.callLink(hash));
+	assert.equal(view.callOptions[1].cfgvalue('main'), model.callLink(hash2));
+	assert.equal(view.callOptions[2].cfgvalue('main'), '');
+	view.callOptions[0].current = model.callLink(hash) + '?source=share';
+	view.callOptions[2].current = model.callLink(hash2);
+	view.callOptions[0].write('main');
+	view.callOptions.slice(1).forEach(option => { option.write('main'); option.remove('main'); });
+	assert.deepEqual(writes, [['csqtt', 'main', 'vk_hashes', [hash, hash2]]]);
+	for (const value of [hash, 'https://evil.example/call/join/' + hash, 'https://vk.com.evil.example/call/join/' + hash, 'https://user@vk.com/call/join/' + hash, 'https://vk.com/call/join/short']) assert.equal(model.validCallLink(value), false);
+	assert.equal(model.validCallLink('https://m.vk.com/call/join/' + hash + '?source=share'), true);
 });
 
 test('policy device validator rejects duplicate membership and preserves rule ordering', async () => {

@@ -1,0 +1,12 @@
+name: Preview 2 build
+on:
+  push:
+    branches: [codex/preview.2-build]
+permissions:
+  contents: read
+jobs:
+  build:
+    uses: ./.github/workflows/ci.yml
+    with:
+      package_release: '2'
+    secrets: inherit

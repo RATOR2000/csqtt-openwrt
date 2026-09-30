@@ -5,6 +5,8 @@ cd "$ROOT"
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
 node tests/policy/render.mjs "$OUT"
+node tests/policy/native-runtime.mjs "$OUT/native-runtime.uc"
+"$ROOT/.work/ucode/build/ucode" "$OUT/native-runtime.uc" dns-ready
 "$ROOT/.work/ucode/build/ucode" -L "$ROOT/.work/ucode/build/*.so" tests/policy/native.uc "$OUT"
 cmp "$OUT/policy.nft" "$OUT/native-policy.nft"
 cmp "$OUT/hold.nft" "$OUT/native-hold.nft"

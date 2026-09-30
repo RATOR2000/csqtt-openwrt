@@ -67,10 +67,18 @@ function choice(value, fallback, allowed, name) {
 	if (!includes(allowed, value)) die('Invalid ' + name);
 	return value;
 }
+function has_control(value, limit) {
+	// ucode uses POSIX regex; an escaped NUL cannot form a regex range.
+	for (let i = 0; i < length(value); i++) {
+		let code = ord(substr(value, i, 1));
+		if (code <= limit || code === 127) return true;
+	}
+	return false;
+}
 function client(main) {
 	let password = main.password || '', peer = main.peer || '', hashes = list(main.vk_hashes);
-	if (match(password, /[\x00-\x1f\x7f|]/) || length(password) > 128) die('Invalid password');
-	if (match(peer, /[\x00-\x20\x7f]/) || length(peer) > 255) die('Invalid peer');
+	if (has_control(password, 31) || index(password, '|') >= 0 || length(password) > 128) die('Invalid password');
+	if (has_control(peer, 32) || length(peer) > 255) die('Invalid peer');
 	if (peer) {
 		let endpoint = match(peer, /^(.+):([0-9]{1,5})$/);
 		if (!endpoint || +endpoint[2] < 1 || +endpoint[2] > 65535) die('Peer needs a host and port');
@@ -86,7 +94,7 @@ function client(main) {
 	}
 	if (length(hashes) > 6) die('At most six VK hashes are supported');
 	for (let i = 0; i < length(hashes); i++)
-		if (!match(hashes[i], /^[a-zA-Z0-9_-]{16,1024}$/)) die('Invalid VK hash');
+		if (length(hashes[i]) < 16 || length(hashes[i]) > 1024 || !match(hashes[i], /^[a-zA-Z0-9_-]+$/)) die('Invalid VK hash');
 		else for (let j = 0; j < i; j++) if (hashes[i] === hashes[j]) die('Duplicate VK hash');
 	if (main.enabled === '1' && (!length(peer) || length(password) < 4 || !length(hashes)))
 		die('Enabled client needs peer, password and VK hashes');

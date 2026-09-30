@@ -35,6 +35,26 @@ test('empty disabled config is valid but starting without credentials is rejecte
   data.csqtt.main.enabled = '0'; data.csqtt.main.turn_host = 'host\nignored'; assert.throws(() => runtime('compile', { packages: data }), /TURN host/);
 });
 
+test('runtime rejects every ASCII control and delimiter while preserving valid passwords', () => {
+  const secret = randomBytes(16).toString('hex');
+  for (const code of [...Array.from({ length: 32 }, (_, i) => i), 127]) {
+    const data = packages(); data.csqtt.main.password = secret + String.fromCharCode(code);
+    assert.throws(() => runtime('compile', { packages: data }), /^Error: Invalid password$/);
+    data.csqtt.main.password = secret; data.csqtt.main.peer = 'host' + String.fromCharCode(code) + ':443';
+    assert.throws(() => runtime('compile', { packages: data }), /^Error: Invalid peer$/);
+  }
+  const data = packages(); data.csqtt.main.password = secret + '|';
+  assert.throws(() => runtime('compile', { packages: data }), /^Error: Invalid password$/);
+  for (const password of [secret + ' space', secret + 'Кафе', 'a'.repeat(128)]) {
+    data.csqtt.main.password = password;
+    assert.equal(JSON.parse(runtime('compile', { packages: data }).files['/var/run/csqtt/apply.42/client.json']).password, password);
+  }
+  data.csqtt.main.password = 'a'.repeat(129);
+  assert.throws(() => runtime('compile', { packages: data }), /^Error: Invalid password$/);
+  data.csqtt.main.password = secret; data.csqtt.main.peer = 'host name:443';
+  assert.throws(() => runtime('compile', { packages: data }), /^Error: Invalid peer$/);
+});
+
 test('runtime enforces original client hash and worker capacities', () => {
   const data = packages();
   const hashes = Array.from({ length: 6 }, (_, i) => 'valid_call_hash_' + String(i).padStart(4, '0'));
@@ -51,6 +71,15 @@ test('runtime enforces original client hash and worker capacities', () => {
   assert.throws(() => runtime('compile', { packages: data }), /six VK/);
   data.csqtt.main.vk_hashes = [hashes[0], hashes[0]];
   assert.throws(() => runtime('compile', { packages: data }), /Duplicate VK/);
+  const character = randomBytes(1).toString('hex')[0];
+  for (const length of [16, 1024]) {
+    data.csqtt.main.vk_hashes = [character.repeat(length)];
+    assert.equal(JSON.parse(runtime('compile', { packages: data }).files['/var/run/csqtt/apply.42/client.json']).vk_hashes[0].length, length);
+  }
+  for (const hash of [character.repeat(15), character.repeat(1025), character.repeat(16) + '!']) {
+    data.csqtt.main.vk_hashes = [hash];
+    assert.throws(() => runtime('compile', { packages: data }), /^Error: Invalid VK hash$/);
+  }
 });
 
 test('runtime rejects malformed peer endpoints before activating policy', () => {

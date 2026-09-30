@@ -20,8 +20,9 @@ return view.extend({
 			o.rmempty = false;
 			// Rebuild choices after adding or renaming a group in the same form.
 			o.renderWidget = function(sectionId, optionIndex, cfgvalue) {
+				var option = this; // GridSection clones options for its add/edit modal.
 				this.keylist = []; this.vallist = [];
-				uci.sections('csqtt', 'group').forEach(function(g) { o.value(g['.name'], E('span', {}, [g.name || g['.name']])); });
+				uci.sections('csqtt', 'group').forEach(function(g) { option.value(g['.name'], E('span', {}, [g.name || g['.name']])); });
 				return form.ListValue.prototype.renderWidget.call(this, sectionId, optionIndex, cfgvalue);
 			};
 			o.validate = function(id, value) {

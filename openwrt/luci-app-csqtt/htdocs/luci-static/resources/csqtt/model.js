@@ -31,6 +31,20 @@ function validHash(value) {
 	return typeof value === 'string' && /^[A-Za-z0-9_-]{16,1024}$/.test(value);
 }
 
+function callLink(value) {
+	var hash = normalizeHash(value);
+	return validHash(hash) ? 'https://vk.com/call/join/' + hash : '';
+}
+
+function validCallLink(value) {
+	if (typeof value !== 'string' || !/^https?:\/\//i.test(value.trim())) return false;
+	try {
+		var url = new URL(value.trim());
+		return !url.username && !url.password && !url.port && /^(?:m\.)?vk\.com$/i.test(url.hostname) &&
+			/^\/call\/join\/[A-Za-z0-9_-]{16,1024}$/.test(url.pathname) && validHash(normalizeHash(value));
+	} catch (e) { return false; }
+}
+
 function validPassword(value) {
 	if (typeof value !== 'string' || /[\x00-\x1f\x7f-\x9f|]/.test(value)) return false;
 	var bytes = new TextEncoder().encode(value).length;
@@ -127,6 +141,8 @@ return baseclass.extend({
 	validHost: validHost,
 	validHash: validHash,
 	validHashes: validHashes,
+	validCallLink: validCallLink,
+	callLink: callLink,
 	validPassword: validPassword,
 	validMac: validMac,
 	validPairing: validPairing,
