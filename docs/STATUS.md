@@ -6,10 +6,14 @@ Actual files/Git/CI are authority.
 
 ## First unfinished action
 
-Inspect CI36683192758 ataa5b35f, SDK job109783468912 (started07:24UTC).
-Its checks/core/Android/native-policy jobs passed. SDK uses one LuCI compile
-goal and includes the extracted-payload, native transactions and real Linux
-TUN lifecycle checks. At07:24UTC it was restoring SDK cache.
+Publish/re-run the native APK query correction after CI36683192758 ataa5b35f,
+SDK job109783468912. Checks/core/Android/native-policy passed. SDK compiled
+all three packages; required payloads/modes/dependencies/license, strict
+signatures/wrong-key, stripped ARM64 smoke and real Linux TUN lifecycle passed.
+Transactions reached successful offline add, then the test query returned[]
+because APK query requires a selection term. Source now supplies --all-matches
+and quoted '*', plus exact baseline/status assertions. No installer change:
+its named queries and info --from installed were already correct.
 Superseded SDK jobs109773381996 (defa7f0c, cancelled by root) and109779735578
 (587e1d7, automatically replaced in queue) did not finish native APK tests.
 Native DNS/policy (including IPv6 DNS transport), checks, Rust and Android
@@ -107,7 +111,7 @@ Do not repeat passed Rust/Android work or completed installer doubles.
   sources, matching root LICENSE byte-for-byte. USAGE.md and ACCEPTANCE.md
   describe setup and outstanding real tests. APK extracted-payload audit now
   checks architecture, dependencies, modes, license and stripped QEMU binaries;
-  source ready, actual run pending. APK read commands no longer receive the
+  passed CI36683192758. APK read commands no longer receive the
   add/del-only no-scripts flag; tightened installer doubles27scenarios passed
   again. Added native info preflight command check. New IPv6 DNS transport
   cases through LAN/public redirect passed CI36679945450.
@@ -116,7 +120,7 @@ Do not repeat passed Rust/Android work or completed installer doubles.
 - Added isolated real Linux TUN lifecycle for the extracted ARM64 client:
   private control/status, graceful stop/SIGTERM, SIGKILL TUN removal and stale
   socket restart. Python syntax and native runner shell syntax passed locally;
-  actual QEMU/kernel execution awaits the next SDK job. CI installs iproute2/
+  actual QEMU/kernel execution passed CI36683192758. CI installs iproute2/
   kmod and checks /dev/net/tun. No server/VK or OpenWrt boot success is claimed.
 - Preview preflight now requires an existing tag matching GITHUB_SHA before
   building; release uses --verify-tag and includes install.sh. BUILD documents
@@ -130,7 +134,9 @@ Do not repeat passed Rust/Android work or completed installer doubles.
   invokes a separate submake. Historical b30 log showed three kernel builds
   of429/417/413seconds and repeated core/CAPTCHA compilation. Local portable
   sh syntax/diff checks passed; the attempted bundled bash path was absent.
-  Actual three-artifact proof is required from the next SDK job.
+  CI36683192758 proved all three APKs and the one-leaf SDK build: packages
+  phase8m19s, whole SDK job about14minutes versus38minutes with three goals.
+  Native transaction rollback proof awaits the corrected query rerun.
 
 ## Ownership and next sequence
 
@@ -143,8 +149,11 @@ scripts/test-arm64-tun.py for isolated real Linux TUN lifecycle under QEMU;
 root integrated it into SDK/CI. All three stopped edits. Root owns broker,
 SDK/CI/release, top-level docs and Git. No previous process may be assumed alive.
 
-1. Inspect the latest recorded SDK job and resolve fresh APK/TUN failures.
-   Source checkpoint is published; do not redo corrected d762 query failure.
+1. Publish the native query correction and inspect its next SDK job. Signing
+   secret requested from user; GitHub form shown and local private-file tab
+   queued for them. No key value read or sent by agent. Await explicit user
+   'готово' before treating Actions secret as configured. Native rollback
+   proof still pending. Do not redo corrected d762 query failure.
 2. Confirm three APK packages and helper artifact; inspect package contents,
    executable permissions, dependencies, UCI/procd/fw4/control contracts.
 3. Configure signing secret and validate signed preview only after builds pass.

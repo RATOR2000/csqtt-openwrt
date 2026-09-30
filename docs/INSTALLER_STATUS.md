@@ -60,19 +60,23 @@ checks use Node crypto. It never writes host /etc, /lib or live router paths.
 
 Source review used the official OpenWrt 25.12.5 APK Makefile (APK 3.0.5 commit
 b5a31c0d865342ad80be10d68f1bb3d3ad9b0866) and the corresponding Alpine apk-tools
-add/query/cache/database sources. CI 36640955080 compiled the three SDK APKs,
-then stopped at the first native signature check; the corrected runner awaits
-CI. Staged-root cache behavior, BusyBox/ash, real package scripts and real router
-DNS rollback remain unverified. No signed installable release exists yet.
+add/query/cache/database sources. CI 36683192758 at aa5b35f compiled all three
+SDK APKs and passed strict/negative signatures, payload permissions and
+dependencies, upstream license, packaged ARM64 smoke and real Linux TUN
+lifecycle. Its native transaction suite stopped at the offline installed-state
+assertion because an unqualified query returned []. The enumeration correction
+awaits CI; complete offline/rollback acceptance, BusyBox/ash, real package
+scripts and real router DNS rollback remain unverified. No signed installable
+release exists yet.
 
 Root-relative key/cache semantics were confirmed in that commit: context.c
 loads an explicit keys_dir with apk_dir_foreach_file(ac->root_fd,...), and
 database.c opens cache_dir with openat(db->root_fd,...). Copied database files
 are dereferenced with cp -aL so symlinks cannot alias live database files.
 
-Next: exercise real signed SDK
-APKs with native APK 3.0.5 in disposable OpenWrt roots before publishing an
-installer command. Live GL-MT6000 testing still requires connection details
+Next: complete the corrected native APK3 installed-state and exact rollback
+checks in disposable roots before publishing an installer command.
+Live GL-MT6000 testing still requires connection details
 and task scope. Power loss or SIGKILL cannot run shell rollback traps.
 
 ## Prepared native APK check
@@ -108,14 +112,26 @@ directory with APK3 extract, which never executes package scripts. It checks
 the core/CAPTCHA ARM64 architecture and LuCI's all architecture, required
 dependencies, the executables and LuCI resources, mode 0600 for the UCI config
 and guard, and the original upstream license. Packaged/stripped client and
-broker executables then run the existing Cortex-A53 QEMU smoke script. This
-new audit and packaged-binary execution await the next SDK CI run.
+broker executables then run the existing Cortex-A53 QEMU smoke script. These
+checks and the packaged client's real Linux TUN lifecycle passed in
+CI 36683192758 at aa5b35f.
 
 Pinned app_extract.c, app_info.c and app_query.c confirmed that --no-scripts
 belongs to the add/del option group. Native installed-package queries and
 installer stage_info now use read applets without that unsupported flag;
 mutations retain it. The installer command double rejects the unsupported
 combination so the isolated scenarios cover the real CLI boundary.
+
+The same CI reached offline installation but its snapshot query returned [].
+Pinned [query.c](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/query.c)
+iterates explicit selection terms; app_query does not set empty_matches_all,
+while app_info does. root_query now uses --installed --all-matches with a
+quoted '*' selection term. A real CLI baseline assertion requires exactly the
+original package/version/installed status before any stage work, preventing
+empty baseline and rollback snapshots from comparing equal. Offline status
+must be exactly ['installed'], which also rejects APK's singular broken-script
+status. Installer queries already provide names and stage_info enumerates
+installed packages by design, so this correction does not change install.sh.
 
 Review of [context.c](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/context.c),
 [app_adbsign.c](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/app_adbsign.c)
@@ -124,8 +140,10 @@ confirmed the cause. APK3 trust compares the key fingerprint, so fixture.pem
 and csqtt-public.pem naming is valid; relative key/cache paths remain valid.
 No installer change is needed for this signing-only failure.
 
-Git bundled sh -n and scoped git diff --check passed after the runner fix.
-**The corrected native runner has not been executed.**
+Git bundled sh -n, Python block compilation, local baseline snapshot assertion
+checks (valid original accepted; [] and broken status rejected), and scoped
+git diff --check passed after the enumeration fix.
+**The corrected native transaction suite has not been executed.**
 Root owns the CI/build-sdk hookup. The SDK host binary uses the OpenSSL backend;
 passing this runner will still leave the stock router's mbedTLS APK backend,
 real CSQTT package scripts and live router rollback unverified.

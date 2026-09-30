@@ -195,13 +195,19 @@ root_apk() {
 root_query() {
     root=$1
     case "$root" in "$TMP/"*) ;; *) die 'Query root escaped the disposable directory.' ;; esac
-    "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network query --installed --fields name,version,status --format json
+    # Unlike info, query requires a selection term; no arguments return [].
+    "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network query --installed --all-matches --fields name,version,status --format json '*'
 }
 BASE="$TMP/base"
 prepare_root "$BASE"
 root_apk "$BASE" add --initdb "$TMP/original-dns.apk" > "$TMP/base-install.txt" 2>&1
 cp "$BASE/etc/apk/world" "$TMP/original-world"
 root_query "$BASE" > "$TMP/baseline.json"
+python3 - "$TMP/baseline.json" <<'NATIVE_APK_BASELINE'
+import json, pathlib, sys
+packages = json.loads(pathlib.Path(sys.argv[1]).read_text())
+assert packages == [{'name': 'csqtt-native-old', 'version': '1.0-r1', 'status': ['installed']}], packages
+NATIVE_APK_BASELINE
 # Exercise the installer's read-only preflight command against the real CLI.
 "$APK" --root "$BASE" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network info --from installed > "$TMP/installed-names.txt"
 [ "$(cat "$TMP/installed-names.txt")" = csqtt-native-old ] || die 'Installed-package name query differs from installer assumptions.'
@@ -242,7 +248,7 @@ import json, pathlib, sys
 packages = json.loads(pathlib.Path(sys.argv[1]).read_text())
 assert {item['name'] for item in packages} == {'csqtt-native-app', 'csqtt-native-full', 'csqtt-native-dependency'}, packages
 assert all(item['version'] == '1.0-r1' for item in packages), packages
-assert all('broken-scripts' not in str(item.get('status', '')) for item in packages), packages
+assert all(item.get('status') == ['installed'] for item in packages), packages
 NATIVE_APK_ASSERT
 root_apk "$OFFLINE" --no-network del csqtt-native-app csqtt-native-full >> "$TMP/offline.txt" 2>&1
 root_apk "$OFFLINE" --no-network add "$TMP/original-dns.apk" >> "$TMP/offline.txt" 2>&1
