@@ -50,7 +50,7 @@ else if (command === 'uclient-fetch') {
   if (process.env.APK_CONFIG !== '/dev/null') fail('APK config not isolated');
   // APK 3.0.5 prints its compiled CPU architecture, ignoring /etc/apk/arch.
   if (args.includes('--print-arch')) { output('aarch64'); process.exit(0); }
-  const index = args.findIndex(arg => ['query', 'verify', 'fetch', 'info', 'add', 'del'].includes(arg));
+  const index = args.findIndex(arg => ['query', 'verify', 'update', 'fetch', 'info', 'add', 'del'].includes(arg));
   if (index < 0) fail('Unknown apk invocation');
   const action = args[index];
   if (args.includes('--no-scripts') && !['add', 'del'].includes(action)) fail('APK 3.0.5 read applet rejects no-scripts');
@@ -61,23 +61,44 @@ else if (command === 'uclient-fetch') {
   const database = path.join(base, 'lib/apk/db/installed');
   const installed = JSON.parse(fs.readFileSync(database, 'utf8'));
   const world = path.join(base, 'etc/apk/world');
+  const cache = args.includes('--cache-dir') ? resolve(base, option('--cache-dir')) : null;
+  const originalData = Buffer.from('official unsigned original dnsmasq');
+  const originalHash = crypto.createHash('sha256').update(originalData).digest('hex');
+  const originalFile = 'dnsmasq-2.91-r2.' + originalHash.slice(0, 8) + '.apk';
+  const indexFile = cache && path.join(cache, 'APKINDEX.fixture.tar.gz');
+  const trustedIndex = () => {
+    if (!indexFile || !fs.existsSync(indexFile)) fail('Signed original repository index is missing');
+    const indexData = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+    if (indexData.signature !== 'fixture-openwrt-trusted' || indexData.originalHash !== originalHash) fail('Repository index signature failed');
+  };
   const save = () => fs.writeFileSync(database, JSON.stringify(installed));
   const plain = args.slice(index + 1).filter((arg, i, tail) => !arg.startsWith('--') && !['--output', '--match', '--fields', '--format'].includes(tail[i - 1]));
   if (action === 'query') {
     const name = args.at(-1);
-    output(JSON.stringify(installed[name] ? [{ name, version: installed[name], package: name + '-' + installed[name] }] : []));
+    const names = name === '*' && args.includes('--all-matches') ? Object.keys(installed) : installed[name] ? [name] : [];
+    output(JSON.stringify(names.map(name => ({ name, version: installed[name], package: name + '-' + installed[name] }))));
   } else if (action === 'verify') {
     const file = args.at(-1);
     if (file.includes('packages') && (!option('--keys-dir').endsWith('release-keys') || fs.readdirSync(option('--keys-dir')).length !== 1)) fail('Release APK verification is not pinned to one key');
     if (scenario === 'package_signature' && file.includes('packages')) fail('fake APK signature failure');
+    if (path.basename(file).startsWith('dnsmasq-')) fail('UNTRUSTED signature: official DNS APK is unsigned');
+  } else if (action === 'update') {
+    if (!staged) fail('Index preparation changed the live root');
+    if (scenario === 'rollback_index_key') fail('Repository index signature failed');
+    fs.mkdirSync(cache, { recursive: true });
+    fs.writeFileSync(indexFile, JSON.stringify({ signature: 'fixture-openwrt-trusted', originalHash }));
   } else if (action === 'fetch') {
-    // Read-only APK fetch does not refresh a missing index cache. The rollback
-    // fetch must read the remote signed index directly on a stock fresh router.
-    if (!args.includes('--no-cache')) fail('dnsmasq: unable to select package (or its dependencies)');
+    // A stock router starts without indexes. Fetch cannot populate them, and
+    // --no-cache would lose the signed index needed to restore unsigned DNS.
+    if (args.includes('--no-cache')) fail('Original DNS rollback requires retained signed indexes');
+    trustedIndex();
     if (!args.includes('--recursive')) fail('APK 3.0.5 ordinary name=version selection does not match');
-    if (scenario === 'rollback_cache') fail('exact installed version unavailable');
+    if (scenario === 'rollback_cache') process.exit(0); // Real fetch ignores solver errors.
     if (args.at(-1) !== 'dnsmasq=2.91-r2') fail('Rollback fetched a different version');
-    fs.writeFileSync(path.join(option('--output'), 'dnsmasq-2.91-r2.apk'), 'official signed original dnsmasq');
+    if (option('--pkgname-spec') !== '${name}-${version}.${hash:8}.apk') fail('DNS cache filename does not match APK format');
+    fs.writeFileSync(path.join(option('--output'), originalFile), scenario === 'rollback_cache_tamper' ? Buffer.from('corrupt original DNS') : originalData);
+    if (scenario === 'rollback_index_missing') fs.unlinkSync(indexFile);
+    if (scenario === 'rollback_index_tamper') fs.writeFileSync(indexFile, JSON.stringify({ signature: 'invalid', originalHash }));
   } else if (action === 'info') output(Object.keys(installed).sort().join('\n'));
   else if (action === 'del') {
     if (!args.includes('--simulate')) {
@@ -97,21 +118,30 @@ else if (command === 'uclient-fetch') {
       installed['openssl-util'] = '3.5.0-r1'; save();
       process.exit(0);
     }
-    const rollback = plain.length === 1 && plain[0].endsWith('dnsmasq-2.91-r2.apk');
+    const rollback = plain.length === 1 && plain[0] === 'dnsmasq=2.91-r2';
     if (!rollback && plain.length !== 4) fail('Dependencies were added as world roots');
-    if (staged && args.includes('--simulate') && scenario === 'dependency') fail('unrelated dependency failure');
-    if (staged && !args.includes('--simulate') && action === 'add' && scenario === 'prefetch') fail('prefetch network failure');
-    const cache = resolve(base, option('--cache-dir'));
+    if (rollback) {
+      if (!args.includes('--no-network') || args.includes('--simulate')) fail('Original DNS restore must actually verify cached bytes offline');
+      trustedIndex();
+      const cached = path.join(cache, originalFile);
+      if (!fs.existsSync(cached) || crypto.createHash('sha256').update(fs.readFileSync(cached)).digest('hex') !== originalHash) fail('Original DNS does not match its signed index');
+      if (staged && scenario === 'rollback_restore') fail('Original DNS offline restore failed');
+    }
+    if (!rollback && staged && args.includes('--simulate') && scenario === 'dependency') fail('unrelated dependency failure');
+    if (!rollback && staged && !args.includes('--simulate') && scenario === 'prefetch') fail('prefetch network failure');
     if (!rollback && args.includes('--no-network') && !fs.existsSync(path.join(cache, 'dependency.apk'))) fail('Required dependency missing from offline cache');
     if (!args.includes('--simulate')) {
-      if (rollback) installed.dnsmasq = '2.91-r2';
+      if (rollback) {
+        installed.dnsmasq = '2.91-r2';
+        if (staged && scenario === 'restore_changes_version') installed['base-files'] = '2';
+      }
       else {
         delete installed.dnsmasq;
         Object.assign(installed, { csqtt: '0.1.0-r1', 'csqtt-captcha': '0.1.0-r1', 'luci-app-csqtt': '0.1.0-r1', 'dnsmasq-full': '2.93-r1' });
         fs.mkdirSync(cache, { recursive: true });
         if (scenario !== 'offline_cache') fs.writeFileSync(path.join(cache, 'dependency.apk'), 'signed dependency');
       }
-      const roots = rollback ? ['dnsmasq'] : ['csqtt', 'csqtt-captcha', 'luci-app-csqtt', 'dnsmasq-full'];
+      const roots = rollback ? ['dnsmasq=2.91-r2'] : ['csqtt', 'csqtt-captcha', 'luci-app-csqtt', 'dnsmasq-full'];
       const existing = fs.readFileSync(world, 'utf8').split('\n').filter(Boolean);
       fs.writeFileSync(world, [...new Set([...existing, ...roots])].join('\n') + '\n');
       save();

@@ -10,45 +10,64 @@ authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-Run focused native APK regression, publish additional corrected preview.1 asset
-`install-openwrt25-r2.sh` and update release command, then owner retries manually.
-Second router attempt used install-openwrt25.sh and passed architecture, all three
-stock APK signature checks, manifest signature and package checksums. It stopped
-before live DNS/config changes: `dnsmasq: unable to select package (or its dependencies)`;
-`The exact original DNS package must be cached before replacement.` Temporary
-diagnostics at /tmp/csqtt-install.gpCMMm. Owner read-only query confirms installed
-dnsmasq-2.93-r1; no matching file under /var/cache/apk. Same2.93-r1 is in official
-25.12.5 base feed. APK3.0.5 fetch opens READ|NO_STATE; missing cached index is not
-downloaded automatically. -U alone does not fix that read-only path. Installer
-uses explicit --no-cache for exact rollback fetch; signed remote indexes and
-strict original APK verify still required. Missing exact version still aborts.
-Realistic command double reproduced identical first-install failure beforefix;
-afterfix `python tests/installer/installer_test.py` all6 methods/30scenarios passed
-in117.224s. Both install.sh/test-native-apk.sh sh -n, Node --check, diff check pass.
-Native suite adds isolated empty-index failure/direct-fetch success, signature/
-byte equality and unchanged state. Linux execution of this new check is pending.
-Focused CI36729783098 atd0d4057 (same tree as65ee35e) built pinnedAPK3.0.5;
-published manifest/hashes, native payload, ARM64/TUN passed. New direct-fetch
-check failed; its isolated diagnostics were not printed. Added only fresh-fetch
-diagnostic output on failure; rerun next to resolve real behavior before publishing.
-Pinned query.c also leaves full name=version in exact name matching: nonrecursive
-fetch misses even a downloaded index. Installer now uses --recursive to route
-exact constraints through solver; additional downloaded dependencies stay private
-and are not used as world roots. Native regression checks both old failure modes,
-exact solver download/strict signature/byte equality, missing-version rejection
-and unchanged state. Local full harness/native rerun pending after this second fix.
-Final installer harness all6 methods/30scenarios passed in201.904s (after solver
-flag); no production edits since. CI36730351333 confirmed fresh-index/nonrecursive
-failure. CI36731100060 atffe4fdd downloaded and strictly verified exact1.0-r1,
-then test wrongly expected nonzero exit for absent9.0. APK fetch ignores solver
-failure and exits0 without downloading; production already requires exact file
-in fresh rollback directory and its signature. Native negative now uses a separate
-empty output directory and asserts no APK, matching real behavior. Final rerun next.
-preview_review owns ONLY .github/workflows/installer-smoke.yml creation: pinned
-native APK build plus existing published binaries/native tests, no SDK/Rust/Android
-rebuild or release private key. Root owns installer/tests/docs/publish. Recheck agents.
-Dedicated codex/installer-smoke branch will trigger this single job; source/tag/
-three signed APK/manifest remain unchanged. No direct router control/SSH details.
+Fix original DNS backup/rollback authentication, then run the focused native APK
+regression before publishing install-openwrt25-r2.sh. Current r2 in .work is an
+UNPUBLISHED earlier draft and must be replaced; it still verifies/restores an
+unsigned official APK as a local file and is not usable.
+
+Owner's router: exact recursive fetch with --no-cache downloaded dnsmasq-2.93-r1
+and four dependencies; standalone verify reports UNTRUSTED. /lib/apk/keys is
+absent; /etc/apk/keys/openwrt-25.12.pem exists (178 bytes). Verify using copied
+TMP keys also reports UNTRUSTED. This is expected: official OpenWrt25.12.5
+package-pack.mk creates unsigned APKs; package/Makefile signs packages.adb.
+Pinned APK3.0.5 authenticates fetched package metadata identity against the
+trusted index and verifies payload hashes. Do not use allow-untrusted, repeat
+key questions, or install/verify the original unsigned APK as a local filename.
+
+Implementation in progress: isolated stage update retains signed indexes;
+recursive exact-version fetch uses APK's name-version.hash8.apk cache format;
+independent rollback cache preserves indexes/package; actual isolated offline
+restore by name=exactversion with no scripts proves both index/payload trust and
+unchanged original package versions before any live DNS mutation. Live rollback
+uses exact name/version plus preserved cache/index. Root owns install.sh,
+tests/installer, docs/publish. Active preview_review owns scripts/test-native-apk.sh
+(unsigned original DNS fixture, signed index, corruption/wrong-key guards,
+offline exact restore) and .github/workflows/installer-smoke.yml (APT timeouts).
+Recheck agent liveness before delegating in a future session.
+
+Historical fixes: read-only fetch does not populate missing indexes (-U alone
+is insufficient); nonrecursive name=version selection is broken in query.c;
+--recursive honors exact constraints but may exit0 after solver failure with
+no download. Production requires the exact file and proves offline restoration.
+Harness last passed all6 methods/30 scenarios in201.904s atffbd97a, BEFORE the
+unsigned-original correction; new checks are pending. Native runs36729783098/
+36730351333 confirmed the first two fetch failures. Run36731100060 fetched the
+exact signed fixture but its missing-version assertion was wrong and was fixed
+inf03d5d7. Final rerun36732102710/job109944165886 atsmoke682759f was CANCELLED
+in APT dependencies; no native pass, no cause inferred, all later steps skipped.
+Next run must contain unsigned-original tests and corrected installer.
+
+Dev HEAD f03d5d7e3c70c86357ef8582f85e6f7174bd466d before this work; smoke branch
+codex/installer-smoke at682759fdbdcff2e64afdbf05e4a6ce9a01147334. Focused native
+workflow builds only pinned APK3.0.5 and consumes already verified preview
+binaries; no SDK/Rust/Android rebuild or private signing key. Source checkpoints
+use [skip ci]; to trigger focused run create commit with smokehead parent plus
+newdev additional parent and newdevtree, then update smoke ref. Frozen tag and
+three project APK/manifest remain unchanged. No direct router control/details.
+Root implementation complete; actual staging restore compares the full installed
+name/version set, including other packages. Doubles now model unsigned DNS,
+signed cached index, hashed cache filename, zero-exit/no-file fetch failure and
+pinned world after exact restore. New fault cases cover wrong/missing/changed
+index, corrupted original cache, offline restore failure and unrelated version
+change. Native agent changes reviewed statically; full36-scenario harness running
+in local execsession19530 at this checkpoint (do not assume session persists).
+Bootstrap, first/repeat install, offline failures and all6 live failure rollback
+scenarios passed so far. Final preflight/upgrade tests are still pending.
+Node syntax, shell -n (installer/native), Python AST and diff check passed.
+Ignored prepare-dns-fix.py now accepts sourceSHA/smokeSHA arguments, requires a
+passing CI, and describes signed-index unsigned-DNS authentication. It has not
+been executed; no r2 asset/provenance publication. verify-dns-fix.py will verify
+all10 assets after upload. Local r2 draft bytes must still be replaced.
 
 Previous architecture fix (published, now superseded for next retry):
 Architecture fix **bb2df3a00096238338560ebe4a9014270a979029**, tree

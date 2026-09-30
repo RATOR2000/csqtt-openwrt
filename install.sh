@@ -37,14 +37,16 @@ cleanup() {
         # Replacement is allowed only on a first install, so these roots did
         # not exist before the transaction. Keep configs and fail-closed guards.
         apk --repositories-file "$TMP/repositories" --keys-dir "$TMP/keys" --cache-dir "$TMP/cache" --no-network del csqtt-captcha luci-app-csqtt csqtt dnsmasq-full >> "$TMP/rollback.txt" 2>&1 || true
-        if apk --repositories-file "$TMP/repositories" --keys-dir "$TMP/keys" --cache-dir "$TMP/cache" --no-network add "$TMP/rollback/$DNS_PACKAGE.apk" >> "$TMP/rollback.txt" 2>&1; then
+        # Official OpenWrt APKs are unsigned. Their identity is authenticated
+        # by the signed index retained with the original hashed cache file.
+        if apk --repositories-file "$TMP/repositories" --keys-dir "$TMP/keys" --cache-dir "$TMP/rollback-cache" --no-network add "dnsmasq=$DNS_VERSION" >> "$TMP/rollback.txt" 2>&1; then
             if [ -f "$BACKUP/dhcp" ]; then
                 cp -p "$BACKUP/dhcp" /etc/config/dhcp || echo 'Cannot restore the DHCP configuration; inspect the private backup.' >&2
             fi
             cp -p "$BACKUP/world" /etc/apk/world || echo 'Cannot restore APK world; inspect the private backup.' >&2
             /etc/init.d/dnsmasq restart >> "$TMP/rollback.txt" 2>&1 || echo 'DNS service restart failed; inspect rollback.txt.' >&2
         else
-            echo "Automatic DNS restore failed. Cached original package: $TMP/rollback/$DNS_PACKAGE.apk" >&2
+            echo "Automatic DNS restore failed. Original DNS cache and signed indexes: $TMP/rollback-cache" >&2
         fi
     fi
     if [ "$status" -eq 0 ]; then rm -rf "$TMP"; else echo "Installation diagnostics retained in $TMP" >&2; fi
@@ -57,7 +59,7 @@ trap 'exit 143' TERM
 fetch() { uclient-fetch -q -O "$2" "$1" || die "Download failed: ${1##*/}"; }
 field() { jsonfilter -i "$TMP/manifest.json" -e "$1"; }
 if [ "$VERSION" = latest ]; then BASE="https://github.com/$REPO/releases/latest/download"; else BASE="https://github.com/$REPO/releases/download/$VERSION"; fi
-mkdir -p "$TMP/packages" "$TMP/release-keys" "$TMP/keys" "$TMP/rollback" "$TMP/cache"
+mkdir -p "$TMP/packages" "$TMP/release-keys" "$TMP/keys" "$TMP/rollback-cache" "$TMP/cache"
 fetch "$BASE/manifest.json" "$TMP/manifest.json"
 [ "$(wc -c < "$TMP/manifest.json")" -le 65536 ] || die 'Manifest is too large.'
 fetch "$BASE/manifest.sig" "$TMP/manifest.sig"
@@ -139,7 +141,12 @@ cp "$TMP/keys/"* "$STAGE/etc/apk/keys/"
 cp "$TMP/repositories" "$STAGE/etc/apk/repositories"
 stage_apk() { apk --root "$STAGE" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-scripts "$@"; }
 # Read applets do not accept the mutation-only --no-scripts option in APK 3.0.5.
-stage_info() { apk --root "$STAGE" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network info --from installed; }
+stage_read() { apk --root "$STAGE" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk "$@"; }
+stage_info() { stage_read --no-network info --from installed; }
+stage_packages() {
+    stage_read --no-network query --installed --all-matches --fields package --format json '*' > "$TMP/stage-packages.json"
+    jsonfilter -i "$TMP/stage-packages.json" -e '@[*].package'
+}
 UPGRADE=0
 apk query --installed --match name --fields name --format json csqtt > "$TMP/core-installed.json"
 [ "$(jsonfilter -i "$TMP/core-installed.json" -e '@[*].name')" != csqtt ] || UPGRADE=1
@@ -156,18 +163,41 @@ if [ "$REPLACE_DNS" = 1 ]; then
     DNS_PACKAGE=$(jsonfilter -i "$TMP/dns.json" -e '@[0].package')
     DNS_VERSION=$(jsonfilter -i "$TMP/dns.json" -e '@[0].version')
     case "$DNS_PACKAGE:$DNS_VERSION" in *[!A-Za-z0-9._+:-]*|:|*:|:*) die 'Cannot identify the installed DNS package.' ;; esac
-    # APK fetch is read-only and does not refresh a missing/stale index cache.
-    # Read signed indexes directly before selecting the exact rollback version.
+    [ "$DNS_PACKAGE" = "dnsmasq-$DNS_VERSION" ] || die 'Installed DNS package identity is inconsistent.'
+    # OpenWrt signs repository indexes, not individual DNS APKs. Retain the
+    # trusted index and its authenticated package under APK's hashed cache name.
+    # A read-only fetch alone does not refresh a missing index cache.
+    stage_read update > "$TMP/dns-cache.txt" 2>&1 || die 'Cannot cache signed OpenWrt repository indexes.'
     # Recursive selection uses the solver: APK 3.0.5's ordinary query path
     # compares the package name with the full name=version string and misses it.
-    apk --no-cache --repositories-file "$TMP/repositories" fetch --recursive --output "$TMP/rollback" "dnsmasq=$DNS_VERSION" || die 'The exact original DNS package must be cached before replacement.'
-    [ -f "$TMP/rollback/$DNS_PACKAGE.apk" ] || die 'Original DNS package cache is missing.'
-    apk verify "$TMP/rollback/$DNS_PACKAGE.apk" >/dev/null || die 'Original DNS package signature verification failed.'
+    stage_read fetch --recursive --pkgname-spec '${name}-${version}.${hash:8}.apk' --output "$STAGE/var/cache/apk" "dnsmasq=$DNS_VERSION" >> "$TMP/dns-cache.txt" 2>&1 || die 'The exact original DNS package must be cached before replacement.'
+    # APK fetch can exit zero after a solver failure without downloading a file.
+    DNS_CACHE_FILE=
+    for CACHED in "$STAGE/var/cache/apk/$DNS_PACKAGE."*.apk; do
+        [ -f "$CACHED" ] || continue
+        [ -z "$DNS_CACHE_FILE" ] || die 'Original DNS package cache is ambiguous.'
+        DNS_CACHE_FILE=$CACHED
+    done
+    [ -n "$DNS_CACHE_FILE" ] || die 'Original DNS package cache is missing.'
+    cp -a "$STAGE/var/cache/apk/." "$TMP/rollback-cache/"
+    stage_packages > "$TMP/packages-before.txt"
     stage_info > "$TMP/installed-before.txt"
     stage_apk del --simulate dnsmasq > "$TMP/dns-remove.txt" 2>&1 || die 'Cannot safely replace the current DNS package.'
     stage_apk del dnsmasq >> "$TMP/dns-remove.txt" 2>&1 || die 'DNS replacement preflight failed.'
     stage_info > "$TMP/installed-after.txt"
     awk 'NR==FNR { kept[$0]=1; next } $0 != "dnsmasq" && !($0 in kept) { bad=1 } END { exit bad }' "$TMP/installed-after.txt" "$TMP/installed-before.txt" || die 'DNS replacement would remove other installed packages.'
+    # Actually restore into another disposable root, with networking and
+    # package scripts disabled. This checks signed-index identity and payload
+    # hashes; standalone verify cannot authenticate an unsigned official APK.
+    FORWARD_STAGE=$STAGE
+    STAGE="$TMP/restore"
+    mkdir -p "$STAGE"
+    cp -aL "$FORWARD_STAGE/." "$STAGE/"
+    cp -a "$TMP/rollback-cache/." "$STAGE/var/cache/apk/"
+    stage_apk --no-network add "dnsmasq=$DNS_VERSION" > "$TMP/dns-restore-check.txt" 2>&1 || die 'Original DNS cannot be restored from its signed index and cache offline.'
+    stage_packages > "$TMP/packages-restored.txt"
+    awk 'NR==FNR { original[$0]=1; next } !($0 in original) { bad=1 } { delete original[$0] } END { for (package in original) bad=1; exit bad }' "$TMP/packages-before.txt" "$TMP/packages-restored.txt" || die 'Original DNS restore would change other installed package versions.'
+    STAGE=$FORWARD_STAGE
 fi
 stage_apk add --simulate "$TMP/packages/$CORE" "$TMP/packages/$CAPTCHA" "$TMP/packages/$LUCI" dnsmasq-full > "$TMP/transaction.txt" 2>&1 || die 'Dependency check failed; DNS and configuration are unchanged.'
 # Cache the selected dependencies, then prove the add works without networking.
