@@ -1,6 +1,7 @@
 # OpenWrt policy/backend checkpoint
 
-Updated: 2026-09-30. Owner for this session: `backend_validate`.
+Updated: 2026-09-30. Owner for this session: `runtime_acceptance` (completed;
+root owns publish/CI and the current DNS fixture).
 Source implementation and host checks passed. The full native policy traffic
 suite passed in Linux CI run `36638972094` at `88d8189`, including pinned ucode,
 generated nft/DNS/model comparisons, dnsmasq syntax and all routing checks.
@@ -24,6 +25,14 @@ behavior remain unverified. Root owns commits, CI and SDK packaging.
   waits for procd DNS instances and flushes known client conntrack flows before
   releasing the maintenance guard. It detects reserved routing-rule/table and
   firewall-section collisions and active pbr/mwan services.
+- First activation now commits the saved maintenance guard's fw4 include
+  before nft validation. Previously a failed first transaction could leave a
+  live hold with no persistent include, so reboot reopened proposed clients
+  before the client service prepared policy. The new hold-only runtime mode
+  requires no complete policy files and keeps local-access exemptions. The
+  focused shell command-double test fails nft validation and confirms that
+  both the saved hold and its firewall include survive the failure. Actual
+  OpenWrt reboot/reload behavior remains unverified.
 - Bounded final review found no additional forwarding escape: independent
   forward/output guards cover route loss; stop/crash keeps unreachable routes;
   MAC/port checks block obsolete DNS DNAT after group assignments change.
@@ -60,6 +69,15 @@ behavior remain unverified. Root owns commits, CI and SDK packaging.
 
 ## Exact host checks
 
+- Runtime acceptance follow-up: `node --test tests/policy/runtime.test.mjs`
+  passed **14/14**; `node --test tests/policy/*.test.mjs` passed **26/26**.
+  The two new regressions cover the hold-only include, ownership collision,
+  offload/deactivation behavior and failed first-apply persistence. Bundled
+  Git `usr/bin/sh.exe -n openwrt/csqtt/files/manage` and scoped
+  `git diff --check` passed. Initial harness runs failed because the bundled
+  shell has a portable path and no chmod executable; shell discovery and the
+  command doubles were corrected. These are host simulations, not native
+  fw4/procd/router tests.
 - Initial `node --test tests/policy/*.test.mjs`: 16/17 passed; status failed on
   `JSON.parse(null)` bypassing the fallback. Fixed in `runtime.uc`.
 - Latest `node --test tests/policy/*.test.mjs`: **22/22 passed**.

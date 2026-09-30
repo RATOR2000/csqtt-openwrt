@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { runtime, fixture } from './harness.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+import { runtime, fixture, root } from './harness.mjs';
 function packages() {
   return { csqtt: { main: { '.type': 'client', ...fixture.main },
     ...Object.fromEntries(fixture.groups.map(g => [g.id, { '.type': 'group', ...g }])),
@@ -107,6 +112,63 @@ test('offload restoration preserves a later explicit administrator change', () =
 test('foreign firewall section cannot be overwritten', () => {
   const data = packages(); data.firewall.csqtt_guard = { '.type': 'rule', target: 'DROP' };
   assert.throws(() => runtime('firewall-on', { packages: data }), /collision/);
+});
+
+test('maintenance-only firewall include persists without changing offload or requiring policy files', () => {
+  const held = runtime('firewall-hold', { packages: packages() });
+  assert.deepEqual(held.packages.firewall.csqtt_hold, { '.type': 'include', type: 'nftables',
+    path: '/etc/csqtt/hold.nft', position: 'ruleset-post', csqtt_owned: '1' });
+  assert.equal(held.packages.firewall.defaults.flow_offloading, '1');
+  assert.equal(held.packages.firewall.csqtt_guard, undefined);
+  assert.equal(held.files['/etc/csqtt/offload.json'], undefined);
+  assert.equal(runtime('firewall-off', held).packages.firewall.csqtt_hold, undefined);
+  const data = packages(); data.firewall.csqtt_hold = { '.type': 'rule', target: 'DROP' };
+  assert.throws(() => runtime('firewall-hold', { packages: data }), /collision/);
+});
+
+test('first apply saves a boot firewall include before nft validation can fail', () => {
+  const git = process.platform === 'win32' ? execFileSync('where.exe', ['git'], { encoding: 'utf8' }).trim().split(/\r?\n/)[0] : '';
+  const shell = process.platform === 'win32' ? ['../bin/sh.exe', '../usr/bin/sh.exe']
+    .map(p => path.resolve(path.dirname(git), p)).find(p => fs.existsSync(p)) : '/bin/sh';
+  assert.ok(shell && fs.existsSync(shell), 'A POSIX shell is required for the manage failure regression');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'csqtt-hold-')).replaceAll('\\', '/');
+  const shellBin = path.dirname(shell).replaceAll('\\', '/').replace(/^([a-zA-Z]):/, (_, drive) => '/' + drive.toLowerCase());
+  try {
+    const driver = `${dir}/hold-driver.mjs`;
+    fs.writeFileSync(driver, `import fs from 'node:fs';\nimport { runtime } from ${JSON.stringify(pathToFileURL(path.join(root, 'tests/policy/harness.mjs')).href)};\n` +
+      `fs.writeFileSync(${JSON.stringify(`${dir}/firewall.json`)}, JSON.stringify(runtime('firewall-hold', { packages: { firewall: { defaults: { '.type': 'defaults', flow_offloading: '1' } } } }).packages.firewall));\n`);
+    const stubs = `
+PATH='${shellBin}':"$PATH"
+chmod() { :; }
+uci() { printf '0\\n'; }
+dnsmasq() { printf 'nftset\\n'; }
+logger() { :; }
+nft() { case "$1" in -c|list) return 1 ;; *) return 0 ;; esac; }
+ucode() {
+  case "$2" in
+    compile)
+      printf 1 > "$3/active"
+      printf 'saved maintenance guard\\n' > "$3/hold.nft"
+      printf 'invalid nft fixture\\n' > "$3/policy.nft" ;;
+    firewall-hold) node '${driver}' ;;
+    *) return 99 ;;
+  esac
+}
+`;
+    const manage = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/manage'), 'utf8')
+      .replace('umask 077', 'umask 077\n' + stubs)
+      .replace('RUN=/var/run/csqtt', `RUN='${dir}/run'`)
+      .replace('STATE=/etc/csqtt', `STATE='${dir}/state'`)
+      .replaceAll('/var/lock', `${dir}/lock`);
+    const script = `${dir}/manage`; fs.writeFileSync(script, manage);
+    const failed = spawnSync(shell, [script, 'apply'], { encoding: 'utf8' });
+    assert.equal(failed.status, 1, failed.stdout + failed.stderr);
+    assert.match(failed.stderr, /Generated firewall policy was rejected/);
+    const firewall = JSON.parse(fs.readFileSync(`${dir}/firewall.json`, 'utf8'));
+    assert.equal(firewall.csqtt_hold.path, '/etc/csqtt/hold.nft');
+    assert.equal(fs.readFileSync(`${dir}/state/hold.nft`, 'utf8'), 'saved maintenance guard\n');
+    assert.equal(firewall.defaults.flow_offloading, '1');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('device discovery combines leases, ARP and configured membership', () => {

@@ -1,6 +1,6 @@
 # Installer checkpoint
 
-Updated 2026-09-30. Owner: installer_validate subagent; root owns release signing,
+Updated 2026-09-30. Owner: apk_signature_fix subagent; root owns release signing,
 SDK builds, release workflow and repository checkpoints.
 
 ## Source
@@ -55,9 +55,10 @@ checks use Node crypto. It never writes host /etc, /lib or live router paths.
 
 Source review used the official OpenWrt 25.12.5 APK Makefile (APK 3.0.5 commit
 b5a31c0d865342ad80be10d68f1bb3d3ad9b0866) and the corresponding Alpine apk-tools
-add/query/cache/database sources. Native APK signatures, staged-root cache
-behavior, BusyBox/ash, real package scripts and real router DNS rollback have
-not been executed. No signed installable release exists yet.
+add/query/cache/database sources. CI 36640955080 compiled the three SDK APKs,
+then stopped at the first native signature check; the corrected runner awaits
+CI. Staged-root cache behavior, BusyBox/ash, real package scripts and real router
+DNS rollback remain unverified. No signed installable release exists yet.
 
 Root-relative key/cache semantics were confirmed in that commit: context.c
 loads an explicit keys_dir with apk_dir_foreach_file(ac->root_fd,...), and
@@ -88,9 +89,24 @@ missing offline cache rejection, network-free installation after stopping the
 loopback-only repository server, disabled script status, and exact original
 DNS/world restoration. Unsigned and byte-tampered APKs must also be rejected.
 
-Syntax was read from the pinned APK 3.0.5 mkpkg/adbsign/mkndx/package manual
-sources and app_mkpkg.c. Git bundled sh -n passed for the prepared runner;
-scoped git diff --check passed. **The native runner has not been executed.**
+CI 36640955080 at b30a0b76 failed before completing the first signed SDK APK
+verification. In the pinned APK source, adbsign parses the existing package
+before loading public trust and returns zero even after a per-file failure.
+The runner now scopes --allow-untrusted to adbsign transforming copies of local
+build artifacts or removing fixture signatures. Every verify, mkpkg, mkndx and
+install command retains strict trust. Unexpected adbsign diagnostics abort the
+runner because its exit status alone cannot prove success. Each synthetic APK
+and its signed index are explicitly verified before cache/install checks.
+
+Review of [context.c](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/context.c),
+[app_adbsign.c](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/app_adbsign.c)
+and [adb.c](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/adb.c)
+confirmed the cause. APK3 trust compares the key fingerprint, so fixture.pem
+and csqtt-public.pem naming is valid; relative key/cache paths remain valid.
+No installer change is needed for this signing-only failure.
+
+Git bundled sh -n and scoped git diff --check passed after the runner fix.
+**The corrected native runner has not been executed.**
 Root owns the CI/build-sdk hookup. The SDK host binary uses the OpenSSL backend;
 passing this runner will still leave the stock router's mbedTLS APK backend,
 real CSQTT package scripts and live router rollback unverified.

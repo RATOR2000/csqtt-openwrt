@@ -88,6 +88,7 @@ apply_policy() {
 	# during a failed transaction must not reopen affected clients.
 	cp "$stage/hold.nft" "$STATE/hold.nft.new"
 	mv "$STATE/hold.nft.new" "$STATE/hold.nft"
+	runtime firewall-hold >"$RUN/firewall.log" 2>&1 || error 'Cannot persist maintenance guard'
 	nft -f "$STATE/hold.nft" >"$RUN/nft.log" 2>&1 || error 'Cannot install maintenance guard'
 	# Drop existing hardware/software shortcuts before relying on new guards.
 	if nft list flowtable inet fw4 ft >/dev/null 2>&1; then

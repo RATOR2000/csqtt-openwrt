@@ -36,6 +36,7 @@ jobs:
       - name: Shell syntax
         run: |
           bash -n scripts/build-sdk.sh
+          sh -n scripts/test-native-apk.sh
           sh -n install.sh
           find openwrt -type f \( -name '*.init' -o -name manage -o -name tun-hook -o -name '9*-csqtt*' \) -exec sh -n {} \;
   core:
@@ -133,7 +134,7 @@ jobs:
       - name: Build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang cmake ninja-build gawk gettext git libncurses-dev libssl-dev python3 python3-setuptools rsync swig unzip zlib1g-dev file wget zstd
+          sudo apt-get install -y build-essential clang cmake ninja-build gawk gettext git libncurses-dev libssl-dev python3 python3-setuptools qemu-user rsync swig unzip zlib1g-dev file wget zstd
           rustup toolchain install 1.97.1 --profile minimal
       - uses: actions/cache/restore@v4
         id: sdk-cache
@@ -143,6 +144,11 @@ jobs:
             ~/.cargo/git
             vendor/csqtt/rust-client/target
           key: cargo-musl-${{ runner.os }}-1.97.1-openwrt25.12.5-${{ hashFiles('vendor/csqtt/rust-client/Cargo.lock') }}
+      - uses: actions/cache/restore@v4
+        id: sdk-dependencies
+        with:
+          path: .work/sdk/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64
+          key: sdk-dependencies-${{ runner.os }}-25.12.5-filogic-v1
       - name: Native OpenWrt packages
         id: packages
         env:
@@ -156,6 +162,22 @@ jobs:
             ~/.cargo/git
             vendor/csqtt/rust-client/target
           key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
+      - uses: actions/cache/save@v4
+        if: always() && steps.packages.outputs.sdk_ready == 'true' && steps.sdk-dependencies.outputs.cache-hit != 'true'
+        with:
+          path: .work/sdk/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64
+          key: ${{ steps.sdk-dependencies.outputs.cache-primary-key }}
+      - name: Compress SDK diagnostics
+        if: always()
+        run: |
+          for log in .work/sdk/*.log; do
+            [ ! -f "$log" ] || gzip -f "$log"
+          done
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: sdk-build-diagnostics
+          path: .work/sdk/*.log.gz
       - uses: actions/upload-artifact@v4
         with:
           name: openwrt-25.12.5-aarch64-cortex-a53

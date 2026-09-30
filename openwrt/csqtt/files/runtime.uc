@@ -162,6 +162,21 @@ function status() {
 		policy_error: trim(fs.readfile(ROOT + 'policy.error') || ''),
 		groups: length(model.groups || []), devices: length(model.devices || []) };
 }
+function firewall_include(name, file, position, chain) {
+	if (c.get('firewall', name) && c.get('firewall', name, 'csqtt_owned') !== '1') die('Firewall section collision');
+	c.set('firewall', name, 'include');
+	c.set('firewall', name, 'type', 'nftables');
+	c.set('firewall', name, 'path', STATE + file);
+	c.set('firewall', name, 'position', position);
+	c.set('firewall', name, 'csqtt_owned', '1');
+	if (chain) c.set('firewall', name, 'chain', chain);
+}
+function firewall_hold() {
+	// First activation can fail before the complete policy is persisted. Commit
+	// the saved maintenance guard now so an intervening reboot keeps it closed.
+	firewall_include('csqtt_hold', 'hold.nft', 'ruleset-post', null);
+	if (!c.save('firewall') || !c.commit('firewall')) die('Cannot save firewall configuration');
+}
 function firewall(on) {
 	let names = ['csqtt_guard', 'csqtt_hold', 'csqtt_forward', 'csqtt_input'];
 	let files = ['policy.nft', 'hold.nft', 'forward.nft', 'input.nft'];
@@ -179,13 +194,8 @@ function firewall(on) {
 			c.set('firewall', s['.name'], 'flow_offloading_hw', '0');
 		});
 		for (let i = 0; i < length(names); i++) {
-			if (c.get('firewall', names[i]) && c.get('firewall', names[i], 'csqtt_owned') !== '1') die('Firewall section collision');
-			c.set('firewall', names[i], 'include');
-			c.set('firewall', names[i], 'type', 'nftables');
-			c.set('firewall', names[i], 'path', STATE + files[i]);
-			c.set('firewall', names[i], 'position', i < 2 ? 'ruleset-post' : 'chain-pre');
-			c.set('firewall', names[i], 'csqtt_owned', '1');
-			if (i >= 2) c.set('firewall', names[i], 'chain', i === 2 ? 'forward' : 'input');
+			firewall_include(names[i], files[i], i < 2 ? 'ruleset-post' : 'chain-pre',
+				i < 2 ? null : (i === 2 ? 'forward' : 'input'));
 		}
 	} else {
 		for (let i = 0; i < length(names); i++)
@@ -230,6 +240,7 @@ if (mode === 'compile') {
 	save(path + '/flush.ips', join('\n', addresses) + '\n');
 } else if (mode === 'firewall-on') firewall(true);
 else if (mode === 'firewall-off') firewall(false);
+else if (mode === 'firewall-hold') firewall_hold();
 else if (mode === 'status') output(status());
 else if (mode === 'devices') output({ devices: devices() });
 else if (mode === 'diagnostics') {

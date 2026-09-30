@@ -6,17 +6,16 @@ Actual files/Git/CI are authority.
 
 ## First unfinished action
 
-Publish this checkpoint (SDK staging fix, real group DNS checks, CAPTCHA
-serialization), inspect its new PR CI run and fix SDK/native DNS/APK failures.
-The previous SDK runs failed after successful ARM64 client compilation because
-STAGING_DIR leaked into SDK make; source now scopes it to the compiler.
+Publish the latest DNS fixture, APK signing and persistent first-apply guard
+fixes, then inspect their new CI. CI36640955080 at b30a0b76 compiled all three
+SDK packages but failed in native APK adbsign/verify. SDK staging is now fixed.
 Do not repeat passed Rust/Android work or completed installer doubles.
 
 ## Saved repository/tooling
 
 - Public https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Development branch codex/csqtt-openwrt. Last confirmed remote54141e46bf48de563220cbda3977678c06b24a39; inspect HEAD for later commits.
+- Development branch codex/csqtt-openwrt. Last confirmed remote b30a0b76ad0d0d2a86d5cdc658cf300e059a8553; inspect HEAD for later commits.
 - Local push lacks auth; GitHub connector tree/commit/ref APIs work.
   scripts/export-github-tree.py exports committed delta to .work/publish-delta.
   Publish with manifest base_tree/parent, fetch, compare tree hashes and align.
@@ -57,32 +56,46 @@ Do not repeat passed Rust/Android work or completed installer doubles.
 - Latest DNS changes add real group resolver queries/set insertion and fix local
   names (domain-needed/rebind/delegation). Latest LuCI shows local domain via
   scoped status RPC and rejects internet rules for local names. New native DNS
-  suite is not executed yet. Node policy/LuCI33passed locally.
+  suite ran at b30a0b76 but stopped because a documentation-range fixture reply
+  was rejected by DNS rebind protection. Fixture now returns public addresses
+  inside isolated namespaces; protection retained. Wire roundtrips and Python
+  syntax passed locally; rerun native CI. Latest first-apply correction commits
+  the saved maintenance hold to fw4 before live nft validation, so a failed
+  first activation remains guarded across reboot. Policy26passed locally,
+  including failed-apply shell scenario. Real reboot remains unverified.
+  Latest complete Node policy/LuCI run:35passed. Shell syntax for manage,
+  build-sdk and native APK runner, Python syntax for DNS/QEMU and diff checks
+  passed. QEMU execution and corrected native DNS/APK suites await Linux CI.
 - Android13 JVM tests, Kotlin/lintDebug/assembleDebug passed in CI; see
   ANDROID_STATUS. No actual phone/WebView/VK acceptance.
 - Broker latest local go test/go vet passed: pairing/result/cancel serialized;
   stale results/cancels cannot affect replacement, quoted16KiB token fits64KiB
-  JSON bound, control tokens and trailing JSON rejected. CI race check pending
-  for these latest edits. Private grants/pin/URLs excluded from public status.
+  JSON bound, control tokens and trailing JSON rejected. CI race check and vet
+  passed at b30a0b76. Private grants/pin/URLs excluded from public status.
 - Installer27 isolated command-double scenarios passed locally; Linux CI
   installer suite passed. Upgrade/core/CAPTCHA restart and exact original DNS
   rollback covered. Native APK3 signature/cache/no-scripts/offline/rollback
-  script implemented and hooked after SDK build; not executed yet. See
-  INSTALLER_STATUS.
+  runner executed at b30a0b76 but failed before its first strict verify because
+  adbsign rejects the unsigned input and returns zero despite the error. Fixed:
+  signing-only local transformation accepts unsigned build input; every verify
+  and install stays strict. Corrected runner awaits CI. See INSTALLER_STATUS.
 - Release-manifest producer/verifier CLI tests4passed locally. Shell syntax and
   git diff --check passed for latest root scripts. Public key is the only PEM
   tracked. Signed draft workflow exists; signing secret/release still pending.
 - SDK runs36638972094 and36639256975 passed ARM64 client compilation but failed
-  SDK host prerequisite path. Fixed by unsetting compiler STAGING_DIR before
-  feeds/make and setting compiler staging to toolchain. Cargo cache populated;
-  latest package compilation/native APK test awaits new CI.
+  SDK host prerequisite path. Staging fix succeeded at b30a0b76: all three APKs
+  compiled. Native APK tests then failed as above; no uploaded installer-ready
+  artifacts yet. SDK dependency cache/forced clean of own packages, compressed
+  failure diagnostics and ARM64 QEMU binary smoke implemented for next run.
+  Release signing now strictly verifies project signatures and removes the
+  private key from dependency builders' environment; signing secret absent.
 
 ## Ownership and next sequence
 
 Check collaboration.list_agents before reuse; previous sessions may end.
-backend_validate owns backend/policy/native DNS tests, milestone completed.
-android_validate completed Android. core_ci_fix completed musl/fixture fixes.
-installer_validate completed installer/native APK source. Root owns broker,
+Prior sessions ended. apk_signature_fix completed the signing runner fix;
+runtime_acceptance completed the first-apply persistent hold correction. Root fixed
+the DNS fixture and owns broker,
 SDK/CI/release, top-level docs and Git. No previous process may be assumed alive.
 
 1. Publish latest checkpoint and resolve fresh native DNS/SDK/APK failures.

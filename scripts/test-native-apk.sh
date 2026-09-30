@@ -33,6 +33,13 @@ trap 'exit 143' TERM
 TOOLS="$TMP/tools-root"
 mkdir -p "$TOOLS/etc/apk/keys" "$TOOLS/etc/apk/wrong-keys" "$TMP/signed-sdk" "$TMP/repo" "$TMP/payloads"
 tools_apk() { "$APK" --root "$TOOLS" --keys-dir etc/apk/keys "$@"; }
+# APK 3.0.5 adbsign parses the old signature before loading trusted keys and
+# reports per-file failures without a failing exit status. Accept input only
+# for this local artifact transformation; every verification stays strict.
+fixture_adbsign() {
+    tools_apk --allow-untrusted adbsign "$@" > "$TMP/adbsign.txt" 2>&1
+    [ ! -s "$TMP/adbsign.txt" ] || die 'adbsign emitted diagnostics; inspect adbsign.txt.'
+}
 case "$(tools_apk --version)" in *'apk-tools 3.0.5'*) ;; *) die 'The pinned SDK APK 3.0.5 is required.' ;; esac
 openssl ecparam -name prime256v1 -genkey -noout -out "$TMP/signing.pem"
 openssl pkey -in "$TMP/signing.pem" -pubout -out "$TOOLS/etc/apk/keys/fixture.pem" >/dev/null
@@ -49,7 +56,7 @@ for PACKAGE in "$PACKAGE_DIR"/*.apk; do
         *) die 'Unexpected SDK APK filename.' ;;
     esac
     cp "$PACKAGE" "$TMP/signed-sdk/$NAME"
-    tools_apk --sign-key "$TMP/signing.pem" adbsign --reset-signatures "$TMP/signed-sdk/$NAME"
+    fixture_adbsign --sign-key "$TMP/signing.pem" --reset-signatures "$TMP/signed-sdk/$NAME"
     tools_apk verify "$TMP/signed-sdk/$NAME" >/dev/null
     if "$APK" --root "$TOOLS" --keys-dir etc/apk/wrong-keys verify "$TMP/signed-sdk/$NAME" > "$TMP/wrong-key.txt" 2>&1; then die 'An SDK APK was accepted with the wrong key.'; fi
 done
@@ -73,6 +80,7 @@ make_fixture() {
     payload=$2
     shift 2
     tools_apk --sign-key "$TMP/signing.pem" mkpkg --output "$TMP/repo/$name-1.0-r1.apk" --files "$TMP/payloads/$payload" --info "name:$name" --info version:1.0-r1 --info arch:aarch64_cortex-a53 --info license:MIT --info 'description:isolated native APK fixture' --script "post-install:$TMP/post-install" "$@"
+    tools_apk verify "$TMP/repo/$name-1.0-r1.apk" >/dev/null
 }
 make_fixture csqtt-native-old old --info provides:csqtt-native-dns=1.0-r1
 make_fixture csqtt-native-dependency dependency
@@ -80,10 +88,11 @@ make_fixture csqtt-native-full full --info provides:csqtt-native-dns=1.0-r1 --in
 make_fixture csqtt-native-app app --info depends:csqtt-native-full=1.0-r1
 make_fixture csqtt-native-broken app --info depends:csqtt-native-missing=1.0-r1
 tools_apk --sign-key "$TMP/signing.pem" mkndx --output "$TMP/repo/packages.adb" --pkgname-spec '${name}-${version}.apk' "$TMP/repo/"*.apk
+tools_apk verify "$TMP/repo/packages.adb" >/dev/null
 cp "$TMP/repo/csqtt-native-app-1.0-r1.apk" "$TMP/app.apk"
 cp "$TMP/repo/csqtt-native-old-1.0-r1.apk" "$TMP/original-dns.apk"
 cp "$TMP/app.apk" "$TMP/unsigned.apk"
-tools_apk adbsign --reset-signatures "$TMP/unsigned.apk"
+fixture_adbsign --reset-signatures "$TMP/unsigned.apk"
 if tools_apk verify "$TMP/unsigned.apk" > "$TMP/unsigned.txt" 2>&1; then die 'Unsigned APK accepted.'; fi
 cp "$TMP/app.apk" "$TMP/tampered.apk"
 python3 - "$TMP/tampered.apk" <<'NATIVE_APK_TAMPER'

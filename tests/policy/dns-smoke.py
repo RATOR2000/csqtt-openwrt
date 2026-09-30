@@ -112,7 +112,10 @@ def smoke(out, namespaces):
     healthy = False
     counter = 0
     token = os.urandom(4).hex()
-    wan_answer, vpn_answer, local_answer = "198.51.100.101", "198.51.100.102", "192.168.1.100"
+    # Documentation ranges are rejected by dnsmasq's real rebind protection.
+    # These public answers are produced only by the isolated fixture resolvers;
+    # the test never connects to the returned addresses.
+    wan_answer, vpn_answer, local_answer = "93.184.216.101", "93.184.216.102", "192.168.1.100"
 
     def run(namespace, *args, check=True):
         result = subprocess.run(["ip", "netns", "exec", namespaces[namespace], *args],
