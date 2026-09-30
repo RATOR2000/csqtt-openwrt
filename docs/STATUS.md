@@ -7,7 +7,10 @@ authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-Publish/inspect the per-package signing fix in scripts/build-sdk.sh.
+Inspect **CI36719698753**, source
+**eb461d9c6a57fb5594880348e771b27e19e11251**, SDK **109901822944**.
+Checks/core/native-policy/Android passed; SDK compiling. This is the per-file
+project-signing correction. Do not start a duplicate run.
 CI36717531786 atb21f3dd, SDK109894580250, passed all native/runtime/transaction
 checks and actual project-key preflight: readable PEM, pinned match and probe
 signature. Actual strict project verification passed core APK, but CAPTCHA/
@@ -57,8 +60,8 @@ Earlier failed/superseded SDK jobs are historical, not work to repeat.
 
 - Public https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Branch `codex/csqtt-openwrt`; latest source under CI `b21f3dd`, tree
-  `8b6489a111185d0eafdc166dda4c8b74a2b62434`. Local/remote aligned. Inspect
+- Branch `codex/csqtt-openwrt`; latest source under CI `eb461d9`, tree
+  `44ea4ee9f6383e2b403ab7851a7631f6030686e8`. Local/remote aligned. Inspect
   HEAD for later documentation checkpoints; they do not replace tested SHA.
 - Local push lacks auth. GitHub connector tree/commit/ref APIs work.
   `scripts/export-github-tree.py` exports committed delta to `.work/publish-delta`.
@@ -120,9 +123,10 @@ See BUILD.md. Android debug signing is not permanent update identity.
 Unused nft objects can accumulate after repeated edits; no garbage collection.
 
 Prepared ignored files in .work/preview.1: install.sh copied byte-for-byte from
-e430c0b, draft release-notes.md, provenance.json and android/app-debug.apk.
-Android artifact11095795820 from run36714458987 was downloaded and its ZIP
-digest ca282d177366d37c52a10c7b8d08d1ee33c9e4f25fa048e93be36df84a7db386 verified.
+b21f3dd, draft release-notes.md, provenance.json and android/app-debug.apk.
+Android artifact11096628199 from run36717531786 downloaded; ZIP digest
+50b4b571a58df9cf7711b856b8dadbba02a0023e27258e921163cf8a899d30cb verified.
+Replace staged assets/provenance with final successful run before publication.
 No router APK or signed manifest is staged; provenance verified=false.
 For lean preview1, use successful final run's artifacts, verify manifest with
 Node crypto and verify-release.py, then create a frozen codex/preview.1 branch
@@ -140,7 +144,7 @@ passed Node37 plus CI. preview_review confirmed deterministic signed metadata
 mutation and early key validator semantics; no edits/secrets/remote changes.
 All agents finished. No router actions. Never assume sessions/processes alive.
 
-1. Publish/inspect next CI with per-file signing. Key is now verified; no owner
+1. Inspect CI36719698753/SDK109901822944 with per-file signing. Key is verified; no owner
    action is needed. Complete all three strict project signatures and manifest.
    No agent reads/transmits the key. Signing and installable artifacts pending.
 2. Local checks after corrections passed: Node policy/LuCI37/37; portable
