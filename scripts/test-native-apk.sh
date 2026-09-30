@@ -134,7 +134,7 @@ make_fixture() {
     name=$1
     payload=$2
     shift 2
-    tools_apk --sign-key "$TMP/signing.pem" mkpkg --output "$TMP/repo/$name-1.0-r1.apk" --files "$TMP/payloads/$payload" --info "name:$name" --info version:1.0-r1 --info arch:aarch64_cortex-a53 --info license:MIT --info 'description:isolated native APK fixture' --script "post-install:$TMP/post-install" "$@"
+    tools_apk --compression none --sign-key "$TMP/signing.pem" mkpkg --output "$TMP/repo/$name-1.0-r1.apk" --files "$TMP/payloads/$payload" --info "name:$name" --info version:1.0-r1 --info arch:aarch64_cortex-a53 --info license:MIT --info 'description:isolated native APK fixture' --script "post-install:$TMP/post-install" "$@"
     tools_apk verify "$TMP/repo/$name-1.0-r1.apk" >/dev/null
 }
 make_fixture csqtt-native-old old --info provides:csqtt-native-dns=1.0-r1
@@ -153,9 +153,14 @@ cp "$TMP/app.apk" "$TMP/tampered.apk"
 python3 - "$TMP/tampered.apk" <<'NATIVE_APK_TAMPER'
 import pathlib, sys
 path = pathlib.Path(sys.argv[1])
-data = bytearray(path.read_bytes())
-data[-1] ^= 1
-path.write_bytes(data)
+# Flipping the last compressed byte can change only unused padding, leaving
+# authenticated contents intact. Alter a known signed metadata value instead.
+# Fixture packages are uncompressed so no compressor details are assumed.
+data = path.read_bytes()
+original = b'isolated native APK fixture'
+changed = b'Isolated native APK fixture'
+assert data.startswith(b'ADB.') and data.count(original) == 1, 'Unexpected native APK fixture format'
+path.write_bytes(data.replace(original, changed, 1))
 NATIVE_APK_TAMPER
 if tools_apk verify "$TMP/tampered.apk" > "$TMP/tampered.txt" 2>&1; then die 'Tampered APK accepted.'; fi
 # The repository is served only on loopback. Stop it before the offline proof

@@ -153,6 +153,10 @@ function status() {
 		let field = fields[k];
 		if (stored[field] != null) core[field] = stored[field];
 	}
+	// These codes are emitted by the original client adapter, never error text.
+	let errors = ['runtime_failed', 'transport_failed', 'tun_configuration_failed',
+		'tun_down_hook_failed', 'control_socket_failed', 'tun_io_failed'];
+	if (includes(errors, stored.error_code)) core.error_code = stored.error_code;
 	if (stored.captcha) core.captcha = { id: stored.captcha.id, state: stored.captcha.state, expires_at: stored.captcha.expires_at };
 	if (!running) core.state = 'stopped';
 	let model = readjson(STATE + 'policy.json', { devices: [], groups: [] });
@@ -246,7 +250,8 @@ else if (mode === 'devices') output({ devices: devices() });
 else if (mode === 'diagnostics') {
 	let s = status(), model = readjson(STATE + 'policy.json', { groups: [] }), checks = [];
 	push(checks, { name: 'policy', ok: !length(s.policy_error), detail: s.policy_error || 'Policy configuration loaded' });
-	push(checks, { name: 'tun', ok: s.running, detail: s.core.state || 'stopped' });
+	push(checks, { name: 'tun', ok: s.running && s.core.state === 'connected' && !s.core.error_code,
+		detail: s.core.error_code || s.core.state || 'stopped' });
 	for (let i = 0; i < length(model.groups); i++) if (length(model.groups[i].macs))
 		push(checks, { name: 'dnsmasq', ok: service_running('csqtt-dns', 'dns_' + model.groups[i].id), detail: 'Guarded group DNS process' });
 	output({ status: s, checks: checks, domain_limitations: 'DNS caches, shared destination IPs and independent DoH limit hostname classification. Online status is estimated from ARP.' });

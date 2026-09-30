@@ -73,6 +73,40 @@ test('status allowlist redacts new upstream fields and stale connected state', (
   assert.equal(out.output[0].core.captcha.id, 'public-id');
 });
 
+test('status exports only known daemon error codes, retaining safe failures after process exit', () => {
+  for (const code of ['runtime_failed', 'transport_failed', 'tun_configuration_failed',
+    'tun_down_hook_failed', 'control_socket_failed', 'tun_io_failed']) {
+    const out = runtime('status', { files: { '/var/run/csqtt/status.json': JSON.stringify({ state: 'error', error_code: code }) } });
+    assert.equal(out.output[0].core.error_code, code);
+    assert.equal(out.output[0].core.state, 'stopped');
+  }
+  const secret = randomBytes(24).toString('hex');
+  for (const code of [secret, 'unknown_failure', { detail: secret }]) {
+    const out = runtime('diagnostics', { files: { '/var/run/csqtt/status.json': JSON.stringify({ state: 'error', error_code: code }) } });
+    assert.equal(out.output[0].status.core.error_code, undefined);
+    assert.equal(JSON.stringify(out.output).includes(secret), false);
+  }
+});
+
+test('tunnel diagnostics require a running connected client without a reported failure', () => {
+  for (const [running, state, error, ok, detail] of [
+    [true, 'starting', null, false, 'starting'],
+    [true, 'connecting', null, false, 'connecting'],
+    [true, 'captcha_required', null, false, 'captcha_required'],
+    [true, 'error', 'tun_io_failed', false, 'tun_io_failed'],
+    [true, 'connected', null, true, 'connected'],
+    [true, 'connected', 'transport_failed', false, 'transport_failed'],
+    [false, 'connected', null, false, 'stopped'],
+    [false, 'error', 'transport_failed', false, 'transport_failed'],
+  ]) {
+    const out = runtime('diagnostics', { services: { csqtt: { instances: { client: { running } } } },
+      files: { '/var/run/csqtt/status.json': JSON.stringify({ state, error_code: error }) } });
+    const tun = out.output[0].checks.find(check => check.name === 'tun');
+    assert.equal(tun.ok, ok, `${running}/${state}/${error}`);
+    assert.equal(tun.detail, detail);
+  }
+});
+
 test('missing, null and malformed private state have safe status defaults', () => {
   for (const contents of [null, 'null', '{broken']) {
     const files = contents === null ? {} : { '/etc/csqtt/policy.json': contents, '/var/run/csqtt/status.json': contents };

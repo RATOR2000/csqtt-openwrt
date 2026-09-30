@@ -3,6 +3,19 @@
 Updated 2026-09-30. Owner: apk_signature_fix subagent; root owns release signing,
 SDK builds, release workflow and repository checkpoints.
 
+Authoritative latest result: CI36685991129 at19b1e7c, SDK job109792330330,
+passed the complete native APK suite: strict/negative signatures, payload
+audit, packaged ARM64 smoke, real TUN lifecycle, staged dependency cache,
+offline install and exact baseline/world rollback. The query enumeration fix
+is verified. CI36686878030 at8cf1ae4 is checking project-key signing using the
+user-configured secret1 alias, but stopped before signing: the last-byte tamper
+fixture sometimes modified only compression padding. The fixture now uses
+uncompressed packages and alters a known signed description byte, preserving
+offsets/structure. Shell syntax and five Python blocks pass; real rerun pending.
+Older pending/failure notes below are history.
+Stock OpenWrt mbedTLS APK, BusyBox ash, package scripts and live DNS rollback
+still require actual router acceptance.
+
 ## Source
 
 `install.sh` restricts the board to GL-MT6000 and checks OpenWrt 25.12.5,
@@ -143,7 +156,7 @@ No installer change is needed for this signing-only failure.
 Git bundled sh -n, Python block compilation, local baseline snapshot assertion
 checks (valid original accepted; [] and broken status rejected), and scoped
 git diff --check passed after the enumeration fix.
-**The corrected native transaction suite has not been executed.**
+**The corrected suite passed CI36685991129; see the authoritative result above.**
 Root owns the CI/build-sdk hookup. The SDK host binary uses the OpenSSL backend;
 passing this runner will still leave the stock router's mbedTLS APK backend,
 real CSQTT package scripts and live router rollback unverified.
