@@ -6,15 +6,12 @@ Actual files/Git/CI are authority.
 
 ## First unfinished action
 
-Inspect SDK/native APK results in CI36679945450 at defa7f0c, job109773381996,
-then CI36682022994 at587e1d7, SDK job109779735578. Its checks/core/Android/
-native-policy jobs passed; SDK waits for the preceding job. This run adds the
-real Linux TUN lifecycle check on the extracted packaged binary.
-New local SDK compile optimization is about to publish: one LuCI leaf target
-builds all three packages through DEPENDS, avoiding three separate SDK
-submakes/kernel builds. Record its CI SHA/run after publication; prefer it
-over the superseded queued job. The current long SDK job may be cancelled
-once the replacement is queued; no complete native transaction result yet.
+Inspect CI36683192758 ataa5b35f, SDK job109783468912 (started07:24UTC).
+Its checks/core/Android/native-policy jobs passed. SDK uses one LuCI compile
+goal and includes the extracted-payload, native transactions and real Linux
+TUN lifecycle checks. At07:24UTC it was restoring SDK cache.
+Superseded SDK jobs109773381996 (defa7f0c, cancelled by root) and109779735578
+(587e1d7, automatically replaced in queue) did not finish native APK tests.
 Native DNS/policy (including IPv6 DNS transport), checks, Rust and Android
 passed there. CI36677864570 at d7627c3d compiled all three packages and passed
 raw ARM64 QEMU plus strict SDK signatures/wrong-key rejection, then failed on
@@ -26,7 +23,7 @@ Do not repeat passed Rust/Android work or completed installer doubles.
 
 - Public https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Development branch codex/csqtt-openwrt. Last confirmed remote587e1d78935320c1aae0df17dbbcb8765d8d513b; inspect HEAD for later commits.
+- Development branch codex/csqtt-openwrt. Last confirmed remoteaa5b35f77303b9f0bdf79948f3147f8d81bbfb56; inspect HEAD for later commits.
 - Local push lacks auth; GitHub connector tree/commit/ref APIs work.
   scripts/export-github-tree.py exports committed delta to .work/publish-delta.
   Publish with manifest base_tree/parent, fetch, compare tree hashes and align.
@@ -50,7 +47,9 @@ Do not repeat passed Rust/Android work or completed installer doubles.
 - Native automatic CAPTCHA plus separate Android helper via pinned TLS,
   one-use pairing and authenticated VK-only relay for blocked VPN phones.
 - Eventual one-command signed install. No stable release before real acceptance.
-  No router connection scope or deployed server/VK hashes supplied.
+  User confirmed2026-09-30 that original server/client and active VK call are
+  ready. Values remain private for LuCI; do not ask that readiness question
+  again. No router connection details/task scope supplied.
 
 ## Current source and verification
 
@@ -144,7 +143,7 @@ scripts/test-arm64-tun.py for isolated real Linux TUN lifecycle under QEMU;
 root integrated it into SDK/CI. All three stopped edits. Root owns broker,
 SDK/CI/release, top-level docs and Git. No previous process may be assumed alive.
 
-1. Inspect the two recorded SDK jobs and resolve fresh APK/TUN failures.
+1. Inspect the latest recorded SDK job and resolve fresh APK/TUN failures.
    Source checkpoint is published; do not redo corrected d762 query failure.
 2. Confirm three APK packages and helper artifact; inspect package contents,
    executable permissions, dependencies, UCI/procd/fw4/control contracts.
