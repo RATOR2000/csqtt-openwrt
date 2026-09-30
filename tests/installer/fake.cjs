@@ -74,6 +74,7 @@ else if (command === 'uclient-fetch') {
     // Read-only APK fetch does not refresh a missing index cache. The rollback
     // fetch must read the remote signed index directly on a stock fresh router.
     if (!args.includes('--no-cache')) fail('dnsmasq: unable to select package (or its dependencies)');
+    if (!args.includes('--recursive')) fail('APK 3.0.5 ordinary name=version selection does not match');
     if (scenario === 'rollback_cache') fail('exact installed version unavailable');
     if (args.at(-1) !== 'dnsmasq=2.91-r2') fail('Rollback fetched a different version');
     fs.writeFileSync(path.join(option('--output'), 'dnsmasq-2.91-r2.apk'), 'official signed original dnsmasq');

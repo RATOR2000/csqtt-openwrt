@@ -158,7 +158,9 @@ if [ "$REPLACE_DNS" = 1 ]; then
     case "$DNS_PACKAGE:$DNS_VERSION" in *[!A-Za-z0-9._+:-]*|:|*:|:*) die 'Cannot identify the installed DNS package.' ;; esac
     # APK fetch is read-only and does not refresh a missing/stale index cache.
     # Read signed indexes directly before selecting the exact rollback version.
-    apk --no-cache --repositories-file "$TMP/repositories" fetch --output "$TMP/rollback" "dnsmasq=$DNS_VERSION" || die 'The exact original DNS package must be cached before replacement.'
+    # Recursive selection uses the solver: APK 3.0.5's ordinary query path
+    # compares the package name with the full name=version string and misses it.
+    apk --no-cache --repositories-file "$TMP/repositories" fetch --recursive --output "$TMP/rollback" "dnsmasq=$DNS_VERSION" || die 'The exact original DNS package must be cached before replacement.'
     [ -f "$TMP/rollback/$DNS_PACKAGE.apk" ] || die 'Original DNS package cache is missing.'
     apk verify "$TMP/rollback/$DNS_PACKAGE.apk" >/dev/null || die 'Original DNS package signature verification failed.'
     stage_info > "$TMP/installed-before.txt"

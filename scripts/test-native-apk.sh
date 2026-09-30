@@ -209,16 +209,22 @@ FETCH_ROOT="$TMP/fetch-root"
 prepare_root "$FETCH_ROOT"
 mkdir -p "$TMP/fetched"
 fetch_original() {
-    "$APK" --root "$FETCH_ROOT" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --repositories-file "$FETCH_ROOT/etc/apk/repositories" "$@" fetch --output "$TMP/fetched" csqtt-native-old=1.0-r1
+    fetch_version=$1
+    shift
+    "$APK" --root "$FETCH_ROOT" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --repositories-file "$FETCH_ROOT/etc/apk/repositories" fetch "$@" --output "$TMP/fetched" "csqtt-native-old=$fetch_version"
 }
-if fetch_original > "$TMP/fresh-fetch.txt" 2>&1; then die 'An empty index cache unexpectedly satisfied a read-only fetch.'; fi
-if ! fetch_original --no-cache >> "$TMP/fresh-fetch.txt" 2>&1; then
+if fetch_original 1.0-r1 > "$TMP/fresh-fetch.txt" 2>&1; then die 'An empty index cache unexpectedly satisfied a read-only fetch.'; fi
+# APK 3.0.5's ordinary query compares name with the entire name=version term.
+if fetch_original 1.0-r1 --no-cache >> "$TMP/fresh-fetch.txt" 2>&1; then die 'The pinned ordinary name=version query unexpectedly matched.'; fi
+if ! fetch_original 1.0-r1 --no-cache --recursive >> "$TMP/fresh-fetch.txt" 2>&1; then
     cat "$TMP/fresh-fetch.txt" >&2
     die 'Direct signed-index fetch failed.'
 fi
 tools_apk verify "$TMP/fetched/csqtt-native-old-1.0-r1.apk" >/dev/null
 cmp "$TMP/fetched/csqtt-native-old-1.0-r1.apk" "$TMP/original-dns.apk"
+if fetch_original 9.0-r1 --no-cache --recursive >> "$TMP/fresh-fetch.txt" 2>&1; then die 'An unavailable exact version was replaced by a different version.'; fi
 [ ! -e "$FETCH_ROOT/etc/apk/world" ] && [ ! -e "$FETCH_ROOT/lib/apk/db/installed" ] || die 'Read-only fetch changed package state.'
+echo 'native APK: fresh signed-index exact-version fetch passed; ordinary selection and unavailable version rejected; package/state verified.'
 BASE="$TMP/base"
 prepare_root "$BASE"
 root_apk "$BASE" add --initdb "$TMP/original-dns.apk" > "$TMP/base-install.txt" 2>&1
