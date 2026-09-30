@@ -92,10 +92,15 @@ if [[ -n "$RELEASE_SIGNING_KEY" ]]; then
     # adbsign parses its input's existing signatures before replacing them.
     # Only the generated build inputs may be unsigned; verify the new result
     # separately with the pinned project key and without allow-untrusted.
-    "$SDK/staging_dir/host/bin/apk" --allow-untrusted --sign-key "$KEYFILE" adbsign --reset-signatures "$ROOT"/dist/*.apk > "$WORK/package-signing.log" 2>&1
     mkdir -p "$SIGNATURE_ROOT/etc/apk/keys"
     cp "$ROOT/release/csqtt-public.pem" "$SIGNATURE_ROOT/etc/apk/keys/release.pem"
-    "$SDK/staging_dir/host/bin/apk" --root "$SIGNATURE_ROOT" --keys-dir etc/apk/keys verify "$ROOT"/dist/*.apk
+    # APK 3.0.5 retains signatures_written across adbsign file arguments and
+    # returns success despite per-file errors. Use a fresh process for each.
+    for PACKAGE in "$ROOT"/dist/*.apk; do
+        "$SDK/staging_dir/host/bin/apk" --allow-untrusted --sign-key "$KEYFILE" adbsign --reset-signatures "$PACKAGE" > "$WORK/package-signing.log" 2>&1
+        [[ ! -s "$WORK/package-signing.log" ]] || { echo 'APK signing emitted diagnostics; inspect package-signing.log' >&2; exit 1; }
+        "$SDK/staging_dir/host/bin/apk" --root "$SIGNATURE_ROOT" --keys-dir etc/apk/keys verify "$PACKAGE"
+    done
 fi
 python3 "$ROOT/scripts/release-manifest.py" "$ROOT/dist"
 if [[ -n "${KEYFILE:-}" ]]; then

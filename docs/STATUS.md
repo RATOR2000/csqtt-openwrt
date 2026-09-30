@@ -1,18 +1,22 @@
 # Development status — resume here
 
-Updated 2026-09-30. SDK/native validation passed at `e430c0b`; project signing
-awaits CI after the owner corrected secret1. No installable preview or real
+Updated 2026-09-30. SDK/native validation passed; corrected secret1 is verified
+against the pinned project key. Per-package signing fix awaits CI. No preview or real
 router/VK acceptance. Read this, then IMPLEMENTATION.md. Files/Git/CI are
 authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-Owner explicitly confirmed secret correction on2026-09-30. Inspect current
-CI **36717531786**, source **b21f3dd2ba827d76b6ed1371cc335641984ca37d**,
-SDK job **109894580250**. Checks/core/native-policy passed; Android and SDK
-running at last observation. Key preflight now precedes dependency/cache/build.
-Do not start a duplicate run. Never read/print private key; no further owner
-action unless actual validation reports a new concrete failure.
+Publish/inspect the per-package signing fix in scripts/build-sdk.sh.
+CI36717531786 atb21f3dd, SDK109894580250, passed all native/runtime/transaction
+checks and actual project-key preflight: readable PEM, pinned match and probe
+signature. Actual strict project verification passed core APK, but CAPTCHA/
+LuCI were UNTRUSTED because APK3.0.5 adbsign signs only the first file in a
+multi-file invocation. Pinned app_adbsign.c retains signatures_written across
+arguments and returns0 despite per-file errors. The fix uses a new process per
+APK, rejects signing diagnostics, and strictly verifies each immediately.
+The native runner already proved this per-file pattern with three packages.
+Owner secret correction is complete; do not ask again or read private values.
 
 Previous CI **36714458987**, commit
 `e430c0b29fca41f74412a6128d1c394f75e34934`, SDK job **109884388142**.
@@ -136,8 +140,8 @@ passed Node37 plus CI. preview_review confirmed deterministic signed metadata
 mutation and early key validator semantics; no edits/secrets/remote changes.
 All agents finished. No router actions. Never assume sessions/processes alive.
 
-1. Inspect existing CI36717531786/SDK109894580250. Owner confirmed secret
-   correction; no further owner action unless actual validation fails.
+1. Publish/inspect next CI with per-file signing. Key is now verified; no owner
+   action is needed. Complete all three strict project signatures and manifest.
    No agent reads/transmits the key. Signing and installable artifacts pending.
 2. Local checks after corrections passed: Node policy/LuCI37/37; portable
    sh -n scripts/test-native-apk.sh; all five embedded Python blocks compiled;
