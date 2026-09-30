@@ -7,9 +7,14 @@ authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-Owner explicitly confirmed готово, я исправил секрет on2026-09-30. Trigger and inspect the new CI with early key validation. Never read or print the private key; do not ask for correction again unless CI reports a new concrete failure.
+Owner explicitly confirmed secret correction on2026-09-30. Inspect current
+CI **36717531786**, source **b21f3dd2ba827d76b6ed1371cc335641984ca37d**,
+SDK job **109894580250**. Checks/core/native-policy passed; Android and SDK
+running at last observation. Key preflight now precedes dependency/cache/build.
+Do not start a duplicate run. Never read/print private key; no further owner
+action unless actual validation reports a new concrete failure.
 
-Latest CI **36714458987**, commit
+Previous CI **36714458987**, commit
 `e430c0b29fca41f74412a6128d1c394f75e34934`, SDK job **109884388142**.
 Checks, core, native-policy and Android passed. SDK compiled all three packages;
 payload/signature negatives, ARM64/TUN, offline/cache and exact rollback all
@@ -23,7 +28,9 @@ User added the private release key as Actions secret `secret1`. Both workflows
 accept `CSQTT_SIGNING_KEY || secret1`; no key value was read by the agent.
 New scripts/check-signing-key.cjs validates PEM, pinned public DER and an actual
 SHA256 signature in memory before expensive SDK work; constant errors only.
-Both CI and draft workflow call it. Two local ephemeral-key/redaction tests, four release CLI tests, Node syntax and diff checks passed. Owner correction confirmed; publish current checkpoint without [skip ci] to trigger CI including preflight. Do not rerun old36714458987, which lacks the early key preflight.
+Both CI and draft workflow call it. Two local ephemeral-key/redaction tests,
+four release CLI tests, Node syntax and diff checks passed. The current CI
+includes preflight. Do not rerun old36714458987, which lacks it.
 
 Previous CI **36685991129**, commit `19b1e7c`, completed **all five jobs
 successfully**, including SDK job **109792330330**. It used the old secret
@@ -46,8 +53,8 @@ Earlier failed/superseded SDK jobs are historical, not work to repeat.
 
 - Public https://github.com/RATOR2000/csqtt-openwrt
 - Attached draft PR https://github.com/RATOR2000/csqtt-openwrt/pull/1
-- Branch `codex/csqtt-openwrt`; latest tested source under CI `e430c0b`, tree
-  `9dd7286f0f6fd0c35d598e7d100dfc47d3b2302a`. Local/remote aligned. Inspect
+- Branch `codex/csqtt-openwrt`; latest source under CI `b21f3dd`, tree
+  `8b6489a111185d0eafdc166dda4c8b74a2b62434`. Local/remote aligned. Inspect
   HEAD for later documentation checkpoints; they do not replace tested SHA.
 - Local push lacks auth. GitHub connector tree/commit/ref APIs work.
   `scripts/export-github-tree.py` exports committed delta to `.work/publish-delta`.
@@ -129,7 +136,8 @@ passed Node37 plus CI. preview_review confirmed deterministic signed metadata
 mutation and early key validator semantics; no edits/secrets/remote changes.
 All agents finished. No router actions. Never assume sessions/processes alive.
 
-1. Owner confirmed secret correction. Publish/inspect new CI including early key validation. No further owner action unless actual validation fails.
+1. Inspect existing CI36717531786/SDK109894580250. Owner confirmed secret
+   correction; no further owner action unless actual validation fails.
    No agent reads/transmits the key. Signing and installable artifacts pending.
 2. Local checks after corrections passed: Node policy/LuCI37/37; portable
    sh -n scripts/test-native-apk.sh; all five embedded Python blocks compiled;
