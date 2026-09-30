@@ -42,9 +42,13 @@ class InstallerTest(unittest.TestCase):
                 (root / relative).mkdir(parents=True, exist_ok=True)
             bindir.mkdir()
             (root / '.installer-fixture').touch()
-            (root / 'etc/openwrt_release').write_text("DISTRIB_RELEASE='25.12.5'\nDISTRIB_TARGET='mediatek/filogic'\n")
+            release = "DISTRIB_RELEASE='25.12.5'\nDISTRIB_TARGET='mediatek/filogic'\n"
+            if scenario != 'missing_release_architecture':
+                release += "DISTRIB_ARCH='" + ('x86_64' if scenario == 'release_architecture' else 'aarch64_cortex-a53') + "'\n"
+            (root / 'etc/openwrt_release').write_text(release)
             (root / 'tmp/sysinfo/board_name').write_text('glinet,gl-mt6000\n' if scenario != 'board' else 'other,router\n')
-            (root / 'etc/apk/arch').write_text('aarch64_cortex-a53\n')
+            if scenario != 'missing_architecture':
+                (root / 'etc/apk/arch').write_text('x86_64\n' if scenario == 'architecture' else 'aarch64_cortex-a53\n')
             (root / 'etc/apk/keys/openwrt.pem').write_text('public fixture key\n')
             (root / 'etc/config/dhcp').write_text('fixture local DNS config\n')
             initial = {'base-files': '1', 'dnsmasq-full' if repeat else 'dnsmasq': '2.91-r2'}
@@ -124,7 +128,7 @@ class InstallerTest(unittest.TestCase):
                 self.assertTrue(any(call['command'] == 'service:csqtt-captcha' and call['args'] == ['restart'] for call in calls))
 
     def test_preflight_failures_preserve_dns_and_configs(self):
-        for scenario in ['board', 'architecture', 'space', 'manifest_target', 'filename', 'duplicate', 'download', 'package_signature', 'manifest_signature', 'checksum', 'rollback_cache', 'dependency', 'prefetch', 'remove_other']:
+        for scenario in ['board', 'architecture', 'missing_architecture', 'release_architecture', 'missing_release_architecture', 'space', 'manifest_target', 'filename', 'duplicate', 'download', 'package_signature', 'manifest_signature', 'checksum', 'rollback_cache', 'dependency', 'prefetch', 'remove_other']:
             with self.subTest(scenario=scenario):
                 result, calls, installed, backups, _, world, original_world = self.run_installer(scenario)
                 self.assertNotEqual(result.returncode, 0, scenario)

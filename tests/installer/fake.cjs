@@ -48,7 +48,8 @@ else if (command === 'uclient-fetch') {
 } else if (command === 'apk') {
   if (args.includes('--allow-untrusted')) fail('Untrusted APK bypass forbidden');
   if (process.env.APK_CONFIG !== '/dev/null') fail('APK config not isolated');
-  if (args.includes('--print-arch')) { output(scenario === 'architecture' ? 'x86_64' : 'aarch64_cortex-a53'); process.exit(0); }
+  // APK 3.0.5 prints its compiled CPU architecture, ignoring /etc/apk/arch.
+  if (args.includes('--print-arch')) { output('aarch64'); process.exit(0); }
   const index = args.findIndex(arg => ['query', 'verify', 'fetch', 'info', 'add', 'del'].includes(arg));
   if (index < 0) fail('Unknown apk invocation');
   const action = args[index];

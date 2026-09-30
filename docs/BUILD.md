@@ -71,14 +71,18 @@ Preflight проверяет наличие ключа, формат тега и
 Опубликован [v0.1.0-preview.1](https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.1)
 для испытаний на GL-MT6000/OpenWrt25.12.5. Все пять заданий CI36719698753
 прошли; три APK и manifest подписаны ключом проекта, хеши опубликованных
-assets проверены. Реальный роутер/VK и пакетные скрипты ещё не испытаны;
+assets проверены. Первая попытка на роутере выявила ошибку проверки архитектуры
+в исходном `install.sh`: APK выводит `aarch64`, а архитектура пакетов OpenWrt —
+`aarch64_cortex-a53`. Исправленный установщик `install-openwrt25.sh` проверяет
+архитектуру прошивки и базы APK; 30 сценариев прошли локально. В preview.1
+используйте команду ниже после публикации этого дополнительного asset.
+Установка пакетов на роутере и подключение к VK ещё не подтверждены;
 стабильный выпуск ожидает ACCEPTANCE. Assets содержат `install.sh`, три APK,
 подписанный manifest, контрольные суммы и отладочный APK помощника.
-Для GL-MT6000 с OpenWrt 25.12.5 схема команды от root выглядит так;
-замените оба `N` номером опубликованного preview:
+Для GL-MT6000 с OpenWrt 25.12.5 команда preview.1 от root:
 
 ```sh
-uclient-fetch -O /tmp/csqtt-install.sh https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.N/install.sh && sh /tmp/csqtt-install.sh v0.1.0-preview.N
+uclient-fetch -O /tmp/csqtt-install.sh https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.1/install-openwrt25.sh && sh /tmp/csqtt-install.sh v0.1.0-preview.1
 ```
 
 Аргумент тега выбирает assets этого preview. `latest` предназначен для

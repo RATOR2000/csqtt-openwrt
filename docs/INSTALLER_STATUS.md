@@ -1,7 +1,20 @@
 # Installer checkpoint
 
-Updated 2026-09-30. Owner: apk_signature_fix subagent; root owns release signing,
-SDK builds, release workflow and repository checkpoints.
+Updated 2026-09-30. Root owns current architecture fix/tests/publication;
+preview_review completed read-only source verification. Older ownership is historical.
+
+First real preview.1 attempt stopped before mutation at the incorrect
+`apk --print-arch` guard. Owner confirmed generic aarch64 from that command,
+but aarch64_cortex-a53 in both /etc/apk/arch and DISTRIB_ARCH. APK's command
+prints its compile-time CPU architecture; the database uses /etc/apk/arch.
+See [APK source](https://github.com/alpinelinux/apk-tools/blob/b5a31c0d865342ad80be10d68f1bb3d3ad9b0866/src/database.c#L1889-L1901)
+and [OpenWrt root initialization](https://github.com/openwrt/openwrt/blob/v25.12.5/package/Makefile#L94-L100).
+Installer checks both configured architecture values now. Realistic double
+reproduced old failure for first/repeat installs before the fix; all6 methods /
+30 scenarios passed after it in119.069s, including missing/wrong architecture
+rejections without changes. sh -n, node --check and git diff --check passed.
+New asset install-openwrt25.sh publication is pending; signed packages and tag
+remain unchanged. Successful router install and VK connection remain unverified.
 
 Authoritative latest result: CI36719698753 at eb461d9, SDK job109901822944,
 passed the complete native APK suite: strict/negative signatures, payload

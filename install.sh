@@ -18,7 +18,10 @@ die() { echo "CSQTT: $*" >&2; exit 1; }
 for TOOL in apk uclient-fetch jsonfilter sha256sum tar awk; do
     command -v "$TOOL" >/dev/null || die "Required OpenWrt tool is missing: $TOOL"
 done
-[ "$(apk --print-arch)" = aarch64_cortex-a53 ] || die 'Unsupported package architecture.'
+# APK --print-arch reports its compiled CPU architecture (aarch64), while
+# OpenWrt package selection reads the tuned architecture from /etc/apk/arch.
+[ "${DISTRIB_ARCH:-}" = aarch64_cortex-a53 ] || die 'Unsupported OpenWrt package architecture.'
+[ "$(cat /etc/apk/arch 2>/dev/null)" = aarch64_cortex-a53 ] || die 'Expected aarch64_cortex-a53 in /etc/apk/arch.'
 AVAILABLE=$(df -Pk /overlay | awk 'NR==2 { print $4 }')
 case "$AVAILABLE" in ''|*[!0-9]*) die 'Cannot determine free overlay space.' ;; esac
 [ "$AVAILABLE" -ge 65536 ] || die 'At least 64 MiB of free overlay space is required.'

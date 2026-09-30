@@ -2,16 +2,31 @@
 
 Updated 2026-09-30. Signed experimental **v0.1.0-preview.1 published**:
 https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.1
-All five CI jobs passed; release bytes/signatures verified. Real router/VK
-acceptance has not run. Read this, then IMPLEMENTATION.md. Files/Git/CI are
+All five CI jobs passed; release bytes/signatures verified. First real router
+installer attempt stopped at architecture preflight; VPN acceptance is pending.
+Read this, then IMPLEMENTATION.md. Files/Git/CI are
 authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-First real install/connection test on GL-MT6000. Asked owner whether to run
-commands manually or supply SSH address/port/auth method and live scope.
-Question is pending; no router details/scope and no live changes. Do not infer
-an answer from time passing. Credentials/server/VK values stay private in LuCI.
+Publish corrected installer as additional preview.1 asset `install-openwrt25.sh`
+and update release command, then ask owner to retry manually in Termius.
+Source fix and full installer harness pass locally; asset publication is pending.
+Owner manually ran original release installer: `Unsupported package architecture`
+before temporary files/package/config changes. Read-only owner output confirms:
+`apk --print-arch` = aarch64; `/etc/apk/arch` and DISTRIB_ARCH = aarch64_cortex-a53.
+APK3.0.5 prints its compiled CPU architecture; package DB reads the arch file.
+Installer now checks both firmware DISTRIB_ARCH and exact APK arch file, retaining
+board/version/target guards. The double now reproduces APK's generic print output:
+before fix first/repeat cases failed identically; after fix all6 methods/30scenarios
+passed in119.069s (`python tests/installer/installer_test.py`). Portable sh -n,
+Node --check and git diff --check passed. Missing/wrong firmware/DB architectures
+stop without mutation. Only installer/tests/docs changed; signed APK/manifest/tag
+remain at eb461d9; no SDK/Rust/Android rebuild required. No new all-jobs CI claim.
+Preview_review agent checked official APK/OpenWrt source read-only and completed;
+root owns fix/tests/publication. Recheck live agents before assigning future work.
+No direct router connection details/scope; owner performs manual commands.
+Credentials/server/VK values stay private in LuCI.
 Start with wired management outside groups; install preview with exact tag,
 connect without groups, then one test device and WAN exception. See ACCEPTANCE.
 
