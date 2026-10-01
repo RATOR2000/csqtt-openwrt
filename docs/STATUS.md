@@ -1,15 +1,55 @@
 # Development status — resume here
 
-Updated 2026-09-30. Signed experimental **v0.1.0-preview.1 published**:
-https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.1
-All five CI jobs passed; release bytes/signatures verified. First real router
-attempt stopped at architecture preflight; second stopped at DNS backup fetch.
-Corrected installer succeeded; runtime/UI fixes are deployed and real VK connects.
-Signed preview2 rebuild and real LAN policy acceptance are pending.
+Updated 2026-10-01. Signed experimental **v0.1.0-preview.2 published**:
+https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.2
+Tag is exact tested SHA9e95e812a05480ab458bad49a106cc3866eb2ebf. All eight
+public asset downloads match verified local bytes; APK/manifest signatures and
+packaged LuCI tests passed. Real VK/IPv4 LAN policy acceptance passed. Signed
+upgrade to r2 succeeded with private configuration unchanged. Owner reports an
+intermittent loss of VPN Internet on the phone; investigation is the priority.
 Read this, then IMPLEMENTATION.md. Files/Git/CI are
 authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
+
+**Current action: reproduce and fix intermittent phone VPN Internet loss.**
+Owner rebooted router before today's work, then created VPN group, assigned
+phone and two WAN site exceptions. Internet/VPN worked initially then failed;
+WAN exceptions seemed to keep working. Do not restart before capturing evidence.
+Optional question pending: is phone currently failing or recovered? Preserve
+current owner configuration (six VK links,72workers,one device,two rules);
+do not restore yesterday's values. SSH management known and unassigned.
+
+Signed upgrade `sh /tmp/csqtt-preview2-upgrade.sh` finished exit0 yesterday.
+Installed csqtt/csqtt-captcha/luci-app-csqtt all0.1.0-r2. Private backup
+/etc/csqtt/backups/preview2-upgrade-20260930-195841-17634. Wrapper compared csqtt,
+DHCP and firewall config with before copies: allUNCHANGED. Installed runtime
+and three minified JS SHA256 match provenance payloads. Verified installer
+SHA2561bf8b9270a973283e51ce21e10364fc1d6a3d1236ce9d69b625fdaf6f9caa9ad.
+Wrapper is ignored .work/preview.2/upgrade-router.sh; config copies stay in
+/etc/csqtt/backups/preview2-upgrade-*/ (mode0700), never export them. No pending
+UCI changes before start. Prior state connected9workers/groups1/devices3.
+Public verification by runtime_release_plan passed: exact tag, prerelease,
+eight asset names/sizes/API digests/download hashes. Provenance in ignored
+.work/preview.2/provenance.json has verified/published/public_download_verified
+true. Today browser confirmed six separate full-link inputs, all valid and
+filled; Add Device modal shows groupdisplayname main_vpn. Reload discarded our
+empty test row, no saved device/rule changes. Today routerboundping3/3,
+VPNHTTPSexit differsWAN, localDNS and groupDNS5400 example.com/www.iana.org pass.
+Table202defaultcsqtt0metric10+unreachable, mark/source routes-to-TUN intact.
+TUNerrors/drops0, RSS12MiB, memoryavailable824MiB, conntrack232/limitchecked.
+Readonly three samples4s apart: updated_atage1-2s, connected72, no sessionends,
+TURNtransactiontimeout/fulloutage/TUNreadwriteerrors; no phone traffic during
+8s observed idle. These probes do not establish the phone is healthy.
+Ignored .work/preview.2/router-triage-readonly.sh uploaded to
+/tmp/csqtt-triage-readonly.sh; captures safe fixedlabels/counts only, no
+credentials/rawlogs/MACs/IPs. Captured .work/preview.2/triage-20261001.txt.
+Agent r2_acceptance owns readonly helper/audit; root owns router/browser/source.
+Agent dns_recovery audit complete, no router/source writes. Check liveness.
+Crash/boot planning stopped in favour of reported outage; controlled reboot,
+crash and real routedIPv6/manualCAPTCHA acceptance remain unverified. Owner's
+reboot+initialworkingVPN is an observation, not controlled early-boot leak proof.
+Historical notes below are superseded here.
 
 Owner authorized direct SSH on2026-09-30: **ssh openwrt-router**. BatchMode
 with StrictHostKeyChecking succeeded; uid0, GL-MT6000, OpenWrt25.12.5 revision

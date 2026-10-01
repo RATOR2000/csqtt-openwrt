@@ -68,10 +68,14 @@ Preflight проверяет наличие ключа, формат тега и
 
 ## Установка опубликованного preview
 
-Опубликован [v0.1.0-preview.1](https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.1)
-для испытаний на GL-MT6000/OpenWrt25.12.5. Все пять заданий CI36719698753
-прошли; три APK и manifest подписаны ключом проекта, хеши опубликованных
-assets проверены. Исправленный установщик `install-openwrt25-r2.sh` проверяет
+Опубликован [v0.1.0-preview.2](https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.2)
+для испытаний на GL-MT6000 / OpenWrt 25.12.5. Тег закреплён на проверенном
+commit `9e95e812a05480ab458bad49a106cc3866eb2ebf`. Проверки и SDK прошли в
+[CI36763376001](https://github.com/RATOR2000/csqtt-openwrt/actions/runs/36763376001);
+неизменённые транспорт, Android и нативные политики подтверждены предыдущим
+запуском и сравнением исходников. Подписи трёх APK и manifest, размеры и SHA256
+всех восьми опубликованных файлов проверены после скачивания с GitHub.
+Установщик `install.sh` включает исправления preview.1: проверяет
 архитектуру прошивки и базы APK, сохраняет подписанные индексы OpenWrt и точную
 исходную версию DNS в отдельном кеше. OpenWrt подписывает индекс репозитория;
 индивидуальный `dnsmasq.apk` не подписан. Перед изменением DNS установщик
@@ -81,15 +85,17 @@ assets проверены. Исправленный установщик `instal
 и сохранённый индекс. 36 локальных сценариев прошли; [проверка на настоящем
 APK3.0.5](https://github.com/RATOR2000/csqtt-openwrt/actions/runs/36739033136)
 подтвердила подписи, отказы для повреждённого DNS/неверного ключа, кеш и
-восстановление без сети. Дополнительный asset опубликован; публичное скачивание
-проверено. Подписанные пакеты и тег preview.1 сохранены.
-Установка пакетов на роутере и подключение к VK ещё требуют повторного испытания;
-стабильный выпуск ожидает ACCEPTANCE. Assets содержат установщики, три APK,
+восстановление без сети. Подписанные пакеты и тег preview.1 сохранены.
+Реальные установка и обновление до r2 сохранили конфигурацию; подключение VK,
+DNS, IPv4 VPN, WAN-исключение, остановка/восстановление туннеля и `fw4 reload`
+проверены. Владелец сообщил о периодической потере VPN-интернета на телефоне;
+причина исследуется в STATUS. Стабильный выпуск ожидает ACCEPTANCE.
+Assets содержат установщик, три APK,
 подписанный manifest, контрольные суммы и отладочный APK помощника.
-Для GL-MT6000 с OpenWrt 25.12.5 команда preview.1 от root:
+Для GL-MT6000 с OpenWrt 25.12.5 команда preview.2 от root:
 
 ```sh
-uclient-fetch -O /tmp/csqtt-install.sh https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.1/install-openwrt25-r2.sh && sh /tmp/csqtt-install.sh v0.1.0-preview.1
+uclient-fetch -O /tmp/csqtt-install.sh https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.2/install.sh && sh /tmp/csqtt-install.sh v0.1.0-preview.2
 ```
 
 Аргумент тега выбирает assets этого preview. `latest` предназначен для
