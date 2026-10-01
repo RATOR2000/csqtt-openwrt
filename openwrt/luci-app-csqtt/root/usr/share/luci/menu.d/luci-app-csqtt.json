@@ -1,0 +1,12 @@
+{
+  "admin/services/csqtt": {
+    "title": "CSQTT",
+    "order": 45,
+    "action": { "type": "firstchild" },
+    "depends": { "acl": [ "luci-app-csqtt" ], "uci": { "csqtt": true } }
+  },
+  "admin/services/csqtt/overview": { "title": "Обзор", "order": 10, "action": { "type": "view", "path": "csqtt/overview" } },
+  "admin/services/csqtt/settings": { "title": "Подключение", "order": 20, "action": { "type": "view", "path": "csqtt/settings" } },
+  "admin/services/csqtt/policies": { "title": "Устройства и политики", "order": 30, "action": { "type": "view", "path": "csqtt/policies" } },
+  "admin/services/csqtt/diagnostics": { "title": "Диагностика", "order": 40, "action": { "type": "view", "path": "csqtt/diagnostics" } }
+}

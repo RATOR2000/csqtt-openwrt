@@ -1,0 +1,14 @@
+.work/
+target/
+dist/
+node_modules/
+.gradle/
+build/
+local.properties
+*.keystore
+*.jks
+*.key
+*.pem
+!release/csqtt-public.pem
+__pycache__/
+*.pyc

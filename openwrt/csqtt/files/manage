@@ -1,0 +1,193 @@
+#!/bin/sh
+# All writes are root-only. No configuration text is evaluated as shell code.
+set -eu
+umask 077
+RUN=/var/run/csqtt
+STATE=/etc/csqtt
+RUNTIME=/usr/share/csqtt/runtime.uc
+mkdir -p "$RUN" "$STATE" /var/lock
+chmod 0700 "$RUN" "$STATE"
+
+error() {
+	printf '%s\n' "$1" > "$RUN/policy.error"
+	logger -t csqtt "$1"
+	printf '{"ok":false,"error":"%s"}\n' "$1" >&2
+	exit 1
+}
+lock() {
+	if ! mkdir /var/lock/csqtt-policy 2>/dev/null; then
+		old=$(cat /var/lock/csqtt-policy/pid 2>/dev/null || true)
+		case "$old" in ''|*[!0-9]*) error 'Policy operation already in progress' ;; esac
+		if kill -0 "$old" 2>/dev/null; then error 'Policy operation already in progress'; fi
+		rm -f /var/lock/csqtt-policy/pid
+		rmdir /var/lock/csqtt-policy 2>/dev/null || error 'Cannot recover policy lock'
+		mkdir /var/lock/csqtt-policy || error 'Policy operation already in progress'
+	fi
+	printf '%s\n' "$$" > /var/lock/csqtt-policy/pid
+	trap 'rm -f /var/lock/csqtt-policy/pid; rmdir /var/lock/csqtt-policy 2>/dev/null || true' EXIT
+	trap 'exit 1' HUP INT TERM
+}
+runtime() { ucode "$RUNTIME" "$@"; }
+owned_rule() {
+	pref=$1; expected=$2; shift 2
+	current=$(ip -4 rule show pref "$pref")
+	if [ -n "$current" ]; then
+		printf '%s\n' "$current" | grep -Eq "$expected" || error 'Reserved policy rule is already in use'
+		[ "$(printf '%s\n' "$current" | wc -l)" -eq 1 ] || error 'Duplicate reserved policy rule'
+	else
+		ip -4 rule add pref "$pref" "$@" || error 'Cannot install guarded policy rule'
+	fi
+}
+routes() {
+	# Reserve only these priorities and table. Never replace another service's rule.
+	foreign=$(ip -4 route show table 202 2>/dev/null | grep -Ev '^(unreachable default( proto [a-z0-9]+)? metric 42760( |$)|default dev csqtt0( scope link)? metric 10( |$))' || true)
+	[ -z "$foreign" ] || error 'Routing table 202 is already in use'
+	owned_rule 11880 'from 198\.18\.0\.1(/32)? lookup 202$' from 198.18.0.1/32 lookup 202
+	owned_rule 11881 'from 198\.18\.0\.1(/32)? (unreachable|prohibit)$' from 198.18.0.1/32 unreachable
+	owned_rule 11890 'from all fwmark 0x40000000/0x60000000 lookup 202$' fwmark 0x40000000/0x60000000 lookup 202
+	owned_rule 11900 'from all fwmark 0x40000000/0x60000000 (unreachable|prohibit)$' fwmark 0x40000000/0x60000000 unreachable
+	owned_rule 11910 'from all fwmark 0x20000000/0x60000000 lookup main$' fwmark 0x20000000/0x60000000 lookup main
+	ip -4 route replace unreachable default table 202 metric 42760 || error 'Cannot install unreachable VPN route'
+	ip -4 addr show dev lo | grep -q 'inet 198.18.0.1/32 ' ||
+		ip -4 addr add 198.18.0.1/32 dev lo label lo:csqtt || error 'Cannot assign guarded DNS source'
+	if ip link show dev csqtt0 >/dev/null 2>&1; then
+		ip -4 route replace default dev csqtt0 table 202 metric 10 || error 'Cannot restore VPN route'
+	fi
+}
+conflicts() {
+	for svc in pbr mwan3; do
+		if [ -x "/etc/init.d/$svc" ] && "/etc/init.d/$svc" running >/dev/null 2>&1; then
+			error 'An incompatible pbr or mwan3 service is active'
+		fi
+	done
+	[ "$(uci -q get pbr.config.enabled || true)" != 1 ] || error 'An incompatible pbr configuration is enabled'
+	dnsmasq --version 2>/dev/null | grep -Eq '(^|[[:space:]])nftset([[:space:]]|$)' || error 'dnsmasq-full with nftset support is required'
+}
+flush_clients() {
+	[ -f "$1" ] || return 0
+	while IFS= read -r address; do
+		[ -n "$address" ] || continue
+		conntrack -D -s "$address" >/dev/null 2>&1 || true
+	done < "$1"
+}
+apply_policy() {
+	lock
+	stage="$RUN/apply.$$"
+	mkdir "$stage"
+	# Compile and validate everything before changing live policy. Keep rejected
+	# secrets out of diagnostics and the system log.
+	runtime compile "$stage" >"$RUN/compile.log" 2>&1 || error 'Configuration validation failed; see root-only compile.log'
+	active=$(cat "$stage/active")
+	transport=$(uci -q get csqtt.main.enabled || true)
+	if [ "$active" = 1 ]; then conflicts; fi
+	for conf in "$stage"/dns-*.conf; do
+		[ -f "$conf" ] || continue
+		dnsmasq --test --conf-file="$conf" >"$RUN/dns-test.log" 2>&1 || error 'Group DNS configuration validation failed'
+	done
+	# Persist the closed state before loading it. A firewall reload or reboot
+	# during a failed transaction must not reopen affected clients.
+	cp "$stage/hold.nft" "$STATE/hold.nft.new"
+	mv "$STATE/hold.nft.new" "$STATE/hold.nft"
+	runtime firewall-hold >"$RUN/firewall.log" 2>&1 || error 'Cannot persist maintenance guard'
+	nft -f "$STATE/hold.nft" >"$RUN/nft.log" 2>&1 || error 'Cannot install maintenance guard'
+	# Drop existing hardware/software shortcuts before relying on new guards.
+	if nft list flowtable inet fw4 ft >/dev/null 2>&1; then
+		nft flush flowtable inet fw4 ft || error 'Cannot clear flow offloading'
+	fi
+	nft -c -f "$stage/policy.nft" >"$RUN/nft.log" 2>&1 || error 'Generated firewall policy was rejected; clients remain guarded'
+	# Stop DNS before changing set definitions so no writer races nft replacement.
+	runtime dns-snapshot >"$RUN/dns-stop.log" 2>&1 || error 'Cannot identify old group DNS; clients remain guarded'
+	# An absent service may report an error; the process checks below prove exit.
+	/etc/init.d/csqtt-dns stop >/dev/null 2>&1 || true
+	stopped=0
+	for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+		if runtime dns-stopped >/dev/null 2>&1; then stopped=1; break; fi
+		sleep 1
+	done
+	[ "$stopped" = 1 ] || error 'Old group DNS did not stop; clients remain guarded'
+	for file in policy.nft policy.json forward.nft input.nft; do
+		cp "$stage/$file" "$STATE/$file.new"
+		mv "$STATE/$file.new" "$STATE/$file"
+	done
+	if [ "$active" = 1 ]; then
+		runtime firewall-on >"$RUN/firewall.log" 2>&1 || error 'Firewall integration failed; clients remain guarded'
+	else
+		runtime firewall-off >"$RUN/firewall.log" 2>&1 || error 'Cannot restore flow offloading'
+	fi
+	if [ "$active" = 1 ] || [ "$transport" = 1 ]; then routes; fi
+	nft -f "$STATE/policy.nft" >"$RUN/nft.log" 2>&1 || error 'Cannot load firewall policy; clients remain guarded'
+	fw4 reload >"$RUN/firewall.log" 2>&1 || error 'Firewall reload failed; clients remain guarded'
+	rm -f "$RUN"/dns-*.conf
+	for conf in "$stage"/dns-*.conf; do
+		[ -f "$conf" ] && cp "$conf" "$RUN/" || true
+	done
+	cp "$stage/dns.ids" "$RUN/dns.ids"
+	cp "$stage/client.json" "$RUN/client.json.new"
+	mv "$RUN/client.json.new" "$RUN/client.json"
+	if [ "$active" = 1 ]; then
+		/etc/init.d/csqtt-dns start >/dev/null 2>&1 || error 'Cannot start group DNS; clients remain guarded'
+		ready=0
+		for attempt in 1 2 3 4 5; do
+			if runtime dns-ready >/dev/null 2>&1; then ready=1; break; fi
+			sleep 1
+		done
+		[ "$ready" = 1 ] || error 'Group DNS failed to start; clients remain guarded'
+	fi
+	flush_clients "$stage/flush.ips"
+	nft -f "$stage/release.nft" >"$RUN/nft.log" 2>&1 || error 'Cannot finish policy transaction; clients remain guarded'
+	cp "$stage/release.nft" "$STATE/hold.nft.new"
+	mv "$STATE/hold.nft.new" "$STATE/hold.nft"
+	rm -f "$RUN/policy.error" "$RUN/dns.stop.json" "$STATE/deactivated"
+	if [ "$active" = 0 ]; then
+		[ "$transport" = 1 ] || remove_routes
+		rm -f "$STATE/offload.json"
+	fi
+	# Staging contains credentials. Remove only the files we generated, no recursive deletion.
+	rm -f "$stage"/*
+	rmdir "$stage"
+}
+remove_routes() {
+	ip -4 rule del pref 11880 from 198.18.0.1/32 lookup 202 2>/dev/null || true
+	ip -4 rule del pref 11881 from 198.18.0.1/32 unreachable 2>/dev/null || true
+	ip -4 rule del pref 11890 fwmark 0x40000000/0x60000000 lookup 202 2>/dev/null || true
+	ip -4 rule del pref 11900 fwmark 0x40000000/0x60000000 unreachable 2>/dev/null || true
+	ip -4 rule del pref 11910 fwmark 0x20000000/0x60000000 lookup main 2>/dev/null || true
+	ip -4 route del default dev csqtt0 table 202 metric 10 2>/dev/null || true
+	ip -4 route del unreachable default table 202 metric 42760 2>/dev/null || true
+	ip -4 addr del 198.18.0.1/32 dev lo 2>/dev/null || true
+}
+deactivate() {
+	lock
+	uci set csqtt.main.enabled=0
+	uci commit csqtt
+	/etc/init.d/csqtt stop >/dev/null 2>&1 || true
+	/etc/init.d/csqtt-dns stop >/dev/null 2>&1 || true
+	runtime firewall-off >"$RUN/firewall.log" 2>&1 || error 'Cannot restore firewall settings'
+	fw4 reload >"$RUN/firewall.log" 2>&1 || error 'Cannot reload firewall for deactivation'
+	nft delete table inet csqtt 2>/dev/null || true
+	remove_routes
+	: > "$STATE/deactivated"
+	rm -f "$STATE/offload.json" "$RUN/policy.error"
+}
+
+case "${1:-}" in
+	prepare)
+		# Explicit deactivation survives reboot. Save & Apply or Start reactivates.
+		if [ -f "$STATE/deactivated" ] && [ "$(uci -q get csqtt.main.enabled || true)" != 1 ]; then exit 0; fi
+		apply_policy ;;
+	apply) apply_policy; printf '{"ok":true}\n' ;;
+	start|restart)
+		uci set csqtt.main.enabled=1
+		uci commit csqtt
+		rm -f "$STATE/deactivated"
+		/etc/init.d/csqtt restart >/dev/null 2>&1 || error 'Cannot start client service'
+		printf '{"ok":true}\n' ;;
+	stop)
+		uci set csqtt.main.enabled=0
+		uci commit csqtt
+		/etc/init.d/csqtt stop >/dev/null 2>&1 || error 'Cannot stop client service'
+		printf '{"ok":true,"policies_retained":true}\n' ;;
+	deactivate) deactivate; printf '{"ok":true,"policies_active":false}\n' ;;
+	status|devices|diagnostics) runtime "$1" ;;
+	*) printf 'Usage: manage start|stop|restart|apply|deactivate|status|diagnostics|devices\n' >&2; exit 2 ;;
+esac
