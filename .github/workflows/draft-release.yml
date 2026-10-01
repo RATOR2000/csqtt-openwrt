@@ -1,0 +1,78 @@
+name: Build signed draft release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Preview tag (for example v0.1.0-preview.1)
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    outputs:
+      package_release: ${{ steps.release.outputs.package_release }}
+    steps:
+      - name: Check preview tag and signing configuration
+        id: release
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          tag = re.fullmatch(r'v0\.1\.0-preview\.([1-9][0-9]{0,6})', os.environ['RELEASE_TAG'])
+          assert tag, 'Use v0.1.0-preview.N with a positive release number'
+          assert os.environ.get('CSQTT_SIGNING_KEY'), 'Configure the repository signing secret first'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('package_release=' + tag[1] + '\n')
+          PY
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate release key before building
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: node scripts/check-signing-key.cjs --required
+      - name: Check existing preview tag matches this commit
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          git fetch --no-tags origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          TAG_COMMIT=$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")
+          [ "$TAG_COMMIT" = "$GITHUB_SHA" ] || { echo 'Preview tag must point to the workflow commit' >&2; exit 1; }
+  build:
+    needs: preflight
+    uses: ./.github/workflows/ci.yml
+    with:
+      package_release: ${{ needs.preflight.outputs.package_release }}
+    secrets: inherit
+  draft:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: openwrt-25.12.5-aarch64-cortex-a53
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-helper-debug
+          path: dist/android
+      - name: Verify signed artifacts
+        run: |
+          openssl dgst -sha256 -verify release/csqtt-public.pem -signature dist/manifest.sig dist/manifest.json
+          python3 scripts/verify-release.py dist
+      - name: Create a draft preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release create "$RELEASE_TAG" --verify-tag --draft --prerelease \
+            --title "CSQTT OpenWrt $RELEASE_TAG" --notes-file docs/PREVIEW_NOTES.md \
+            install.sh dist/*.apk dist/manifest.json dist/manifest.sig dist/SHA256SUMS dist/android/*.apk

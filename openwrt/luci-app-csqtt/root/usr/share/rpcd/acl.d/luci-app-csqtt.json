@@ -1,0 +1,13 @@
+{
+  "luci-app-csqtt": {
+    "description": "Manage CSQTT connection and device policies",
+    "read": {
+      "uci": [ "csqtt" ],
+      "ubus": { "csqtt": [ "status", "diagnostics", "devices" ] }
+    },
+    "write": {
+      "uci": [ "csqtt" ],
+      "ubus": { "csqtt": [ "start", "stop", "restart", "apply", "captcha_begin", "captcha_cancel" ] }
+    }
+  }
+}
