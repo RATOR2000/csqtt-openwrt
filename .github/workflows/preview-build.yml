@@ -1,7 +1,7 @@
-name: Preview 2 build
+name: Preview 3 build
 on:
   push:
-    branches: [codex/preview.2-build]
+    branches: [codex/preview.3-build]
 permissions:
   contents: read
   actions: read
@@ -13,12 +13,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Confirm unchanged components retain prior validation
+      - name: Confirm unchanged core, broker, Android and installer sources
         run: |
           git fetch --no-tags --depth=1 origin "$PREVIOUS_COMMIT"
           git diff --exit-code "$PREVIOUS_COMMIT" HEAD -- \
             vendor/csqtt/rust-client captcha-broker android-helper \
-            openwrt/csqtt/files tests/policy scripts/test-native-policy.sh \
             .github/workflows/ci.yml install.sh tests/installer
       - name: Authenticate prior successful checks and Android artifact
         uses: actions/github-script@v7
@@ -31,7 +30,7 @@ jobs:
               throw new Error('Prior validation commit or completion mismatch');
             const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,
               { ...repo, run_id, filter: 'latest', per_page: 100 });
-            for (const name of ['build / core', 'build / android', 'build / native-policy', 'build / checks']) {
+            for (const name of ['build / core', 'build / android', 'build / checks']) {
               if (!jobs.some(job => job.name === name && job.conclusion === 'success'))
                 throw new Error('Required prior validation did not pass: ' + name);
             }
@@ -50,13 +49,42 @@ jobs:
           python3 tests/release/release_test.py
           bash -n scripts/build-sdk.sh
           sh -n scripts/test-native-apk.sh
+          bash -n scripts/test-native-policy.sh
           sh -n install.sh
+          find openwrt -type f \( -name '*.init' -o -name manage -o -name tun-hook -o -name '9*-csqtt*' \) -exec sh -n {} \;
+  native-policy:
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-native-policy
+      cancel-in-progress: true
+    runs-on: ubuntu-24.04
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Native policy test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libjson-c-dev libnftables-dev pkg-config nftables iproute2
+          git init .work/ucode
+          git -C .work/ucode remote add origin https://github.com/jow-/ucode.git
+          git -C .work/ucode fetch --depth=1 origin 85922056ef7abeace3cca3ab28bc1ac2d88e31b1
+          git -C .work/ucode checkout --detach FETCH_HEAD
+          cmake -S .work/ucode -B .work/ucode/build -DFS_SUPPORT=ON -DUBUS_SUPPORT=OFF -DUCI_SUPPORT=OFF -DULOOP_SUPPORT=OFF -DNL80211_SUPPORT=OFF -DRTNL_SUPPORT=OFF -DRESOLV_SUPPORT=OFF -DZLIB_SUPPORT=OFF -DDIGEST_SUPPORT=OFF -DLOG_SUPPORT=OFF
+          cmake --build .work/ucode/build -j2
+          curl --fail --location --retry 3 https://thekelleys.org.uk/dnsmasq/dnsmasq-2.93.tar.xz -o .work/dnsmasq.tar.xz
+          echo '0c00d4e5c97c8306e5fb932b348b34269c9c29a0e7df0e8e82958b407092bc19  .work/dnsmasq.tar.xz' | sha256sum -c -
+          tar -xf .work/dnsmasq.tar.xz -C .work
+          make -C .work/dnsmasq-2.93 -j2 COPTS=-DHAVE_NFTSET
+      - name: Native ucode, DNS lifecycle and nftables integration
+        run: bash scripts/test-native-policy.sh
   openwrt:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-openwrt
       cancel-in-progress: false
     runs-on: ubuntu-24.04
-    needs: checks
+    needs: [checks, native-policy]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -105,7 +133,7 @@ jobs:
         id: packages
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
-          CSQTT_PACKAGE_RELEASE: '2'
+          CSQTT_PACKAGE_RELEASE: '3'
         run: bash scripts/build-sdk.sh
       - uses: actions/cache/save@v4
         if: always() && steps.sdk-cache.outputs.cache-hit != 'true'
@@ -131,12 +159,12 @@ jobs:
         with:
           name: sdk-build-diagnostics
           path: .work/sdk/*.log.gz
-      - name: Require signed revision 2 artifacts
+      - name: Require signed revision 3 artifacts
         run: |
           python3 - <<'PY'
           import json, pathlib
           root = pathlib.Path('dist')
-          expected = {'csqtt-0.1.0-r2.apk', 'csqtt-captcha-0.1.0-r2.apk', 'luci-app-csqtt-0.1.0-r2.apk'}
+          expected = {'csqtt-0.1.0-r3.apk', 'csqtt-captcha-0.1.0-r3.apk', 'luci-app-csqtt-0.1.0-r3.apk'}
           assert {p.name for p in root.glob('*.apk')} == expected, 'Unexpected package revisions'
           manifest = json.loads((root / 'manifest.json').read_text())
           assert {p['name'] for p in manifest['packages']} == expected, 'Unexpected manifest revisions'

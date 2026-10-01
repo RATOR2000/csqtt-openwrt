@@ -8,16 +8,32 @@ const runtime = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/runtime.uc'
   .replace(/^import .*;\r?\n/gm, '');
 const adapters = `
 let native_files = {};
+let native_services = {}, native_network = { interface: [] }, native_allow_write = false, native_service_unavailable = false;
 let fs = {
   readfile: function(p) { return native_files[p]; },
-  stat: function(p) { return native_files[p] != null ? {} : null; },
-  writefile: function() { die('Native runtime test attempted a file write'); },
-  chmod: function() { die('Native runtime test attempted a permission change'); }
+  readlink: function(p) { return native_files[p]; },
+  lsdir: function(p) {
+    let entries=[];
+    for (let f in native_files) {
+      if (native_files[f] == null || substr(f,0,length(p)+1) !== p+'/') continue;
+      let entry=split(substr(f,length(p)+1),'/')[0];
+      let seen=false; for (let i=0; i<length(entries); i++) if (entries[i] === entry) seen=true;
+      if (!seen) push(entries,entry);
+    }
+    return length(entries) || native_files[p] != null ? entries : null;
+  },
+  stat: function(p) {
+    if (native_files[p] != null) return {};
+    for (let f in native_files) if (native_files[f] != null && substr(f,0,length(p)+1) === p+'/') return {};
+    return null;
+  },
+  writefile: function(p,v) { if (!native_allow_write) die('Native runtime test attempted a file write'); native_files[p]=v; return length(v); },
+  chmod: function() { if (!native_allow_write) die('Native runtime test attempted a permission change'); }
 };
 function cursor() {
   return { get: function(p, s, option) { return option === 'enabled' ? '0' : null; }, foreach: function() {} };
 }
-function connect() { return { call: function() { return {}; } }; }
+function connect() { return { call: function(object,method,args) { return object === 'network.interface' ? native_network : (native_service_unavailable ? null : { [args.name]: native_services[args.name] }); } }; }
 function compile() { die('Unexpected native runtime compile call'); }
 function hold() { die('Unexpected native runtime hold call'); }
 `;
@@ -66,7 +82,37 @@ native_files['/tmp/dhcp.leases'] = '0 02:00:00:00:00:01 192.0.2.10 desktop *\\n'
 native_files['/proc/net/arp'] = 'IP address HW type Flags HW address Mask Device\\n192.0.2.10 0x1 0x2 02:00:00:00:00:01 * br-lan\\n';
 let discovered = devices();
 check(length(discovered) === 1 && discovered[0].online && discovered[0].ip === '192.0.2.10', 'Native whitespace lease parsing failed');
-print('Native ucode runtime parser, control validation and redaction passed\\n');
+native_network={ interface:[{ l3_device:'br-lan', 'ipv4-address':[{ address:'192.168.1.1', mask:24 }] }] };
+native_services={ 'csqtt-dns':{ instances:{ dns_private:{ running:true,pid:901 } } } };
+native_files['/etc/csqtt/policy.json']=sprintf('%J',{ lans:['br-lan'],groups:[{ id:'private',port:5400,macs:['02:00:00:00:00:01'] }] });
+native_files['/var/run/csqtt/dns.ids']='private\\n';
+check(!dns_ready(), 'Native DNS readiness accepted a process without listeners');
+native_files['/proc/901/fd/4']='socket:[1101]';
+native_files['/proc/901/fd/5']='socket:[2101]';
+let header='sl local_address rem_address st tx_queue rx_queue uid timeout inode\\n';
+native_files['/proc/net/udp']=header+'0: 0101A8C0:1518 00000000:0000 07 00000000:00000000 00:00000000 00000000 0 0 1101\\n';
+native_files['/proc/net/tcp']=header+'0: 0101A8C0:1518 00000000:0000 0A 00000000:00000000 00:00000000 00000000 0 0 2101\\n';
+check(dns_ready(), 'Native DNS readiness rejected owned UDP/TCP LAN listeners');
+for (let ids in [null,'','unknown\\n','private\\nprivate\\n']) {
+  native_files['/var/run/csqtt/dns.ids']=ids;
+  check(!dns_ready(), 'Native DNS readiness accepted incomplete or invalid active group IDs');
+}
+native_files['/var/run/csqtt/dns.ids']='private\\n';
+native_service_unavailable=true;
+check(!dns_ready(), 'Native DNS readiness accepted unavailable service inspection');
+native_service_unavailable=false;
+native_files['/proc/901/fd/4']='socket:[9999]';
+check(!dns_ready(), 'Native DNS readiness accepted another process socket');
+native_files['/proc/901/fd/4']='socket:[1101]';
+native_services['csqtt-dns'].instances.dns_private.pid=902;
+check(!dns_ready(), 'Native DNS readiness accepted stale PID sockets');
+native_services['csqtt-dns'].instances.dns_private.pid=901;
+native_allow_write=true; dns_snapshot(); native_allow_write=false;
+native_services={};
+check(!dns_stopped(), 'Native DNS stop ignored a surviving captured PID');
+native_files['/proc/901/fd/4']=null; native_files['/proc/901/fd/5']=null;
+check(dns_stopped(), 'Native DNS stop did not recognize old process exit');
+print('Native ucode runtime parser, control validation, redaction and DNS lifecycle passed\\n');
 `;
 const source = adapters + runtime + assertions;
 if (process.argv[2]) fs.writeFileSync(process.argv[2], source);

@@ -96,7 +96,15 @@ apply_policy() {
 	fi
 	nft -c -f "$stage/policy.nft" >"$RUN/nft.log" 2>&1 || error 'Generated firewall policy was rejected; clients remain guarded'
 	# Stop DNS before changing set definitions so no writer races nft replacement.
+	runtime dns-snapshot >"$RUN/dns-stop.log" 2>&1 || error 'Cannot identify old group DNS; clients remain guarded'
+	# An absent service may report an error; the process checks below prove exit.
 	/etc/init.d/csqtt-dns stop >/dev/null 2>&1 || true
+	stopped=0
+	for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+		if runtime dns-stopped >/dev/null 2>&1; then stopped=1; break; fi
+		sleep 1
+	done
+	[ "$stopped" = 1 ] || error 'Old group DNS did not stop; clients remain guarded'
 	for file in policy.nft policy.json forward.nft input.nft; do
 		cp "$stage/$file" "$STATE/$file.new"
 		mv "$STATE/$file.new" "$STATE/$file"
@@ -129,7 +137,7 @@ apply_policy() {
 	nft -f "$stage/release.nft" >"$RUN/nft.log" 2>&1 || error 'Cannot finish policy transaction; clients remain guarded'
 	cp "$stage/release.nft" "$STATE/hold.nft.new"
 	mv "$STATE/hold.nft.new" "$STATE/hold.nft"
-	rm -f "$RUN/policy.error" "$STATE/deactivated"
+	rm -f "$RUN/policy.error" "$RUN/dns.stop.json" "$STATE/deactivated"
 	if [ "$active" = 0 ]; then
 		[ "$transport" = 1 ] || remove_routes
 		rm -f "$STATE/offload.json"

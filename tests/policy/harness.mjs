@@ -34,7 +34,10 @@ export function runtime(mode, { packages = {}, files = {}, services = {}, networ
     save() { return true; }, commit() { return true; },
   };
   const context = vm.createContext({ ...globals, ...compiler(), ARGV: [mode, stage],
-    fs: { readfile: p => files[p] ?? null, writefile(p, v) { files[p] = v; return v.length; }, chmod: (p, mode) => chmods.push([p, mode]), stat: p => p in files ? {} : null },
+    fs: { readfile: p => files[p] ?? null, readlink: p => files[p] ?? null,
+      lsdir: p => { const entries = Object.keys(files).filter(f => f.startsWith(p + '/')).map(f => f.slice(p.length + 1).split('/')[0]); return entries.length || p in files ? [...new Set(entries)] : null; },
+      writefile(p, v) { files[p] = v; return v.length; }, chmod: (p, mode) => chmods.push([p, mode]),
+      stat: p => p in files || Object.keys(files).some(f => f.startsWith(p + '/')) ? {} : null },
     cursor: () => cursor,
     connect: () => ({ call: (object, method, args) => object === 'network.interface' ? network : { [args.name]: services[args.name] } }),
     json: JSON.parse, sprintf: (_, v) => JSON.stringify(v),

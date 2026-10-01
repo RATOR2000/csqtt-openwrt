@@ -4,6 +4,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
+node --test tests/policy/dns-manage.test.mjs
 node tests/policy/render.mjs "$OUT"
 node tests/policy/native-runtime.mjs "$OUT/native-runtime.uc"
 "$ROOT/.work/ucode/build/ucode" "$OUT/native-runtime.uc" dns-ready

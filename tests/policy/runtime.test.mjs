@@ -146,10 +146,73 @@ test('missing, null and malformed private state have safe status defaults', () =
   }
 });
 
-test('group DNS readiness requires every configured procd instance', () => {
-  const files = { '/var/run/csqtt/dns.ids': 'private\ndirect\n' };
-  assert.throws(() => runtime('dns-ready', { files, services: { 'csqtt-dns': { instances: { dns_private: { running: true } } } } }), /Exit 1/);
-  runtime('dns-ready', { files, services: { 'csqtt-dns': { instances: { dns_private: { running: true }, dns_direct: { running: true } } } } });
+function dnsFixture() {
+  const network = { interface: [{ l3_device: 'br-lan', 'ipv4-address': [{ address: '192.168.1.1', mask: 24 }] }] };
+  const files = {
+    '/var/run/csqtt/dns.ids': 'private\ndirect\n',
+    '/etc/csqtt/policy.json': JSON.stringify({ lans: ['br-lan'], groups: [
+      { id: 'private', port: 5400, macs: ['02:00:00:00:00:01'] },
+      { id: 'direct', port: 5401, macs: ['02:00:00:00:00:02'] },
+    ] }),
+    '/proc/901/fd/4': 'socket:[1101]', '/proc/901/fd/5': 'socket:[2101]',
+    '/proc/902/fd/4': 'socket:[1102]', '/proc/902/fd/5': 'socket:[2102]',
+    '/proc/net/udp': 'sl local_address rem_address st tx_queue rx_queue uid timeout inode\n' +
+      '0: 0101A8C0:1518 00000000:0000 07 00000000:00000000 00:00000000 00000000 0 0 1101\n' +
+      '1: 0101A8C0:1519 00000000:0000 07 00000000:00000000 00:00000000 00000000 0 0 1102\n',
+    '/proc/net/tcp': 'sl local_address rem_address st tx_queue rx_queue uid timeout inode\n' +
+      '0: 0101A8C0:1518 00000000:0000 0A 00000000:00000000 00:00000000 00000000 0 0 2101\n' +
+      '1: 0101A8C0:1519 00000000:0000 0A 00000000:00000000 00:00000000 00000000 0 0 2102\n',
+  };
+  const services = { 'csqtt-dns': { instances: {
+    dns_private: { running: true, pid: 901 }, dns_direct: { running: true, pid: 902 },
+  } } };
+  return { files, services, network };
+}
+
+test('group DNS readiness waits for both LAN listeners owned by every current procd PID', () => {
+  runtime('dns-ready', dnsFixture());
+  for (const change of [
+    f => { delete f.services['csqtt-dns'].instances.dns_direct; },
+    f => { delete f.files['/proc/net/udp']; delete f.files['/proc/net/tcp']; },
+    f => { f.files['/proc/net/tcp'] = ''; },
+    f => { f.files['/proc/net/tcp'] = f.files['/proc/net/tcp'].replaceAll('0A ', '01 '); },
+    f => { f.files['/proc/net/udp'] = f.files['/proc/net/udp'].replaceAll('0101A8C0', '0100007F'); },
+    f => { f.files['/proc/901/fd/4'] = 'socket:[9999]'; },
+    f => { f.services['csqtt-dns'].instances.dns_private.pid = 903; },
+    f => { f.network.interface = []; },
+    f => { delete f.files['/var/run/csqtt/dns.ids']; },
+    f => { f.files['/var/run/csqtt/dns.ids'] = ''; },
+    f => { f.files['/var/run/csqtt/dns.ids'] = 'private\nunknown\n'; },
+    f => { f.files['/var/run/csqtt/dns.ids'] = 'private\nprivate\n'; },
+    f => { f.services = null; },
+  ]) {
+    const fixture = dnsFixture(); change(fixture);
+    assert.throws(() => runtime('dns-ready', fixture), /Exit 1/);
+  }
+  const wildcard = dnsFixture();
+  wildcard.files['/proc/net/udp'] = wildcard.files['/proc/net/udp'].replaceAll('0101A8C0', '00000000');
+  wildcard.files['/proc/net/tcp'] = wildcard.files['/proc/net/tcp'].replaceAll('0101A8C0', '00000000');
+  runtime('dns-ready', wildcard);
+  runtime('dns-ready', { files: { '/etc/csqtt/policy.json': '{"groups":[]}' } });
+});
+
+test('DNS diagnostics do not call a running process ready before its LAN sockets bind', () => {
+  const fixture = dnsFixture(); fixture.files['/proc/net/udp'] = '';
+  const out = runtime('diagnostics', fixture);
+  assert.deepEqual(out.output[0].checks.filter(c => c.name === 'dnsmasq').map(c => c.ok), [false, false]);
+});
+
+test('DNS stop waits for snapshotted old PIDs even after procd removes their instances', () => {
+  const old = dnsFixture();
+  const snapshot = runtime('dns-snapshot', old);
+  assert.deepEqual(JSON.parse(snapshot.files['/var/run/csqtt/dns.stop.json']), ['901', '902']);
+  assert.ok(snapshot.chmods.some(([p, mode]) => p.endsWith('dns.stop.json') && mode === 0o600));
+  const stopping = { ...old, files: snapshot.files, services: {} };
+  assert.throws(() => runtime('dns-stopped', stopping), /Exit 1/);
+  for (const file of Object.keys(stopping.files)) if (file.startsWith('/proc/901/') || file.startsWith('/proc/902/')) delete stopping.files[file];
+  runtime('dns-stopped', stopping);
+  stopping.services = { 'csqtt-dns': { instances: { dns_private: { running: true, pid: 903 } } } };
+  assert.throws(() => runtime('dns-stopped', stopping), /Exit 1/);
 });
 
 test('firewall activation snapshots offload once and deactivation restores absent options', () => {

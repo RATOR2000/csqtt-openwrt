@@ -153,6 +153,104 @@ function service_running(name, instance) {
 	let s = call('service', 'list', { name: name });
 	return !!(s && s[name] && s[name].instances && s[name].instances[instance] && s[name].instances[instance].running);
 }
+function dns_instances() {
+	let s = call('service', 'list', { name: 'csqtt-dns' });
+	return s == null ? null : ((s['csqtt-dns'] && s['csqtt-dns'].instances) || {});
+}
+function process_id(value) {
+	return match('' + (value || ''), /^[1-9][0-9]*$/) ? '' + value : null;
+}
+function dns_snapshot() {
+	let instances = dns_instances(), pids = [];
+	if (instances == null) die('Cannot inspect group DNS processes');
+	for (let name in instances) {
+		let s = instances[name], pid = process_id(s.pid);
+		if (s.running && !pid) die('Cannot identify group DNS process');
+		if (pid && !includes(pids, pid)) push(pids, pid);
+	}
+	save(ROOT + 'dns.stop.json', sprintf('%J', pids));
+}
+function dns_stopped() {
+	let pids = readjson(ROOT + 'dns.stop.json', null), instances = dns_instances();
+	if (type(pids) !== 'array' || instances == null) return false;
+	for (let i = 0; i < length(pids); i++)
+		if (!process_id(pids[i]) || fs.stat('/proc/' + pids[i])) return false;
+	for (let name in instances) {
+		let s = instances[name], pid = process_id(s.pid);
+		if (s.running || (pid && fs.stat('/proc/' + pid))) return false;
+	}
+	return true;
+}
+function hex(value, digits) {
+	let result = '', alphabet = '0123456789abcdef';
+	for (let shift = (digits - 1) * 4; shift >= 0; shift -= 4)
+		result += substr(alphabet, (value >> shift) & 15, 1);
+	return result;
+}
+function dns_addresses(model) {
+	let addresses = [], net = network(), lans = list(model.lans || 'br-lan');
+	for (let i = 0; i < length(net.interface || []); i++) {
+		let s = net.interface[i];
+		if (!includes(lans, s.l3_device || s.device)) continue;
+		for (let j = 0; j < length(s['ipv4-address'] || []); j++) {
+			let p = split(s['ipv4-address'][j].address || '', '.'), address = '';
+			if (length(p) !== 4) continue;
+			for (let k = 3; k >= 0; k--) {
+				if (!match(p[k], /^[0-9]{1,3}$/) || +p[k] > 255) { address = ''; break; }
+				address += hex(+p[k], 2);
+			}
+			if (length(address) && !includes(addresses, address)) push(addresses, address);
+		}
+	}
+	return addresses;
+}
+function dns_process_ready(id, port, addresses, instances) {
+	let s = instances && instances['dns_' + id], pid = s && process_id(s.pid);
+	if (!s || !s.running || !pid || !length(addresses) || port < 5400 || port > 5415) return false;
+	let descriptors = fs.lsdir('/proc/' + pid + '/fd'), owned = {};
+	if (descriptors == null) return false;
+	for (let i = 0; i < length(descriptors); i++) {
+		let target = fs.readlink('/proc/' + pid + '/fd/' + descriptors[i]);
+		let socket = match(target || '', /^socket:\[([0-9]+)\]$/);
+		if (socket) owned[socket[1]] = true;
+	}
+	let protocols = ['udp', 'tcp'];
+	for (let p = 0; p < length(protocols); p++) {
+		let protocol = protocols[p];
+		let text = fs.readfile('/proc/net/' + protocol), listeners = [];
+		if (text == null) return false;
+		let rows = split(text, '\n');
+		for (let i = 1; i < length(rows); i++) {
+			let fields = split(trim(rows[i]), /\s+/);
+			if (length(fields) < 10 || !owned[fields[9]] ||
+				lc(fields[3]) !== (protocol === 'tcp' ? '0a' : '07')) continue;
+			let local = split(lc(fields[1]), ':');
+			if (length(local) === 2 && local[1] === hex(port, 4)) push(listeners, local[0]);
+		}
+		for (let i = 0; i < length(addresses); i++)
+			if (!includes(listeners, addresses[i]) && !includes(listeners, '00000000')) return false;
+	}
+	return true;
+}
+function dns_ready() {
+	let lines = split(trim(fs.readfile(ROOT + 'dns.ids') || ''), '\n'), ids = [], expected = [];
+	let model = readjson(STATE + 'policy.json', { groups: [] });
+	for (let i = 0; i < length(lines); i++) if (lines[i]) push(ids, lines[i]);
+	for (let i = 0; i < length(model.groups || []); i++)
+		if (length(model.groups[i].macs || [])) push(expected, model.groups[i].id);
+	if (length(ids) !== length(expected)) return false;
+	let instances = dns_instances(), addresses = dns_addresses(model);
+	if (length(expected) && instances == null) return false;
+	for (let i = 0; i < length(ids); i++) {
+		if (!includes(expected, ids[i])) return false;
+		for (let j = 0; j < i; j++) if (ids[j] === ids[i]) return false;
+		let group = null;
+		for (let j = 0; j < length(model.groups || []); j++)
+			if (model.groups[j].id === ids[i]) group = model.groups[j];
+		if (!group || !dns_process_ready(ids[i], group.port, addresses, instances)) return false;
+	}
+	return true;
+}
 function status() {
 	let stored = readjson(ROOT + 'status.json', {}), core = {}, running = service_running('csqtt', 'client');
 	// Explicit allowlist prevents upstream fields from exposing passwords or challenge answers.
@@ -260,10 +358,13 @@ else if (mode === 'diagnostics') {
 	push(checks, { name: 'policy', ok: !length(s.policy_error), detail: s.policy_error || 'Policy configuration loaded' });
 	push(checks, { name: 'tun', ok: s.running && s.core.state === 'connected' && !s.core.error_code,
 		detail: s.core.error_code || s.core.state || 'stopped' });
+	let instances = dns_instances(), addresses = dns_addresses(model);
 	for (let i = 0; i < length(model.groups); i++) if (length(model.groups[i].macs))
-		push(checks, { name: 'dnsmasq', ok: service_running('csqtt-dns', 'dns_' + model.groups[i].id), detail: 'Guarded group DNS process' });
+		push(checks, { name: 'dnsmasq', ok: dns_process_ready(model.groups[i].id, model.groups[i].port, addresses, instances), detail: 'Guarded group DNS listeners' });
 	output({ status: s, checks: checks, domain_limitations: 'DNS caches, shared destination IPs and independent DoH limit hostname classification. Online status is estimated from ARP.' });
 } else if (mode === 'dns-ready') {
-	let ids = split(trim(fs.readfile(ROOT + 'dns.ids') || ''), '\n');
-	for (let i = 0; i < length(ids); i++) if (ids[i] && !service_running('csqtt-dns', 'dns_' + ids[i])) exit(1);
+	if (!dns_ready()) exit(1);
+} else if (mode === 'dns-snapshot') dns_snapshot();
+else if (mode === 'dns-stopped') {
+	if (!dns_stopped()) exit(1);
 } else die('Unknown runtime command');

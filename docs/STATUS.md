@@ -6,13 +6,17 @@ Tag is exact tested SHA9e95e812a05480ab458bad49a106cc3866eb2ebf. All eight
 public asset downloads match verified local bytes; APK/manifest signatures and
 packaged LuCI tests passed. Real VK/IPv4 LAN policy acceptance passed. Signed
 upgrade to r2 succeeded with private configuration unchanged. Owner reports an
-intermittent loss of VPN Internet on the phone; investigation is the priority.
+intermittent loss of VPN Internet on the phone. A real DNS restart readiness
+race is fixed and passed live endurance; a signed preview3 build is next.
 Read this, then IMPLEMENTATION.md. Files/Git/CI are
 authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-**Current action: reproduce and fix intermittent phone VPN Internet loss.**
+**Current action: freeze/build/verify/publish signed preview3, then upgrade the
+router through its signed installer and verify saved settings and traffic.**
+Continue observing the later intermittent phone outage; it has not been proved
+to share the DNS restart cause below. Do not claim that outage cured.
 Owner rebooted router before today's work, then created VPN group, assigned
 phone and two WAN site exceptions. Internet/VPN worked initially then failed;
 WAN exceptions seemed to keep working. Do not restart before capturing evidence.
@@ -47,31 +51,54 @@ credentials/rawlogs/MACs/IPs. Captured .work/preview.2/triage-20261001.txt.
 Extended readonly helper ran on actualrouter: phoneMAC/currentARP/DHCP and
 installedpolicy/nftclassification allagree; oneVPNdevice,twoWANrules, IPv4
 conntrack32-45, unanswered0, TCPestablished12. Phonetraffic nowpassedseveralMiB.
-No source of intermittent outage confirmed. Root installed matching official
-kmod-veth6.12.94-r1 for current-group ephemeralLAN endurance; marker
-/tmp/csqtt-endurance-added-veth. Agent dns_recovery prepares ignored
-.work/preview.2/router-lan-endurance.sh; root must review/run/cleanup then
-`sh /tmp/csqtt-veth-test-package.sh remove`. Scripts do not restart transport.
+No source of the later intermittent outage confirmed. Root installed matching
+official kmod-veth6.12.94-r1 and coreutils-timeout temporarily for current-group
+ephemeralLAN endurance. Both test packages and their markers are now removed;
+`sh /tmp/csqtt-veth-test-package.sh remove` finished exit0. Scripts do not
+restart transport. Owner groups1/devices1/rules2 and configuration preserved.
 First actual endurance sample after apply failedDNS: nslookup returned
 Connectionrefused/timedout, while directIPping/VPNHTTPS/verifiedAPKdownload
 allpassed. Readonlycapture kept group_dns_ready=true. Cleanup removed temporary
 device/netns/address, ownerclientsettingsUNCHANGED, groups1/devices1 restored.
 Evidence private /tmp/csqtt-lan-endurance.hIHNLm; only synthetic public probe
 destinations in dns-1.log. This proves DNS restart readiness gap; link to owner's
-later outage not yet established. Agent dns_recovery now owns manage/runtime.uc
-and meaningful readiness tests: wait completeDNSstop; verify listening sockets
-owned by expectedgroup process before releasingguard. No router agent writes.
+later outage not yet established. Agent dns_recovery completed manage/runtime.uc
+and readiness tests: snapshot old DNS PIDs and wait for full stop before replacing
+configuration; require exact active group IDs and UDP plus TCP listening sockets
+owned by the current process on every LAN IPv4 address before releasing guard.
+Missing processes/sockets/IDs keep clients guarded. No added runtime dependency.
+Four POSIX shell restart regressions and final Node policy/LuCI51/51 PASS.
+Native ucode fixture/parser and manage shell parser passed on the actual router.
+The initial native test adapter failed at a forward reference; adapter corrected,
+full native fixture then passed before applying production changes.
+Root atomically deployed reviewed runtime/manage/settings after private backup
+/etc/csqtt/backups/dns-ready-fix-20261001-121411-11049. Config compared UNCHANGED.
+Installed packages are still r2 WITH TEST PATCHES; proper signed r3 is pending.
+Same ephemeralLAN endurance, with no warmup added: DNS12/12, directIPping12/12,
+VPNHTTPS exit different from WAN12/12, SHA-verified HTTPS APKdownload12/12 PASS,
+elapsed168s. First post-apply DNS refusal did not recur. Trap cleanup confirmed
+test device/namespace/address removed and owner clientsettings UNCHANGED.
+Actual diagnostics now checks owned DNS listeners; connected72workers,
+policiesactive true/noerror, DNS/tunnel/policy checks green after cleanup.
 Two earlier endurancepreflightfailures (missingtimeout, thenod) changed no
 policies. Root installed officialcoreutils-timeout temporarily; marker
 /tmp/csqtt-endurance-added-timeout. MACgeneration corrected usingPID+collision
-checks. Root must remove both testpackages with wrapper when acceptance finishes.
-If interrupted, inspect namespace/UCI testdevice/module before repeating.
-Agent r2_acceptance owns settings.js/TCP regressiontest: confirmed UIemits
+checks. Testpackages and ephemeral state have been removed as recorded above.
+Agent r2_acceptance completed settings.js/TCP regressiontest: confirmed UIemits
 tcp_tls but runtimeallowsudp/tcp; nativeclient accepts both aliases asTCP/TLS.
 Fix canonicalUIvalue tcp DONE in source, regressionfailedbefore with InvalidTURN
-transport, afterfix Nodepolicy/LuCI45/45passed. CurrentUDP/router untouched;
-no new signedbuild yet. Root owns
-router/browser/other source. Check liveness before delegating.
+transport, afterfix Nodepolicy/LuCI45/45passed, final51/51 PASS. CurrentUDP setting
+unchanged. TCP source/evidence checkpoint8cb0accd3b4b3d193e6c888672556f3424f4fb6b
+pushed. Reviewed preview-build.yml now targets only codex/preview.3-build, package
+revision3, with checks -> fresh native-policy -> SDK. It authenticates prior
+successful core/Android checks and artifact11117296798; unchanged-source guards
+avoid rebuilding those components while allowing new DNS/native tests.
+Local YAML, nine embedded shell blocks and embedded JS/Python syntax PASS;
+native dependency/build steps match the proven pinned reusable CI workflow.
+Root must checkpoint/push source, create one frozen non-skip build commit/branch,
+then verify exact SHA/run/assets before publishing. Do not move preview2 refs.
+Agent preview3_build is preparing ignored .work/preview.3 verification helpers;
+root owns Git freeze/router/browser/publication. Recheck liveness before delegation.
 Crash/boot planning stopped in favour of reported outage; controlled reboot,
 crash and real routedIPv6/manualCAPTCHA acceptance remain unverified. Owner's
 reboot+initialworkingVPN is an observation, not controlled early-boot leak proof.
