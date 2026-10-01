@@ -16,7 +16,7 @@ authority; historical component notes do not override this checkpoint.
 Owner rebooted router before today's work, then created VPN group, assigned
 phone and two WAN site exceptions. Internet/VPN worked initially then failed;
 WAN exceptions seemed to keep working. Do not restart before capturing evidence.
-Optional question pending: is phone currently failing or recovered? Preserve
+Owner answered: phone currently works, outage recurs later. Preserve
 current owner configuration (six VK links,72workers,one device,two rules);
 do not restore yesterday's values. SSH management known and unassigned.
 
@@ -44,8 +44,34 @@ TURNtransactiontimeout/fulloutage/TUNreadwriteerrors; no phone traffic during
 Ignored .work/preview.2/router-triage-readonly.sh uploaded to
 /tmp/csqtt-triage-readonly.sh; captures safe fixedlabels/counts only, no
 credentials/rawlogs/MACs/IPs. Captured .work/preview.2/triage-20261001.txt.
-Agent r2_acceptance owns readonly helper/audit; root owns router/browser/source.
-Agent dns_recovery audit complete, no router/source writes. Check liveness.
+Extended readonly helper ran on actualrouter: phoneMAC/currentARP/DHCP and
+installedpolicy/nftclassification allagree; oneVPNdevice,twoWANrules, IPv4
+conntrack32-45, unanswered0, TCPestablished12. Phonetraffic nowpassedseveralMiB.
+No source of intermittent outage confirmed. Root installed matching official
+kmod-veth6.12.94-r1 for current-group ephemeralLAN endurance; marker
+/tmp/csqtt-endurance-added-veth. Agent dns_recovery prepares ignored
+.work/preview.2/router-lan-endurance.sh; root must review/run/cleanup then
+`sh /tmp/csqtt-veth-test-package.sh remove`. Scripts do not restart transport.
+First actual endurance sample after apply failedDNS: nslookup returned
+Connectionrefused/timedout, while directIPping/VPNHTTPS/verifiedAPKdownload
+allpassed. Readonlycapture kept group_dns_ready=true. Cleanup removed temporary
+device/netns/address, ownerclientsettingsUNCHANGED, groups1/devices1 restored.
+Evidence private /tmp/csqtt-lan-endurance.hIHNLm; only synthetic public probe
+destinations in dns-1.log. This proves DNS restart readiness gap; link to owner's
+later outage not yet established. Agent dns_recovery now owns manage/runtime.uc
+and meaningful readiness tests: wait completeDNSstop; verify listening sockets
+owned by expectedgroup process before releasingguard. No router agent writes.
+Two earlier endurancepreflightfailures (missingtimeout, thenod) changed no
+policies. Root installed officialcoreutils-timeout temporarily; marker
+/tmp/csqtt-endurance-added-timeout. MACgeneration corrected usingPID+collision
+checks. Root must remove both testpackages with wrapper when acceptance finishes.
+If interrupted, inspect namespace/UCI testdevice/module before repeating.
+Agent r2_acceptance owns settings.js/TCP regressiontest: confirmed UIemits
+tcp_tls but runtimeallowsudp/tcp; nativeclient accepts both aliases asTCP/TLS.
+Fix canonicalUIvalue tcp DONE in source, regressionfailedbefore with InvalidTURN
+transport, afterfix Nodepolicy/LuCI45/45passed. CurrentUDP/router untouched;
+no new signedbuild yet. Root owns
+router/browser/other source. Check liveness before delegating.
 Crash/boot planning stopped in favour of reported outage; controlled reboot,
 crash and real routedIPv6/manualCAPTCHA acceptance remain unverified. Owner's
 reboot+initialworkingVPN is an observation, not controlled early-boot leak proof.

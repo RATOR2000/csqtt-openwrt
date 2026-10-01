@@ -45,7 +45,7 @@ return view.extend({
 		o = s.taboption('advanced', form.ListValue, 'obfs', 'Маскировка');
 		o.value('video', 'Видеозвонок'); o.value('audio', 'Аудиозвонок'); o.default = 'video'; o.rmempty = false;
 		o = s.taboption('advanced', form.ListValue, 'turn_transport', 'Транспорт TURN');
-		o.value('udp', 'UDP'); o.value('tcp_tls', 'TCP / TLS'); o.default = 'udp'; o.rmempty = false;
+		o.value('udp', 'UDP'); o.value('tcp', 'TCP / TLS'); o.default = 'udp'; o.rmempty = false;
 		o = s.taboption('advanced', form.ListValue, 'vk_auth_mode', 'Режим авторизации ВКонтакте');
 		o.value('vkcalls', 'VK Calls'); o.value('legacy', 'Совместимый режим'); o.default = 'vkcalls'; o.rmempty = false;
 		o = s.taboption('advanced', form.ListValue, 'fingerprint', 'Профиль браузера');

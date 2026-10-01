@@ -162,6 +162,23 @@ function formStub() {
 	return { Map, GridSection: Section, NamedSection: Section, Value: Option, Flag: Option, ListValue: Option, DynamicList: Option };
 }
 
+test('rendered TURN choices compile into supported native client transport values', async () => {
+	const { runtime } = await import('../policy/harness.mjs');
+	const view = load('view/csqtt/settings.js', { view: extend, E, L, ui: uiStub(), form: formStub(), uci: {}, model });
+	await view.render();
+	const transport = view.map.sections[0].options.find(option => option.key === 'turn_transport');
+	assert.equal(transport.default, 'udp');
+	for (const value of transport.keylist) {
+		transport.getUIElement('main').setValue(value);
+		const selected = transport.formvalue('main');
+		const compiled = runtime('compile', { packages: { csqtt: { main: { '.type': 'client', enabled: '0', turn_transport: selected } } } });
+		const config = JSON.parse(compiled.files['/var/run/csqtt/apply.42/client.json']);
+		assert.equal(config.turn_transport, selected, 'the selected form value must survive runtime compilation');
+	}
+	assert.deepEqual(transport.keylist, ['udp', 'tcp']);
+	assert.deepEqual(transport.vallist, ['UDP', 'TCP / TLS']);
+});
+
 test('saving settings rejects over-capacity workers and duplicate hashes before saving UCI', async () => {
 	const ui = uiStub(), form = formStub(), uci = { load: async () => {}, set() {} };
 	const view = load('view/csqtt/settings.js', { view: extend, E, L, ui, form, uci, model });
