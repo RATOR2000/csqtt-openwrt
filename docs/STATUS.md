@@ -43,7 +43,13 @@ compilation/tests/nativeCI remain pending. Source checkpoint
 3e493716b564266c48af28b4310d2abc2783df7f, treef899ad98288661cc6aafa2d59d92cc502da4431b,
 branchcodex/preview.4-build, focusedpush run37189418467 inprogress.
 https://github.com/RATOR2000/csqtt-openwrt/actions/runs/37189418467
-Do not trigger a duplicate or move frozen/published refs. Root owns docs/workflow/router/browser.
+Do not trigger a duplicate or move frozen/published refs. Fresh checks111398302622,
+native-policy111398350556 and core111398350565 SUCCESS. Core focusedTURN1/1 plus
+fullRust353passed/0failed/7ignored; all11liveness and authenticatedACK/cleanup
+regressions verified in authenticated logs. SDK111398669183 inprogress at Native
+OpenWrtpackages. Ignored preview4 signed-upgrade wrapper prepared, not executed;
+it backs up/compares all4configs and requires all3installedversions0.1.0-r4.
+Root owns docs/workflow/router/browser.
 Preview4 workflow rootprepared: fresh checks/core/native-policy precede SDKr4;
 unchanged broker/Android/installer source and originalAndroid artifact guarded.
 Agent preview3_verify owns ignored preview4 verifiers, authenticated artifacts/logs

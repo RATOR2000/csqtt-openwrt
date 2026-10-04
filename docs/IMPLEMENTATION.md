@@ -33,6 +33,15 @@ Interface/TUN name `csqtt0`. Credentials and runtime config are mode 0600.
 Runtime files `/var/run/csqtt/`; persistent device identity `/etc/csqtt/`.
 Transport receives `/var/run/csqtt/client.json` via `--config-file`.
 
+Established TURN allocations alone do not prove that the CSQTT server responds.
+Each allocation sends the existing authenticated READY request every 60 seconds.
+Its existing reader accepts exact, authenticated and unreplayed READY_OK replies.
+One five-second deadline covers sending and receiving; three consecutive misses
+end that allocation through normal cleanup and worker reconnection. Idle traffic
+does not disable these probes. This preserves the upstream wire protocol and
+requires no public ICMP endpoint. Authentication and configuration errors retain
+their existing handling. Internet access beyond the server is a separate check.
+
 ## Routing invariants
 
 Preserve router/LAN access. For managed internet traffic, ordered group rules
