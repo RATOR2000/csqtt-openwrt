@@ -5,17 +5,23 @@
 ручной CAPTCHA. Сервер разворачивается из оригинального Android-приложения.
 
 Доступен подписанный экспериментальный
-[v0.1.0-preview.2](https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.2)
+[v0.1.0-preview.4](https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.4)
 для GL.iNet GL-MT6000 / OpenWrt 25.12.5 / aarch64_cortex-a53. Установка,
-обновление, подключение VK и основные политики IPv4 проверены на этой модели.
+подписанное обновление до r4 с сохранением настроек и подключение VK проверены
+на этой модели; основные политики IPv4 проверены в preview.2.
 Полный список проверок и оставшихся ограничений — в [STATUS.md](docs/STATUS.md).
+
+Preview.4 добавляет автоматическое переподключение при потере ответов сервера,
+исправления готовности DNS после применения настроек и выбора TCP в LuCI.
+Автоматическое восстановление проверено на роутере при потере входящих данных
+одного канала. Устранение периодической потери VPN-интернета требует наблюдения.
 
 ## Установка или обновление
 
 Выполните от root на указанной модели и версии OpenWrt:
 
 ```sh
-uclient-fetch -O /tmp/csqtt-install.sh https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.2/install.sh && sh /tmp/csqtt-install.sh v0.1.0-preview.2
+uclient-fetch -O /tmp/csqtt-install.sh https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.4/install.sh && sh /tmp/csqtt-install.sh v0.1.0-preview.4
 ```
 
 Затем откройте **Службы → CSQTT** в LuCI. Установщик проверяет подписи и
