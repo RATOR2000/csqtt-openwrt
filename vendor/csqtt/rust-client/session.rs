@@ -6,6 +6,7 @@ use crate::{
     client_perf::{self, Stage as PerfStage},
     dispatcher::{Dispatcher, PacketReceiver, WorkerChannels, packet_channel},
     events::Events,
+    liveness::{self, PeerLiveness},
     obfs::{ObfsCipher, ObfsConfig, ObfsMode, ObfsState, is_rtp_packet},
     packet::{PacketBuf, PacketPool},
     protocol::{
@@ -188,6 +189,7 @@ struct ReaderRuntime {
     repair: Arc<RepairState>,
     shutdown: Arc<ShutdownCoordinator>,
     config_tx: mpsc::Sender<String>,
+    liveness: Arc<PeerLiveness>,
 }
 
 pub struct ShutdownCoordinator {
@@ -816,6 +818,7 @@ async fn run_allocated_session(
         },
         session_cancel.clone(),
     ));
+    let liveness = PeerLiveness::new();
     let mut reader = tokio::spawn(reader_loop(
         reader_transport,
         ReaderRuntime {
@@ -824,10 +827,14 @@ async fn run_allocated_session(
             repair: config.repair.clone(),
             shutdown: runtime.shutdown.clone(),
             config_tx: runtime.config_tx.clone(),
+            liveness: liveness.clone(),
         },
         session_cancel.clone(),
     ));
     let repair_generation = config.repair.restart_generation(config.id);
+    let mut peer_liveness = Box::pin(liveness::supervise(liveness, &session_cancel, |request| {
+        send_writer_bytes(&writer_command_tx, request)
+    }));
     let (session_result, completed): (Result<()>, u8) = tokio::select! {
         biased;
         _ = runtime.cancel.cancelled() => {
@@ -840,6 +847,7 @@ async fn run_allocated_session(
         _ = config.repair.changed(config.id, repair_generation) => {
             (Err(anyhow!("TARGET_REPAIR")), 0)
         }
+        result = &mut peer_liveness => (result, 0),
         result = &mut writer => {
             (result.map_err(anyhow::Error::from).and_then(|value| value), 1)
         }
@@ -847,6 +855,7 @@ async fn run_allocated_session(
             (result.map_err(anyhow::Error::from).and_then(|value| value), 2)
         }
     };
+    drop(peer_liveness);
     session_cancel.cancel();
     stop_session_tasks(completed, writer, reader).await;
     crate::log_error!("[СЕССИЯ #{}] Завершена", config.id);
@@ -1112,6 +1121,7 @@ async fn reader_loop(
         repair,
         shutdown,
         config_tx,
+        liveness,
     } = runtime;
     loop {
         let packet = tokio::select! {
@@ -1119,6 +1129,7 @@ async fn reader_loop(
             _ = cancel.cancelled() => return Ok(()),
             result = transport.recv() => result?,
         };
+        liveness.observe_response(packet.as_slice());
         if is_panel_restart_notice(packet.as_slice()) {
             events.panel_restart();
             continue;
@@ -1781,15 +1792,31 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cancelled_session_aborts_every_child_task() {
-        let writer = tokio::spawn(async {
-            pending::<()>().await;
-            Ok(())
+    async fn cancelled_or_failed_probe_session_aborts_and_awaits_every_child_task() {
+        let writer_dropped = Arc::new(AtomicBool::new(false));
+        let reader_dropped = Arc::new(AtomicBool::new(false));
+        let (writer_started, writer_ready) = oneshot::channel();
+        let (reader_started, reader_ready) = oneshot::channel();
+        let writer = tokio::spawn({
+            let dropped = writer_dropped.clone();
+            async move {
+                let _drop = DropFlag(dropped);
+                writer_started.send(()).unwrap();
+                pending::<()>().await;
+                Ok(())
+            }
         });
-        let reader = tokio::spawn(async {
-            pending::<()>().await;
-            Ok(())
+        let reader = tokio::spawn({
+            let dropped = reader_dropped.clone();
+            async move {
+                let _drop = DropFlag(dropped);
+                reader_started.send(()).unwrap();
+                pending::<()>().await;
+                Ok(())
+            }
         });
+        writer_ready.await.unwrap();
+        reader_ready.await.unwrap();
 
         tokio::time::timeout(
             Duration::from_secs(1),
@@ -1797,6 +1824,90 @@ mod tests {
         )
         .await
         .unwrap();
+        assert!(writer_dropped.load(Ordering::Acquire));
+        assert!(reader_dropped.load(Ordering::Acquire));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn peer_liveness_accepts_only_authenticated_exact_unreplayed_acknowledgements() {
+        fn encode(
+            pool: &Arc<PacketPool>,
+            cipher: &ObfsCipher,
+            config: &ObfsConfig,
+            state: &mut ObfsState,
+            payload: &[u8],
+        ) -> Vec<u8> {
+            let mut packet = pool.acquire();
+            packet.read_area()[..payload.len()].copy_from_slice(payload);
+            packet.set_read_len(payload.len()).unwrap();
+            cipher.wrap(&mut packet, config, state).unwrap();
+            packet.as_slice().to_vec()
+        }
+        fn received(pool: &Arc<PacketPool>, wire: &[u8]) -> PacketBuf {
+            let mut packet = pool.acquire();
+            packet.read_area()[..wire.len()].copy_from_slice(wire);
+            packet.set_read_len(wire.len()).unwrap();
+            packet
+        }
+        for mode in [ObfsMode::Audio, ObfsMode::Video] {
+            let pool = PacketPool::new(8);
+            let cipher = ObfsCipher::new([0x52; 32]).unwrap();
+            let config = ObfsConfig::new(mode);
+            let mut wire_state = ObfsState::new();
+            let wire = encode(&pool, &cipher, &config, &mut wire_state, b"READY_OK");
+            let malformed = encode(&pool, &cipher, &config, &mut wire_state, b"READY_OKextra");
+            let wrong_key = encode(
+                &pool,
+                &ObfsCipher::new([0x53; 32]).unwrap(),
+                &config,
+                &mut wire_state,
+                b"READY_OK",
+            );
+            let mut replay = ReplayProtection::default();
+            let liveness = PeerLiveness::new();
+            let cancel = CancellationToken::new();
+            let (sender, mut requests) = mpsc::channel(4);
+            let task = tokio::spawn({
+                let liveness = liveness.clone();
+                let cancel = cancel.clone();
+                async move {
+                    liveness::supervise(liveness, &cancel, |request| {
+                        let sender = sender.clone();
+                        async move {
+                            sender
+                                .send(request)
+                                .await
+                                .map_err(|_| anyhow!("fake writer closed"))
+                        }
+                    }).await
+                }
+            });
+            assert_eq!(requests.recv().await, Some(b"READY".as_slice()));
+            let mut plaintext = received(&pool, b"READY_OK");
+            assert!(!authenticate_inbound(&cipher, &config, &mut replay, &mut plaintext));
+            let mut corrupt_wire = wire.clone();
+            let last = corrupt_wire.len() - 1;
+            corrupt_wire[last] ^= 0x80;
+            let mut corrupt = received(&pool, &corrupt_wire);
+            assert!(!authenticate_inbound(&cipher, &config, &mut replay, &mut corrupt));
+            let mut valid = received(&pool, &wire);
+            assert!(authenticate_inbound(&cipher, &config, &mut replay, &mut valid));
+            liveness.observe_response(valid.as_slice());
+            tokio::task::yield_now().await;
+            assert_eq!(requests.recv().await, Some(b"READY".as_slice()));
+            let mut replayed = received(&pool, &wire);
+            assert!(!authenticate_inbound(&cipher, &config, &mut replay, &mut replayed));
+            let mut malformed_ack = received(&pool, &malformed);
+            assert!(authenticate_inbound(&cipher, &config, &mut replay, &mut malformed_ack));
+            liveness.observe_response(malformed_ack.as_slice());
+            let mut wrong_key_ack = received(&pool, &wrong_key);
+            assert!(!authenticate_inbound(&cipher, &config, &mut replay, &mut wrong_key_ack));
+            let error = task.await.unwrap().unwrap_err();
+            assert!(error.downcast_ref::<liveness::PeerLivenessTimeout>().is_some());
+            assert_eq!(requests.try_recv().unwrap(), b"READY");
+            assert_eq!(requests.try_recv().unwrap(), b"READY");
+            assert!(requests.try_recv().is_err());
+        }
     }
 
     #[tokio::test]

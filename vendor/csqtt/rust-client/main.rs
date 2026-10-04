@@ -14,6 +14,7 @@ mod dns;
 mod events;
 #[path = "../shared/flow_frame.rs"]
 mod flow_frame;
+mod liveness;
 mod logging;
 mod linux_tun;
 mod namegen;

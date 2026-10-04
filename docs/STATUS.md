@@ -34,8 +34,11 @@ not proof of the owner's exact failure or explanation of the reboot observation.
 Agent transport_outage owns session.rs/new liveness.rs/main.rs and async tests:
 single reader, per-incarnation ACK state, single-flight probes every60s,5s bounded
 send+reply deadline,3misses -> existing session cleanup and worker reconnect.
-No new wire message, external ICMP service or credentials. Source in progress;
-no compilation/live cure claims yet. Root owns docs/workflow/router/browser.
+No new wire message, external ICMP service or credentials. Source DONE in3files;
+11paused-clock asynchronous fake-peer tests, authenticated Audio/Video ACK/replay/
+malformed-response regression and strengthened child-task drop/await test added.
+Independent source review and diff--check PASS. Cargo unavailable locally;
+compilation/tests/nativeCI remain pending. Root owns docs/workflow/router/browser.
 Preview4 workflow rootprepared: fresh checks/core/native-policy precede SDKr4;
 unchanged broker/Android/installer source and originalAndroid artifact guarded.
 Agent preview3_verify owns ignored preview4 verifiers and readonlyworkflow review.
@@ -50,8 +53,11 @@ staged: exacttree/source/runtime/manage/policy/all5minifiedJS/modes/license/deps
 pinned3APK+manifest signatures/checksums, originalAndroid byte equality,
 unchangedinstaller1bf8...,16/16packagedLuCI PASS. Initial verifier reporter
 mismatch fixed with explicit TAP/UTF8; final check used fresh staging. Root is
-publishing exact frozenSHA/8assets as experimental preview3; public byte check
-pending. Signedr3 upgrade not run; prioritize the forthcoming r4 recovery upgrade.
+published exact frozenSHA/8assets as experimental preview3 at
+https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.3.
+Public verifier first stopped only because GitHub body uses CRLF; normalized
+newline text matches exactly. Public byte verification now being rerun.
+Signedr3 upgrade not run; prioritize the forthcoming r4 recovery upgrade.
 Continue investigating the later outage; do not claim it cured.
 Owner rebooted router before today's work, then created VPN group, assigned
 phone and two WAN site exceptions. Internet/VPN worked initially then failed;
