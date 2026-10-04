@@ -38,10 +38,20 @@ No new wire message, external ICMP service or credentials. Source DONE in3files;
 11paused-clock asynchronous fake-peer tests, authenticated Audio/Video ACK/replay/
 malformed-response regression and strengthened child-task drop/await test added.
 Independent source review and diff--check PASS. Cargo unavailable locally;
-compilation/tests/nativeCI remain pending. Root owns docs/workflow/router/browser.
+compilation/tests/nativeCI remain pending. Source checkpoint
+2cc5596b666d359568467f19ae97ae0f57566307 pushed. Frozen preview4 build
+3e493716b564266c48af28b4310d2abc2783df7f, treef899ad98288661cc6aafa2d59d92cc502da4431b,
+branchcodex/preview.4-build, focusedpush run37189418467 inprogress.
+https://github.com/RATOR2000/csqtt-openwrt/actions/runs/37189418467
+Do not trigger a duplicate or move frozen/published refs. Root owns docs/workflow/router/browser.
 Preview4 workflow rootprepared: fresh checks/core/native-policy precede SDKr4;
 unchanged broker/Android/installer source and originalAndroid artifact guarded.
-Agent preview3_verify owns ignored preview4 verifiers and readonlyworkflow review.
+Agent preview3_verify owns ignored preview4 verifiers, authenticated artifacts/logs
+and readonlyworkflow review. Agent transport_outage completed source and now
+prepares ignored one-allocation ChannelData fault script; no live writes. Root
+must review before running on verified r4, preserve LAN and remove own temporary
+table on every exit. Require same process PID, oldsocket gone, typedtimeout,
+STUNcontrol stillpassed, restored workers and VPN ping, configUNCHANGED.
 Recheck liveness before delegation; prior agents ended at quota or are gone.
 Preview3 focused run36861604341 finished SUCCESS(all3jobs) at exact frozenSHA
 cb6357832b079e3d159a1a7187d783be958b5c90. A newer fullCI36864359516 is also
@@ -56,7 +66,9 @@ mismatch fixed with explicit TAP/UTF8; final check used fresh staging. Root is
 published exact frozenSHA/8assets as experimental preview3 at
 https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.3.
 Public verifier first stopped only because GitHub body uses CRLF; normalized
-newline text matches exactly. Public byte verification now being rerun.
+newline text matches exactly. Public verifier PASS: exact tag/flags/description,
+all8API sizes/digests and all8public downloads; provenance published=true and
+public_download_verified=true. No signedr3 upgrade was performed.
 Signedr3 upgrade not run; prioritize the forthcoming r4 recovery upgrade.
 Continue investigating the later outage; do not claim it cured.
 Owner rebooted router before today's work, then created VPN group, assigned
