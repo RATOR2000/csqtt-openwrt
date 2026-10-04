@@ -1,7 +1,7 @@
-name: Preview 3 build
+name: Preview 4 build
 on:
   push:
-    branches: [codex/preview.3-build]
+    branches: [codex/preview.4-build]
 permissions:
   contents: read
   actions: read
@@ -13,11 +13,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Confirm unchanged core, broker, Android and installer sources
+      - name: Confirm unchanged broker, Android and installer sources
         run: |
           git fetch --no-tags --depth=1 origin "$PREVIOUS_COMMIT"
           git diff --exit-code "$PREVIOUS_COMMIT" HEAD -- \
-            vendor/csqtt/rust-client captcha-broker android-helper \
+            captcha-broker android-helper \
             .github/workflows/ci.yml install.sh tests/installer
       - name: Authenticate prior successful checks and Android artifact
         uses: actions/github-script@v7
@@ -52,6 +52,41 @@ jobs:
           bash -n scripts/test-native-policy.sh
           sh -n install.sh
           find openwrt -type f \( -name '*.init' -o -name manage -o -name tun-hook -o -name '9*-csqtt*' \) -exec sh -n {} \;
+  core:
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}-core
+      cancel-in-progress: true
+    runs-on: ubuntu-24.04
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        id: cargo-cache
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            vendor/csqtt/rust-client/target
+          key: cargo-host-${{ runner.os }}-1.97.1-${{ hashFiles('vendor/csqtt/rust-client/Cargo.lock') }}
+      - name: Rust and native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang ninja-build pkg-config
+          rustup toolchain install 1.97.1 --profile minimal
+      - name: Rust tests
+        env:
+          RUST_BACKTRACE: '1'
+        run: |
+          cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml turn::integration_tests::authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_copy -- --exact
+          cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml
+      - uses: actions/cache/save@v4
+        if: always() && steps.cargo-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            vendor/csqtt/rust-client/target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
   native-policy:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-native-policy
@@ -84,7 +119,7 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}-openwrt
       cancel-in-progress: false
     runs-on: ubuntu-24.04
-    needs: [checks, native-policy]
+    needs: [checks, core, native-policy]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -133,7 +168,7 @@ jobs:
         id: packages
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
-          CSQTT_PACKAGE_RELEASE: '3'
+          CSQTT_PACKAGE_RELEASE: '4'
         run: bash scripts/build-sdk.sh
       - uses: actions/cache/save@v4
         if: always() && steps.sdk-cache.outputs.cache-hit != 'true'
@@ -159,12 +194,12 @@ jobs:
         with:
           name: sdk-build-diagnostics
           path: .work/sdk/*.log.gz
-      - name: Require signed revision 3 artifacts
+      - name: Require signed revision 4 artifacts
         run: |
           python3 - <<'PY'
           import json, pathlib
           root = pathlib.Path('dist')
-          expected = {'csqtt-0.1.0-r3.apk', 'csqtt-captcha-0.1.0-r3.apk', 'luci-app-csqtt-0.1.0-r3.apk'}
+          expected = {'csqtt-0.1.0-r4.apk', 'csqtt-captcha-0.1.0-r4.apk', 'luci-app-csqtt-0.1.0-r4.apk'}
           assert {p.name for p in root.glob('*.apk')} == expected, 'Unexpected package revisions'
           manifest = json.loads((root / 'manifest.json').read_text())
           assert {p['name'] for p in manifest['packages']} == expected, 'Unexpected manifest revisions'

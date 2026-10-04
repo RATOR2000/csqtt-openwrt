@@ -1,6 +1,6 @@
 # Development status — resume here
 
-Updated 2026-10-01. Signed experimental **v0.1.0-preview.2 published**:
+Updated 2026-10-04. Signed experimental **v0.1.0-preview.2 published**:
 https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.2
 Tag is exact tested SHA9e95e812a05480ab458bad49a106cc3866eb2ebf. All eight
 public asset downloads match verified local bytes; APK/manifest signatures and
@@ -13,10 +13,46 @@ authority; historical component notes do not override this checkpoint.
 
 ## First unfinished action
 
-**Current action: freeze/build/verify/publish signed preview3, then upgrade the
-router through its signed installer and verify saved settings and traffic.**
-Continue observing the later intermittent phone outage; it has not been proved
-to share the DNS restart cause below. Do not claim that outage cured.
+**Current action: complete protocol-compatible READY/READY_OK liveness recovery,
+run fresh native core tests and signed preview4 build, then verify/publish/upgrade
+and test automatic recovery on the real router.**
+Owner's Oct4 report: improvement, but VPN-classified devices still lose Internet
+about twice/day; reboot does not help, LuCI Reconnect helps. Currently working.
+SSH BatchMode/StrictHostKeyChecking succeeded, uid0, router uptime1h. Redacted
+diagnostics connected72workers, DNS/policy/tunnel checks green. Current owner
+config groups1/devices3/rules4 (not Oct1 values); management MAC is now assigned
+to a VPN policy. Preserve LAN management and these settings, no blind restoration
+or broad live transport fault. Readonly snapshot Oct4: process/status PID agree,
+classification agrees with UCI, RSS13884KiB, traffic rose1267506988->1267928272,
+unanswered2->0. Evidence ignored .work/preview.3/router-triage-20261004.txt.
+Confirmed source gap: established TURN allocations count as connected while
+CSQTT server replies can stop indefinitely. Upstream authenticated sessions have
+10h idle expiry; existing TURN keepalive bypasses CSQTT obfuscation/activity.
+READY is already authenticated/encrypted, updates upstream activity and returns
+READY_OK without epoch/config mutation. This is a plausible delayed-outage path,
+not proof of the owner's exact failure or explanation of the reboot observation.
+Agent transport_outage owns session.rs/new liveness.rs/main.rs and async tests:
+single reader, per-incarnation ACK state, single-flight probes every60s,5s bounded
+send+reply deadline,3misses -> existing session cleanup and worker reconnect.
+No new wire message, external ICMP service or credentials. Source in progress;
+no compilation/live cure claims yet. Root owns docs/workflow/router/browser.
+Preview4 workflow rootprepared: fresh checks/core/native-policy precede SDKr4;
+unchanged broker/Android/installer source and originalAndroid artifact guarded.
+Agent preview3_verify owns ignored preview4 verifiers and readonlyworkflow review.
+Recheck liveness before delegation; prior agents ended at quota or are gone.
+Preview3 focused run36861604341 finished SUCCESS(all3jobs) at exact frozenSHA
+cb6357832b079e3d159a1a7187d783be958b5c90. A newer fullCI36864359516 is also
+successful at that SHA(PR3 trigger), but select the focused artifact identity.
+SDKartifact11163088247 ZIPsha256c19313bfdf3554c0cdabf96d624cdd1da2135b8b90645f0caf82b4d74e4eeeec;
+reusedAndroid11161509092 ZIPsha2568cd6a00bc593356852881cfad45f4f7ff42dda86201e9eb050a4078f072164f6.
+Ignored .work/preview.3/provenance.json verified=true/published=false and8assets
+staged: exacttree/source/runtime/manage/policy/all5minifiedJS/modes/license/deps,
+pinned3APK+manifest signatures/checksums, originalAndroid byte equality,
+unchangedinstaller1bf8...,16/16packagedLuCI PASS. Initial verifier reporter
+mismatch fixed with explicit TAP/UTF8; final check used fresh staging. Root is
+publishing exact frozenSHA/8assets as experimental preview3; public byte check
+pending. Signedr3 upgrade not run; prioritize the forthcoming r4 recovery upgrade.
+Continue investigating the later outage; do not claim it cured.
 Owner rebooted router before today's work, then created VPN group, assigned
 phone and two WAN site exceptions. Internet/VPN worked initially then failed;
 WAN exceptions seemed to keep working. Do not restart before capturing evidence.
@@ -95,10 +131,16 @@ successful core/Android checks and artifact11117296798; unchanged-source guards
 avoid rebuilding those components while allowing new DNS/native tests.
 Local YAML, nine embedded shell blocks and embedded JS/Python syntax PASS;
 native dependency/build steps match the proven pinned reusable CI workflow.
-Root must checkpoint/push source, create one frozen non-skip build commit/branch,
-then verify exact SHA/run/assets before publishing. Do not move preview2 refs.
-Agent preview3_build is preparing ignored .work/preview.3 verification helpers;
-root owns Git freeze/router/browser/publication. Recheck liveness before delegation.
+DNS source/live-proof checkpoint3e81099f240f0f1a747d849fb2c3cdc57b319304 pushed.
+Frozen non-skip build cb6357832b079e3d159a1a7187d783be958b5c90, common tree
+95f53ddd991355e75ee831c5b1e3a99784e4f253, branch codex/preview.3-build.
+Run36861604341: checks110366899078 SUCCESS; native-policy110366961970 SUCCESS;
+SDK110367350959 in progress at Native OpenWrt packages. Do not duplicate builds
+or move preview2 refs. https://github.com/RATOR2000/csqtt-openwrt/actions/runs/36861604341
+Agent preview3_build prepared ignored .work/preview.3 verifiers/config and owns
+artifact verification once metadata is available. Root owns publication/live.
+Agent outage_audit performs narrow read-only delayed-outage source review;
+no source/router writes. Recheck liveness before delegation.
 Crash/boot planning stopped in favour of reported outage; controlled reboot,
 crash and real routedIPv6/manualCAPTCHA acceptance remain unverified. Owner's
 reboot+initialworkingVPN is an observation, not controlled early-boot leak proof.
