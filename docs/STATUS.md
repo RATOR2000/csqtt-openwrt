@@ -6,13 +6,37 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Freeze/build the next signed preview from the tested development tree through
-the existing Actions workflow, then verify assets and upgrade. Current fixes
-are source patches over signed preview.4; do not describe public r4 packages as
-including them. Do not rebuild/retest unchanged transport just to save progress.
+Continue the existing preview5 run37464598550 (build38e0283), SDK job
+112273279793, then obtain its artifacts and exact authenticated SDK log.
+DO NOT dispatch another build or move frozen codex/preview.5-build. Fill missing
+artifact IDs/digests in .work/preview.5/release-config.json; verify-build-tree,
+fetch-artifacts (cached Android ZIP already verified), prepare-release then
+publish all8 assets using saved GitHub draft and verify-public-release. Upgrade
+router using verified installer hash, then run post-check with11 exact signed
+payload hashes; all scripts/checks are in .work/preview.5/README.md.
+Current fixes remain patches over r4 until signed upgrade actually passes.
 Remaining stable boot/crash, manual CAPTCHA and routed IPv6 gates still apply.
 
 ## Preview5 build (2026-10-06)
+
+Frozen source295fa037a007d77e40899109cd70e8df53ad1c5a /
+build38e0283f724aa3110cfc75ad22f9bf57801e4b80 /
+treeadb5492d7177a7a508cf182d8997a8b532ea56de.
+Branch codex/preview.5-build, single run37464598550. Checks112272354749,
+native112272425249 and core112272425384 success; SDK112273279793 in progress.
+Three exact authenticated logs + digests saved in .work/preview.5; partial frozen
+release-config awaits SDK artifact ID/digest before final helper verification.
+Android artifact11414083202 downloaded and digest/size verified (newZIPmetadata,
+APK byte match still checked by final helper). Initial no-User-Agent download
+returned403; expected verification User-Agent succeeded; temporary URL removed.
+Preview5 verifiers/upgrade/postcheck prepared and statically tested in ignored
+folder; no old SDK binaries/logs copied. Browser2 saved draft at /releases/edit/untagged-2786c9b82580f96ac3a8,
+selected preview5 tag/frozen build branch and Pre-release radio. Not published;
+target tag is created only on publication. Assets not uploaded yet.
+Independent review of71 actual CI regressions, native markers, exact init
+payload/mode and signed/public gates PASS; cached Android ZIP skip digest+size
+gates reviewed. Both helper agents completed; no active source ownership.
+No r5 package installation yet.
 
 Preparing one frozen revision5 build branch from the verified development tree.
 Existing focused workflow still requires four CI jobs; Rust cache and previously
