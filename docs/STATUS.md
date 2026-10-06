@@ -6,47 +6,59 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Continue the existing preview5 run37464598550 (build38e0283), SDK job
-112273279793, then obtain its artifacts and exact authenticated SDK log.
-DO NOT dispatch another build or move frozen codex/preview.5-build. Fill missing
-artifact IDs/digests in .work/preview.5/release-config.json; verify-build-tree,
-fetch-artifacts (cached Android ZIP already verified), prepare-release then
-publish all8 assets using saved GitHub draft and verify-public-release. Upgrade
-router using verified installer hash, then run post-check with11 exact signed
-payload hashes; all scripts/checks are in .work/preview.5/README.md.
-Current fixes remain patches over r4 until signed upgrade actually passes.
-Remaining stable boot/crash, manual CAPTCHA and routed IPv6 gates still apply.
+Preview5 is published, independently verified and installed on the live router.
+Continue remaining stable-release ACCEPTANCE gates: controlled boot/crash,
+manual CAPTCHA and routed IPv6. Start with a reviewed boot/crash test that keeps
+local management and owner VPN protection; announce router mutations first.
+Do not rebuild/publish preview5 again, move frozen refs, or resume cancelled Auto
+VPN. Check current Git/router state before subsequent work.
 
-## Preview5 build (2026-10-06)
+## Preview5 publication and signed upgrade (2026-10-06) — complete
 
-Frozen source295fa037a007d77e40899109cd70e8df53ad1c5a /
-build38e0283f724aa3110cfc75ad22f9bf57801e4b80 /
-treeadb5492d7177a7a508cf182d8997a8b532ea56de.
-Branch codex/preview.5-build, single run37464598550. Checks112272354749,
-native112272425249 and core112272425384 success; SDK112273279793 in progress.
-Three exact authenticated logs + digests saved in .work/preview.5; partial frozen
-release-config awaits SDK artifact ID/digest before final helper verification.
-Android artifact11414083202 downloaded and digest/size verified (newZIPmetadata,
-APK byte match still checked by final helper). Initial no-User-Agent download
-returned403; expected verification User-Agent succeeded; temporary URL removed.
-Preview5 verifiers/upgrade/postcheck prepared and statically tested in ignored
-folder; no old SDK binaries/logs copied. Browser2 saved draft at /releases/edit/untagged-2786c9b82580f96ac3a8,
-selected preview5 tag/frozen build branch and Pre-release radio. Not published;
-target tag is created only on publication. Assets not uploaded yet.
-Independent review of71 actual CI regressions, native markers, exact init
-payload/mode and signed/public gates PASS; cached Android ZIP skip digest+size
-gates reviewed. Both helper agents completed; no active source ownership.
-No r5 package installation yet.
+- Release https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.5
+  is public prerelease, not stable. Exact tag/build
+  38e0283f724aa3110cfc75ad22f9bf57801e4b80, frozen source
+  295fa037a007d77e40899109cd70e8df53ad1c5a,
+  tree adb5492d7177a7a508cf182d8997a8b532ea56de. Build branch
+  codex/preview.5-build; one run37464598550, no duplicate dispatch.
+- All four fresh jobs success: checks112272354749, native112272425249,
+  core112272425384, SDK112273279793.71 source tests,20 packaged LuCI,
+  6 packaged init;353 Rust /0 failed /7 ignored plus focused TURN;
+  native policy flags/DNS/nftables, ARM64 ELF/TUN, offline DNS restoration.
+- verify-build-tree.py, fetch-artifacts.py, prepare-release.py PASS: exact
+  authenticated logs/artifacts, frozen payload/source/modes/dependencies/license,
+  pinned manifest and3APK signatures, Android whole APK/signature reuse proof.
+  SDK artifact11415902761 ZIP SHA256
+  401f404152f76d83f449c6653f9e00b06437b255bc0d9e8e2684a964070e9f9e;
+  Android11414083202 ZIP SHA256
+  5bad74c69bfe1520046f7f01a91420d643893ed59d85c0e4d398b7b42597b8ff.
+- All8 assets fully uploaded. verify-public-release.py PASS: exact tag/title/body,
+  API uploaded states/sizes/digests and all8 public downloads/hash matches.
+  Ignored .work/preview.5 retains complete frozen release-config, signed assets,
+  authenticated logs, provenance and reviewed upgrade/postcheck helpers.
+- Reviewed upgrade-router.sh executed through SSH: installer hash
+  1bf8b9270a973283e51ce21e10364fc1d6a3d1236ce9d69b625fdaf6f9caa9ad
+  matched published bytes; signed installer exit0, all3 packages0.1.0-r5.
+  /etc/config/csqtt,dhcp,firewall,network byte-match private preupgrade backups.
+  Backup /etc/csqtt/backups/preview5-upgrade-20261006-131154-7089 contains private
+  configuration, installer/diagnostics/logs; never publish raw contents.
+- Read-only router-post-check.sh PASS: all11 installed payload hashes match
+  exact signed r5 packages, versions r5, running/enabled/policies active,
+  connected72, groups1/devices2/rules4/no errors, LAN/group DNS example.com,
+  WAN/VPN IPv4 HTTPS and differing exits. Local management available.
+- Real LuCI after rpcd restart/relogin: two owner checkbox rows checked; Overview
+  connected72 and decimal Кб values, no old binary units/Auto VPN. Owner rows
+  were not toggled. Earlier synthetic VPN→WAN→VPN test remains separate below.
+- Verification helper first stopped after successful11 hashes on missing status
+  rules field. Corrected to count UCI rule sections privately; complete rerun
+  PASS. No router/product fault or source change. Cold SDK compilation warning
+  did not prevent its success. Initial artifact download needed User-Agent;
+  exact digest/size gates then passed. No downloaded old SDK/core reused.
+- Agent ui_finish updated README/USAGE/BUILD/PREVIEW_NOTES only; native_device_checks
+  fixed ignored helper only. Both completed, no ongoing ownership. Root owns
+  publication/live upgrade/checkpoint. Recheck agents on resume.
 
-Preparing one frozen revision5 build branch from the verified development tree.
-Existing focused workflow still requires four CI jobs; Rust cache and previously
-validated Android artifact reused by existing workflow. Fresh SDK/signatures and
-policy/LuCI/init/native checks required for this actual new release. No r4 refs
-moved and no duplicate run dispatched. Root owns refs/publication/live upgrade;
-ui_finish prepares only ignored preview5 verifiers; native_device_checks prepares
-only ignored upgrade/post-check scripts. Recheck ownership on resume.
-
-## Device release fixes (2026-10-06) — implemented and installed
+## Device source fixes (2026-10-06) — before signed r5 upgrade
 
 Owner cancelled Auto VPN; original WAN/VPN only. Overview formats decimal byte
 counts as Б/Кб/Мб/Гб (1000), finite/negative guards retained. Saved device rows
@@ -84,14 +96,14 @@ Checks:
   Final installed five files cmp match source, DNS ready, connected72/devices2,
   no remaining private reload snapshot. Management remains unassigned.
 
-Five source files patched over installed signed r4 (packages still0.1.0-r4):
+Before the signed r5 upgrade, five source files were patched over signed r4:
 policy.uc/runtime.uc/csqtt.init/model.js/policies.js. Persistent rollback copies
 and all four original configs remain private under
 /etc/csqtt/backups/device-enabled-fix-20261006-121314-31188.
 Ignored .work/device-toggle has reviewed deployment/helper scripts and UI proofs;
 private packet-test evidence remains under device-toggle-test backups on router.
 No test-state pointer/process/namespace is left. Agent-created browser test tab4
-is the final deliverable; user-owned tabs1/2 preserved. Long-open tab1 retained
+retained for final LuCI verification; user-owned tabs1/2 preserved. Long-open tab1 retained
 old HTTP scripts; fresh tabs load updated UI. Screenshots remain ignored.
 
 Failures/corrections retained:
