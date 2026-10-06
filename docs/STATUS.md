@@ -12,6 +12,16 @@ are source patches over signed preview.4; do not describe public r4 packages as
 including them. Do not rebuild/retest unchanged transport just to save progress.
 Remaining stable boot/crash, manual CAPTCHA and routed IPv6 gates still apply.
 
+## Preview5 build (2026-10-06)
+
+Preparing one frozen revision5 build branch from the verified development tree.
+Existing focused workflow still requires four CI jobs; Rust cache and previously
+validated Android artifact reused by existing workflow. Fresh SDK/signatures and
+policy/LuCI/init/native checks required for this actual new release. No r4 refs
+moved and no duplicate run dispatched. Root owns refs/publication/live upgrade;
+ui_finish prepares only ignored preview5 verifiers; native_device_checks prepares
+only ignored upgrade/post-check scripts. Recheck ownership on resume.
+
 ## Device release fixes (2026-10-06) — implemented and installed
 
 Owner cancelled Auto VPN; original WAN/VPN only. Overview formats decimal byte
