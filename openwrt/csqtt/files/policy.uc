@@ -18,6 +18,11 @@ function action(value) {
 	if (value !== 'vpn' && value !== 'wan') fail('Action must be vpn or wan');
 	return value;
 }
+function device_enabled(value) {
+	if (value == null || value === '1' || value === true) return true;
+	if (value === '0' || value === false) return false;
+	fail('Device enabled must be 0 or 1');
+}
 function ipv4(value) {
 	let p = split(value, '.');
 	if (length(p) !== 4) return false;
@@ -87,15 +92,18 @@ export function validate(input) {
 		push(model.groups, { id: g.id, name: clean(g.name), default_action: g.default_action,
 			macs: [], rules: [], protected: g.default_action === 'vpn', port: 5400 + i });
 	}
+	let device_macs = [];
 	for (let i = 0; i < length(devices); i++) {
 		let d = devices[i], group = null, mac = lc(clean(d.mac));
 		id(d.id);
 		for (let j = 0; j < i; j++) if (devices[j].id === d.id) fail('Duplicate device identifier');
 		if (!match(mac, /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/) || mac === '00:00:00:00:00:00' ||
 			(index('13579bdf', substr(mac, 1, 1)) >= 0)) fail('Device MAC must be unicast');
-		for (let j = 0; j < i; j++) if (model.devices[j].mac === mac) fail('Device belongs to more than one group');
+		for (let j = 0; j < length(device_macs); j++) if (device_macs[j] === mac) fail('Device belongs to more than one group');
+		push(device_macs, mac);
 		for (let j = 0; j < length(model.groups); j++) if (model.groups[j].id === d.group) group = model.groups[j];
 		if (!group) fail('Device refers to a missing group');
+		if (!device_enabled(d.enabled)) continue;
 		push(group.macs, mac);
 		push(model.devices, { id: d.id, name: clean(d.name), mac: mac, group: group.id });
 	}

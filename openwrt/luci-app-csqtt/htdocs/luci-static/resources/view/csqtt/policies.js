@@ -58,8 +58,9 @@ return view.extend({
 		o.validate = function(id, value) { return !!value.trim() && value.length <= 64 && !/[\x00-\x1f\x7f]/.test(value) || 'Введите название длиной от 1 до 64 символов.'; };
 		actionOption(s, 'default_action', 'Обычный маршрут');
 
-		s = m.section(form.GridSection, 'device', 'Назначенные устройства', 'Одно устройство может входить только в одну группу. Если телефон меняет частный MAC-адрес, закрепите его для этой Wi-Fi сети.');
+		s = m.section(form.GridSection, 'device', 'Назначенные устройства', 'Снимите галочку и нажмите Save & Apply, чтобы устройство использовало обычный WAN. Запись и группа сохраняются. Одно устройство может входить только в одну группу; если телефон меняет MAC-адрес, закрепите его для этой Wi-Fi сети.');
 		s.anonymous = true; s.addremove = true; s.addbtntitle = 'Добавить устройство';
+		o = s.option(form.Flag, 'enabled', 'Включено'); o.default = '1'; o.rmempty = false; o.editable = true;
 		o = s.option(form.Value, 'name', 'Название');
 		o.validate = function(id, value) { return value.length <= 64 && !/[\x00-\x1f\x7f]/.test(value) || 'Не более 64 символов без управляющих символов.'; };
 		var mac = s.option(form.Value, 'mac', 'MAC-адрес'); mac.rmempty = false;

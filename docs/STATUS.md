@@ -1,17 +1,89 @@
 # Development status — resume here
 
-Updated 2026-10-04. Read this first, then IMPLEMENTATION.md. Files, Git and CI
+Updated 2026-10-06. Read this first, then IMPLEMENTATION.md. Files, Git and CI
 are the source of truth. Preserve current owner configuration. Historical
 details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Check the owner's later-outage observation before further changes. If an outage
-recurs, capture readonly diagnostics and event counts before reconnecting.
-If healthy, continue remaining controlled crash/boot acceptance with an isolated
-LAN probe; preserve management and current policies. Do not repeat the completed
-r4 build or single-allocation proof. Manual CAPTCHA and routed IPv6 remain
-separate acceptance gates. No automatic monitor has been requested.
+Freeze/build the next signed preview from the tested development tree through
+the existing Actions workflow, then verify assets and upgrade. Current fixes
+are source patches over signed preview.4; do not describe public r4 packages as
+including them. Do not rebuild/retest unchanged transport just to save progress.
+Remaining stable boot/crash, manual CAPTCHA and routed IPv6 gates still apply.
+
+## Device release fixes (2026-10-06) — implemented and installed
+
+Owner cancelled Auto VPN; original WAN/VPN only. Overview formats decimal byte
+counts as Б/Кб/Мб/Гб (1000), finite/negative guards retained. Saved device rows
+have an inline enabled checkbox; missing/1 remains active,0 removes routing,
+DNS redirect and IPv6 guard membership while retaining row/name/MAC/group.
+Validation still covers inactive IDs/MACs/groups/duplicates/flags. RPC group and
+status count reflect active assignments. Explanation moved above the table so
+checkbox column stays compact. Fresh LuCI confirms two owner rows checked.
+
+Actual LuCI Save & Apply revealed old init reload always restarted transport.
+Fixed csqtt.init to snapshot client.json privately, apply guarded policies once,
+keep the same running process when transport config is unchanged, and restart
+only when changed/missing/stopped. Disabled main stops transport after apply;
+failed apply leaves original process/guards, cleans snapshot and returns error.
+Existing procd file-watch scope retained; no protocol/core changes.
+
+Checks:
+- All71 Node policy/runtime/DNS/LuCI/service-reload tests PASS, final full command:
+  `node --test --test-reporter=dot tests/policy/*.test.mjs tests/luci/*.test.cjs`.
+  Six service tests use a real disposable process: same PID, config change,
+  failed apply, main disabled, absent/stopped process, stop failure.
+- Real router ucode native policy + generated runtime adapter assertions PASS:
+  flag types, full inactive validation, active-only model/RPC/status, DNS/IPv6
+  removal, reenable equality, existing control/redaction/DNS lifecycle.
+  Runtime compile and init/helper `sh -n` PASS; git diff --check PASS.
+- Real synthetic bridged namespace VPN → browser-uncheck/SaveApply → WAN →
+  browser-check/SaveApply → VPN PASS. Actual HTTPS exits distinguished WAN/VPN,
+  DNS and LAN management worked both modes; previous conntracks absent before
+  fresh traffic. Disabled row persisted after browser reload, runtime/live nft
+  excluded its MAC/group, reenable restored it. Original PID/startticks survived
+  both successful browser toggles (only original failed test restarted it).
+- Cleanup PASS: synthetic rows/group/namespace/veth/address/resolver/ARP removed;
+  all four owner UCI exports match retest baseline exactly, no pending edits.
+  Temporary exact official kmod-veth/coreutils-timeout removed, veth unloaded.
+  Final installed five files cmp match source, DNS ready, connected72/devices2,
+  no remaining private reload snapshot. Management remains unassigned.
+
+Five source files patched over installed signed r4 (packages still0.1.0-r4):
+policy.uc/runtime.uc/csqtt.init/model.js/policies.js. Persistent rollback copies
+and all four original configs remain private under
+/etc/csqtt/backups/device-enabled-fix-20261006-121314-31188.
+Ignored .work/device-toggle has reviewed deployment/helper scripts and UI proofs;
+private packet-test evidence remains under device-toggle-test backups on router.
+No test-state pointer/process/namespace is left. Agent-created browser test tab4
+is the final deliverable; user-owned tabs1/2 preserved. Long-open tab1 retained
+old HTTP scripts; fresh tabs load updated UI. Screenshots remain ignored.
+
+Failures/corrections retained:
+- Original init restart caught by strict PID assertion before WAN probe; fixed
+  and complete fresh retest passed. First browser save materialized enabled1 on
+  two legacy rows only (same behavior); private memory comparison confirmed
+  dhcp/firewall/network unchanged, no owner route/credentials changed.
+- Router timeout was a BusyBox symlink to a missing applet; temporary official
+  coreutils-timeout fixed helper. Stale owned ARP after first cleanup was checked
+  by MAC/IP/interface and removed before retest; final ARP cleanup done.
+- Standalone policy `ucode -c` is invalid for module exports; native import worked.
+  Generated runtime wrapper needs command dns-ready. Portable Git lacked sleep/
+  stat; shell process test corrected to available tail, mode600 asserted on Linux.
+
+Root integrated/published; ui_finish/native_device_checks completed. Recheck
+agent liveness on resume. Cancelled Auto archive stays local and never installed.
+
+## Current requested changes (2026-10-04)
+
+Owner explicitly cancelled Auto VPN. All three Auto agents stopped. Active
+development restored to bca8f60; cancelled unfinished source saved only locally
+at codex/auto-vpn-cancelled-20261004 /05e14d5 for recovery, never published or
+installed. Do not resume that branch or add Auto to runtime/UI/packages.
+No Auto changes ever reached the router. New task owns only existing WAN/VPN
+release fixes. Root owns integration, docs, Git/publication and live testing;
+recheck agent ownership before assigning UI/backend work.
 
 **v0.1.0-preview.4 is published, verified and installed.**
 https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.4

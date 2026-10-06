@@ -125,3 +125,90 @@ test('duplicate membership, unknown groups, rule IDs and resource excess are rej
   const excess = input(); excess.rules = Array.from({ length: 129 }, (_, i) => ({ id: `r${i}` })); assert.throws(() => compile(excess));
   const disabled = input(); disabled.rules[0].enabled = '0'; assert.equal(compile(disabled).model.rules.length, 3);
 });
+
+test('missing or enabled device flags retain the original compiled policy byte for byte', () => {
+  const original = compile(input());
+  for (const enabled of ['1', true]) {
+    const data = input(); data.devices.forEach(d => { d.enabled = enabled; });
+    const out = compile(data);
+    assert.equal(JSON.stringify(out), JSON.stringify(original));
+  }
+});
+
+test('disabling one saved assignment removes only its routing, DNS and IPv6 membership', () => {
+  const data = input(), saved = structuredClone(data.devices[0]);
+  data.devices[0].enabled = '0';
+  const out = compile(data);
+  assert.equal(out.active, true);
+  assert.deepEqual([...out.model.devices].map(d => d.id), [data.devices[1].id]);
+  assert.deepEqual([...out.model.groups[0].macs], []);
+  assert.deepEqual([...out.model.groups[1].macs], [data.devices[1].mac]);
+  assert.doesNotMatch(out.nft, new RegExp(saved.mac));
+  assert.doesNotMatch(out.nft, /goto g_private|add chain inet csqtt g_private/);
+  assert.match(out.nft, /goto g_direct/);
+  assert.match(out.nft, /meta nfproto ipv6 ether saddr \{ 02:00:00:00:00:02 \} reject/);
+  assert.deepEqual([...out.dns].map(d => d.id), ['direct']);
+  assert.deepEqual(data.devices[0], { ...saved, enabled: '0' });
+  assert.equal(out.model.rules.length, fixture.rules.length);
+});
+
+test('disabling all saved assignments gives the ordinary unassigned policy and restores on enable', () => {
+  const data = input(), before = compile(data);
+  data.devices[0].enabled = '0'; data.devices[1].enabled = false;
+  const inactive = compile(data);
+  assert.equal(inactive.active, false);
+  assert.equal(inactive.model.devices.length, 0);
+  assert.ok(inactive.model.groups.every(g => g.macs.length === 0));
+  assert.equal(inactive.dns.length, 0);
+  assert.doesNotMatch(inactive.nft, /ether saddr|goto g_|add chain inet csqtt g_|nfproto ipv6.*reject/);
+  const unassigned = input(); unassigned.devices = [];
+  assert.equal(JSON.stringify(inactive), JSON.stringify(compile(unassigned)));
+  data.devices[0].enabled = '1'; data.devices[1].enabled = true;
+  assert.equal(JSON.stringify(compile(data)), JSON.stringify(before));
+});
+
+test('mixed enabled clients in one group use only active MACs and retain guards until successful apply', () => {
+  const data = input(); data.devices[1].group = data.devices[0].group;
+  const previous = validate(data); data.devices[0].enabled = '0';
+  data.devices.push({ id: 'parked', group: 'private', mac: '02:00:00:00:00:03', enabled: '0' });
+  const next = compile(data);
+  assert.equal(next.dns.length, 1);
+  assert.equal(next.dns[0].id, 'private');
+  assert.match(next.nft, /ether saddr \{ 02:00:00:00:00:02 \} goto g_private/);
+  assert.doesNotMatch(next.nft, /02:00:00:00:00:01|02:00:00:00:00:03/);
+  const held = hold([previous, next.model], true);
+  assert.match(held, /02:00:00:00:00:01/);
+  assert.match(held, /02:00:00:00:00:02/);
+  assert.doesNotMatch(held, /02:00:00:00:00:03/);
+  assert.doesNotMatch(hold([], false), /ether saddr|reject/);
+});
+
+test('disabled stored assignments still reject invalid fields, duplicate IDs and duplicate normalized MACs', () => {
+  for (const mutate of [
+    d => { d.devices[0].id = '../bad'; },
+    d => { d.devices[0].mac = '01:00:00:00:00:01'; },
+    d => { d.devices[0].group = 'missing'; },
+    d => { d.devices[1].id = d.devices[0].id; },
+    d => { d.devices[1].mac = d.devices[0].mac; },
+    d => { d.devices[0].mac = '02:AA:BB:CC:DD:01'; d.devices[1].mac = '02:aa:bb:cc:dd:01'; },
+  ]) {
+    const data = input(); data.devices[0].enabled = '0'; mutate(data);
+    assert.throws(() => compile(data));
+    data.devices[1].enabled = '0';
+    assert.throws(() => compile(data));
+  }
+  const data = input(); data.devices[0].enabled = '0';
+  data.devices[1].mac = '02:00:00:00:00:04';
+  assert.equal(compile(data).model.devices[0].mac, '02:00:00:00:00:04');
+});
+
+test('invalid device enabled values are rejected while rule enabled handling stays compatible', () => {
+  for (const enabled of ['', 'false', 'true', 'yes', '2', 0, 1, [], {}, '0\n']) {
+    const data = input(); data.devices[0].enabled = enabled;
+    assert.throws(() => compile(data), /Device enabled must be 0 or 1/);
+  }
+  const data = input(); data.devices[0].enabled = false; data.rules[0].enabled = false;
+  const out = compile(data);
+  assert.equal(out.model.devices.length, 1);
+  assert.equal(out.model.rules.length, fixture.rules.length - 1);
+});

@@ -24,7 +24,17 @@ UCI package name `csqtt`: named `main` section of type `client`, sections of
 type `group`, `device`, and `rule`. A group has name and default_action (`vpn`
 or `wan`). A device has name, mac and group (section ID). A rule has group,
 enabled, destination (domain, IPv4 or CIDR) and action (`vpn` or `wan`);
-UCI order is priority. A device belongs to one group. Unassigned devices use WAN.
+UCI order is priority. A device belongs to one saved group. Its optional enabled
+flag defaults to active when absent; enabled=0 retains the saved row/group/MAC
+but removes the device from active policy membership, DNS redirects and IPv6
+guards. It uses the ordinary unassigned WAN route. Devices RPC group and status
+device counts describe active assignments. Disabling/re-enabling flushes affected
+old/new client conntracks through the existing guarded apply transaction.
+Unassigned devices use WAN. Auto VPN was explicitly cancelled and is out of scope.
+LuCI Save & Apply applies policies without restarting a running transport when
+the effective client.json is unchanged. The init reload compares a private
+snapshot after a successful guarded apply; changed or absent transport restarts
+from that prepared config. Failed apply preserves the process and its guards.
 Domains match themselves and subdomains. LAN scope is explicit (default br-lan).
 
 RPC object `csqtt`: status, start, stop, restart, diagnostics, devices,

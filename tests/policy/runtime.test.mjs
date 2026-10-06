@@ -312,3 +312,74 @@ test('status exposes the local DNS domain without requiring DHCP UCI access', ()
   const out = runtime('status', { packages: data });
   assert.equal(out.output[0].local_domain, 'lab.lan');
 });
+
+test('device RPC retains disabled saved devices without reporting active group membership', () => {
+  const data = packages(); const first = fixture.devices[0], second = fixture.devices[1];
+  data.csqtt[first.id].enabled = '0';
+  data.csqtt[first.id].name = 'Saved device';
+  const out = runtime('devices', { packages: data, files: {
+    '/tmp/dhcp.leases': `0 ${first.mac} 192.168.1.10 desktop *\n`,
+    '/proc/net/arp': `IP address HW type Flags HW address Mask Device\n192.168.1.10 0x1 0x2 ${first.mac} * br-lan\n`,
+  } });
+  const disabled = out.output[0].devices.find(d => d.mac === first.mac);
+  assert.equal(disabled.enabled, false); assert.equal(disabled.group, undefined);
+  assert.equal(disabled.ip, '192.168.1.10'); assert.equal(disabled.online, true);
+  assert.equal(disabled.name, 'Saved device');
+  const active = out.output[0].devices.find(d => d.mac === second.mac);
+  assert.equal(active.group, second.group); assert.equal(active.enabled, undefined);
+  assert.equal(out.packages.csqtt[first.id].group, first.group);
+  assert.equal(out.packages.csqtt[first.id].mac, first.mac);
+  data.csqtt[first.id].enabled = '1';
+  assert.equal(runtime('devices', { packages: data }).output[0].devices.find(d => d.mac === first.mac).group, first.group);
+});
+
+test('runtime stages active device counts, only active DNS listeners and unchanged saved UCI rows', () => {
+  const data = packages();
+  for (const device of fixture.devices) data.csqtt[device.id].enabled = '0';
+  const compiled = runtime('compile', { packages: data });
+  const model = JSON.parse(compiled.files['/var/run/csqtt/apply.42/policy.json']);
+  assert.equal(model.devices.length, 0);
+  assert.equal(compiled.files['/var/run/csqtt/apply.42/active'], '0');
+  assert.equal(compiled.files['/var/run/csqtt/apply.42/dns.ids'], '\n');
+  assert.ok(!Object.keys(compiled.files).some(p => /\/dns-.*\.conf$/.test(p)));
+  for (const device of fixture.devices) assert.deepEqual(compiled.packages.csqtt[device.id], data.csqtt[device.id]);
+  const files = { '/etc/csqtt/policy.json': JSON.stringify(model), '/var/run/csqtt/dns.ids': '\n' };
+  const status = runtime('status', { packages: data, files }).output[0];
+  assert.equal(status.devices, 0); assert.equal(status.policies_active, false);
+  assert.equal(status.groups, fixture.groups.length);
+  runtime('dns-ready', { packages: data, files });
+  assert.equal(runtime('diagnostics', { packages: data, files }).output[0].checks.filter(c => c.name === 'dnsmasq').length, 0);
+  data.csqtt[fixture.devices[1].id].enabled = '1';
+  const one = runtime('compile', { packages: data });
+  const oneModel = JSON.parse(one.files['/var/run/csqtt/apply.42/policy.json']);
+  const oneStatus = runtime('status', { packages: data, files: { '/etc/csqtt/policy.json': JSON.stringify(oneModel) } }).output[0];
+  assert.equal(oneStatus.devices, 1); assert.equal(oneStatus.policies_active, true);
+  assert.equal(one.files['/var/run/csqtt/apply.42/dns.ids'], fixture.devices[1].group + '\n');
+});
+
+test('device disable and re-enable retain previous/current conntrack flush scope', () => {
+  const data = packages();
+  const previous = JSON.parse(runtime('compile', { packages: data }).files['/var/run/csqtt/apply.42/policy.json']);
+  const files = {
+    '/etc/csqtt/policy.json': JSON.stringify(previous),
+    '/tmp/dhcp.leases': fixture.devices.map((d, i) => `0 ${d.mac} 192.168.1.${10 + i} client${i} *`).join('\n') + '\n',
+  };
+  data.csqtt[fixture.devices[0].id].enabled = '0';
+  const disabled = runtime('compile', { packages: data, files });
+  assert.equal(disabled.files['/var/run/csqtt/apply.42/flush.ips'], '192.168.1.10\n192.168.1.11\n');
+  assert.match(disabled.files['/var/run/csqtt/apply.42/hold.nft'], new RegExp(fixture.devices[0].mac));
+  assert.doesNotMatch(disabled.files['/var/run/csqtt/apply.42/policy.nft'], new RegExp(fixture.devices[0].mac));
+  const disabledModel = JSON.parse(disabled.files['/var/run/csqtt/apply.42/policy.json']);
+  data.csqtt[fixture.devices[0].id].enabled = '1';
+  const restored = runtime('compile', { packages: data, files: { ...files, '/etc/csqtt/policy.json': JSON.stringify(disabledModel) } });
+  assert.equal(restored.files['/var/run/csqtt/apply.42/flush.ips'], '192.168.1.10\n192.168.1.11\n');
+  assert.equal(restored.files['/var/run/csqtt/apply.42/policy.json'], JSON.stringify(previous));
+});
+
+test('runtime rejects invalid device enabled flags before staging any apply', () => {
+  for (const enabled of ['', 'true', 'false', 'yes', '2', 0, 1]) {
+    const data = packages(); data.csqtt[fixture.devices[0].id].enabled = enabled;
+    assert.throws(() => runtime('compile', { packages: data }), /Device enabled must be 0 or 1/);
+    assert.throws(() => runtime('devices', { packages: data }), /Device enabled must be 0 or 1/);
+  }
+});

@@ -154,9 +154,9 @@ return baseclass.extend({
 		return Object.prototype.hasOwnProperty.call(labels, state) ? labels[state] : 'Нет данных';
 	},
 	bytes: function(value) {
-		var n = Number(value || 0), units = ['Б', 'КиБ', 'МиБ', 'ГиБ', 'ТиБ'], i = 0;
+		var n = Number(value == null ? 0 : value), units = ['Б', 'Кб', 'Мб', 'Гб'], i = 0;
 		if (!Number.isFinite(n) || n < 0) return '—';
-		while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+		while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
 		return n.toFixed(i ? 1 : 0) + ' ' + units[i];
 	}
 });

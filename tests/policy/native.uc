@@ -30,6 +30,51 @@ changed.rules[0].destination = 'printer.lan';
 rejected = false;
 try { validate(changed); } catch (e) { rejected = true; }
 check(rejected, 'internet rule replaced local DNS delegation');
+// Device flags must behave the same in native ucode as in the Node adapter.
+for (let enabled in ['1', true]) {
+	changed = json(fs.readfile('tests/policy/fixture.json'));
+	for (let device in changed.devices) device.enabled = enabled;
+	check(sprintf('%J', compile(changed)) === sprintf('%J', result), 'active flag changed legacy policy');
+}
+changed = json(fs.readfile('tests/policy/fixture.json'));
+changed.devices[0].enabled = '0';
+let inactive = compile(changed);
+check(length(inactive.model.devices) === 1 && inactive.model.devices[0].id === 'b', 'disabled device stayed in active model');
+check(length(inactive.model.groups[0].macs) === 0 && length(inactive.model.groups[1].macs) === 1, 'disabled group MAC membership leaked');
+check(length(inactive.dns) === 1 && inactive.dns[0].id === 'direct', 'disabled group retained DNS redirect context');
+check(index(inactive.nft, changed.devices[0].mac) < 0 && index(inactive.nft, 'goto g_private') < 0, 'disabled device retained routing or IPv6 guard');
+check(index(inactive.nft, changed.devices[1].mac) >= 0 && index(inactive.nft, 'meta nfproto ipv6') >= 0, 'remaining active device lost protection');
+check(index(hold([result.model, inactive.model], true), changed.devices[0].mac) >= 0, 'disable transaction lost previous device guard');
+changed.devices[1].enabled = false;
+inactive = compile(changed);
+let unassigned = json(fs.readfile('tests/policy/fixture.json'));
+unassigned.devices = [];
+check(!inactive.active && length(inactive.model.devices) === 0 && length(inactive.dns) === 0, 'all disabled devices still activated policies');
+check(sprintf('%J', inactive) === sprintf('%J', compile(unassigned)), 'all disabled policy differs from unassigned WAN clients');
+changed.devices[0].enabled = '1'; changed.devices[1].enabled = true;
+check(sprintf('%J', compile(changed)) === sprintf('%J', result), 'reenabling did not restore original policy');
+for (let invalid in ['id', 'mac', 'group', 'duplicate_id', 'duplicate_mac']) {
+	changed = json(fs.readfile('tests/policy/fixture.json'));
+	changed.devices[0].enabled = '0'; changed.devices[1].enabled = false;
+	if (invalid === 'id') changed.devices[0].id = '../bad';
+	if (invalid === 'mac') changed.devices[0].mac = '01:00:00:00:00:01';
+	if (invalid === 'group') changed.devices[0].group = 'missing';
+	if (invalid === 'duplicate_id') changed.devices[1].id = changed.devices[0].id;
+	if (invalid === 'duplicate_mac') {
+		changed.devices[0].mac = '02:AA:BB:CC:DD:01';
+		changed.devices[1].mac = '02:aa:bb:cc:dd:01';
+	}
+	rejected = false;
+	try { validate(changed); } catch (e) { rejected = true; }
+	check(rejected, 'disabled stored device bypassed ' + invalid + ' validation');
+}
+for (let enabled in ['', 'false', 'true', 'yes', '2', 0, 1, [], {}, '0\n']) {
+	changed = json(fs.readfile('tests/policy/fixture.json'));
+	changed.devices[0].enabled = enabled;
+	rejected = false;
+	try { validate(changed); } catch (e) { rejected = true; }
+	check(rejected, 'malformed native device flag was accepted');
+}
 if (ARGV[0]) {
 	fs.writefile(ARGV[0] + '/native-policy.nft', result.nft);
 	fs.writefile(ARGV[0] + '/native-hold.nft', hold([result.model], true));

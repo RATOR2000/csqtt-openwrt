@@ -142,7 +142,9 @@ function devices() {
 	for (let i = 0; i < length(configured); i++) {
 		let d = configured[i], mac = lc(d.mac || '');
 		if (!found[mac]) found[mac] = { mac: mac, ip: '', name: '', online: false };
-		found[mac].group = d.group;
+		if (d.enabled === '0' || d.enabled === false) found[mac].enabled = false;
+		else if (d.enabled == null || d.enabled === '1' || d.enabled === true) found[mac].group = d.group;
+		else die('Device enabled must be 0 or 1');
 		if (d.name) found[mac].name = d.name;
 	}
 	let result = [];

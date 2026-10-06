@@ -8,6 +8,7 @@ const runtime = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/runtime.uc'
   .replace(/^import .*;\r?\n/gm, '');
 const adapters = `
 let native_files = {};
+let native_sections = {};
 let native_services = {}, native_network = { interface: [] }, native_allow_write = false, native_service_unavailable = false;
 let fs = {
   readfile: function(p) { return native_files[p]; },
@@ -31,7 +32,12 @@ let fs = {
   chmod: function() { if (!native_allow_write) die('Native runtime test attempted a permission change'); }
 };
 function cursor() {
-  return { get: function(p, s, option) { return option === 'enabled' ? '0' : null; }, foreach: function() {} };
+  return {
+    get: function(p, s, option) { return option === 'enabled' ? '0' : null; },
+    foreach: function(p, kind, callback) {
+      for (let section in native_sections[p + '/' + kind] || []) callback(section);
+    }
+  };
 }
 function connect() { return { call: function(object,method,args) { return object === 'network.interface' ? native_network : (native_service_unavailable ? null : { [args.name]: native_services[args.name] }); } }; }
 function compile() { die('Unexpected native runtime compile call'); }
@@ -82,6 +88,41 @@ native_files['/tmp/dhcp.leases'] = '0 02:00:00:00:00:01 192.0.2.10 desktop *\\n'
 native_files['/proc/net/arp'] = 'IP address HW type Flags HW address Mask Device\\n192.0.2.10 0x1 0x2 02:00:00:00:00:01 * br-lan\\n';
 let discovered = devices();
 check(length(discovered) === 1 && discovered[0].online && discovered[0].ip === '192.0.2.10', 'Native whitespace lease parsing failed');
+native_sections['csqtt/device'] = [
+  { '.name': 'legacy', mac: '02:00:00:00:00:01', group: 'private' },
+  { '.name': 'parked', mac: '02:00:00:00:00:02', group: 'private', name: 'Saved device', enabled: '0' },
+  { '.name': 'explicit', mac: '02:00:00:00:00:03', group: 'direct', enabled: '1' }
+];
+function by_mac(rows, mac) {
+  for (let row in rows) if (row.mac === mac) return row;
+  return null;
+}
+for (let flag in ['0', false]) {
+  native_sections['csqtt/device'][1].enabled = flag;
+  discovered = devices();
+  let parked = by_mac(discovered, '02:00:00:00:00:02');
+  check(length(discovered) === 3 && parked.enabled === false && parked.group == null && parked.name === 'Saved device', 'Native device RPC exposed inactive group or lost saved row');
+  check(by_mac(discovered, '02:00:00:00:00:01').group === 'private' && by_mac(discovered, '02:00:00:00:00:03').group === 'direct', 'Native device RPC lost active assignments');
+}
+for (let flag in ['1', true]) {
+  native_sections['csqtt/device'][1].enabled = flag;
+  let restored = by_mac(devices(), '02:00:00:00:00:02');
+  check(restored.group === 'private' && restored.enabled == null, 'Native device RPC did not restore active membership');
+}
+for (let flag in ['', 'false', 'true', 'yes', '2', 0, 1]) {
+  native_sections['csqtt/device'][1].enabled = flag;
+  let rejected = false;
+  try { devices(); } catch (e) { rejected = e.message === 'Device enabled must be 0 or 1'; }
+  check(rejected, 'Native device RPC accepted malformed device flag');
+}
+native_sections['csqtt/device'][1].enabled = '0';
+for (let count in [0, 1, 2]) {
+  let active = [];
+  for (let i = 0; i < count; i++) push(active, { id: 'active' + i });
+  native_files['/etc/csqtt/policy.json'] = sprintf('%J', { groups: [{ id: 'private' }], devices: active, rules: [] });
+  check(status().devices === count && status().policies_active === (count > 0), 'Native status counted saved rows instead of active policy assignments');
+}
+native_sections = {};
 native_network={ interface:[{ l3_device:'br-lan', 'ipv4-address':[{ address:'192.168.1.1', mask:24 }] }] };
 native_services={ 'csqtt-dns':{ instances:{ dns_private:{ running:true,pid:901 } } } };
 native_files['/etc/csqtt/policy.json']=sprintf('%J',{ lans:['br-lan'],groups:[{ id:'private',port:5400,macs:['02:00:00:00:00:01'] }] });

@@ -35,3 +35,17 @@ test('VK call links retain host, credential, port and path guards', () => {
     `https://vk.ru/call/join/${hash}!`, `https://vk.ru/other/${hash}`
   ]) assert.equal(model.validCallLink(link), false);
 });
+
+test('traffic uses familiar decimal byte units at the exact 1000 boundaries', () => {
+  for (const [bytes, label] of [
+    [0, '0 Б'], [1, '1 Б'], [999, '999 Б'], [1000, '1.0 Кб'], [1024, '1.0 Кб'],
+    [1500, '1.5 Кб'], [999999, '1000.0 Кб'], [1000000, '1.0 Мб'], [1250000, '1.3 Мб'],
+    [999999999, '1000.0 Мб'], [1000000000, '1.0 Гб'], [1500000000, '1.5 Гб'],
+    [1000000000000, '1000.0 Гб']
+  ]) assert.equal(model.bytes(bytes), label, `${bytes} bytes`);
+  assert.equal(model.bytes('2500000'), '2.5 Мб');
+  assert.equal(model.bytes(undefined), '0 Б');
+  assert.equal(model.bytes(null), '0 Б');
+  for (const invalid of [-1, NaN, Infinity, -Infinity, 'not a number', 'Infinity'])
+    assert.equal(model.bytes(invalid), '—');
+});

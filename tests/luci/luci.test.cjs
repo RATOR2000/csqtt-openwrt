@@ -155,7 +155,7 @@ function formStub() {
 	}
 	class Map {
 		constructor() { this.sections = []; this.saves = 0; }
-		section(_type, name) { const s = new Section(name); this.sections.push(s); return s; }
+		section(_type, name, _title, description) { const s = new Section(name); s.description = description; this.sections.push(s); return s; }
 		render() { return Promise.resolve(E('form')); }
 		save() { this.saves++; return Promise.resolve(); }
 	}
@@ -241,6 +241,57 @@ test('policy device validator rejects duplicate membership and preserves rule or
 	assert.equal(destination.validate('r', 'example.org'), true);
 	await view.map.sections.find(s => s.type === 'group').handleRemove('home');
 	assert.match(text(ui.notifications[0]), /Сначала/);
+});
+
+test('saved device assignments have an enabled checkbox and keep only WAN/VPN choices', async () => {
+	const entries = { group: [{ '.name': 'home', name: 'Дом' }], device: [{ '.name': 'legacy', name: 'Телефон', mac: '02:00:00:00:00:01', group: 'home' }] };
+	const view = load('view/csqtt/policies.js', { view: extend, E, L, ui: uiStub(), form: formStub(), uci: { sections: (_package, type) => entries[type] || [] }, model, api: {} });
+	await view.render([null, { devices: [] }, {}]);
+	const device = view.map.sections.find(section => section.type === 'device');
+	const enabled = device.options.find(option => option.key === 'enabled');
+	assert.equal(enabled.editable, true, 'GridSection renders an interactive checkbox in each saved row');
+	assert.equal(enabled.default, '1', 'saved rows without enabled remain selected');
+	assert.equal(enabled.rmempty, false, 'unchecked rows must persist enabled=0');
+	assert.match(device.description, /WAN/);
+	assert.match(device.description, /сохраняются/);
+	assert.equal(entries.device[0].name, 'Телефон');
+	assert.equal(entries.device[0].group, 'home');
+	assert.equal(entries.device[0].mac, '02:00:00:00:00:01');
+	assert.deepEqual(view.map.sections.find(section => section.type === 'group').options.find(option => option.key === 'default_action').keylist, ['vpn', 'wan']);
+	assert.deepEqual(view.map.sections.find(section => section.type === 'rule').options.find(option => option.key === 'action').keylist, ['vpn', 'wan']);
+});
+
+test('the device checkbox disables policy membership without deleting its saved assignment', async () => {
+	const { compiler } = await import('../policy/harness.mjs');
+	const saved = { '.name': 'legacy', name: 'Телефон', mac: '02:00:00:00:00:01', group: 'home' };
+	const entries = { group: [{ '.name': 'home', name: 'Дом' }], device: [saved] };
+	const view = load('view/csqtt/policies.js', { view: extend, E, L, ui: uiStub(), form: formStub(), uci: { sections: (_package, type) => entries[type] || [] }, model, api: {} });
+	await view.render([null, { devices: [] }, {}]);
+	const enabled = view.map.sections.find(section => section.type === 'device').options.find(option => option.key === 'enabled');
+	const policy = { groups: [{ id: 'home', default_action: 'vpn' }], devices: [{ ...saved, id: 'legacy' }] };
+	assert.equal(compiler().compile(policy).active, true, 'legacy rows without a flag retain their group policy');
+	enabled.getUIElement('legacy').setValue('0');
+	const disabled = compiler().compile({ ...policy, devices: [{ ...policy.devices[0], enabled: enabled.formvalue('legacy') }] });
+	assert.equal(disabled.active, false);
+	assert.equal(disabled.model.devices.length, 0);
+	assert.doesNotMatch(disabled.nft, /ether saddr|goto g_home/);
+	assert.equal(entries.device.length, 1);
+	assert.deepEqual(saved, { '.name': 'legacy', name: 'Телефон', mac: '02:00:00:00:00:01', group: 'home' });
+	enabled.getUIElement('legacy').setValue('1');
+	const restored = compiler().compile({ ...policy, devices: [{ ...policy.devices[0], enabled: enabled.formvalue('legacy') }] });
+	assert.equal(restored.active, true);
+	assert.match(restored.nft, /ether saddr \{ 02:00:00:00:00:01 \} goto g_home/);
+});
+
+test('Overview shows decimal Мб/Гб traffic counters and guards invalid values', () => {
+	const view = load('view/csqtt/overview.js', { view: extend, E, L, ui: uiStub(), api: {}, model, window: {}, poll: { add() {} } });
+	const page = view.render({ core: { state: 'connected', bytes_down: 1500000000, bytes_up: 2500000 } });
+	assert.match(text(page), /1\.5 Гб/);
+	assert.match(text(page), /2\.5 Мб/);
+	assert.doesNotMatch(text(page), /МиБ|ГиБ|NaN|Infinity/);
+	const invalid = view.render({ core: { state: 'connected', bytes_down: Infinity, bytes_up: NaN } });
+	assert.doesNotMatch(text(invalid), /NaN|Infinity/);
+	assert.ok(text(invalid).includes('—'));
 });
 
 test('package menu resolves, JS parses, and RPC has only fixed commands with narrow ACL', () => {
