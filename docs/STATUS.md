@@ -6,49 +6,66 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Finish native before/after first-activation DNS proof for the new maintenance
-INPUT guard, then fresh CI/checkpoint and deploy only after native verification.
-Source gap: saved hold only guarded forwarding; new protected LAN DNS could
-recurse through primary DNS. policy.uc now also closes heldMAC TCP/UDP53 and
-5400-5415 until atomic release. DNS including local names temporarily pauses
-during maintenance; normal active/VPN-down local DNS behavior is unchanged.
-Four source/test files changed;75local Node tests and Python syntax PASS, native
-not yet run. activation_audit owns those4files (completed); activation_proof_plan
-prepares ignored .work/activation6/router-proof.sh. Root owns live/integration.
-SSH r6 health72/groups1/devices2/rules5 and11signed hashes PASS. No live product
-changes. Officialkmod-veth no-cache simulation exactly1package6.12.94-r1 PASS;
-root prepares private provisioning backup and isolated native fixture, no owner
-policy edits or global service/fw4 calls. Go ARM64 bounded DNS probe compiled.
-Focused validation source9c481c3228728a9f0cf2658e2acccab0f984fc26 / CIcommit
-f1cf65ce34827207ed1ea44b8bef5df50b62934f, branchcodex/activation6-validation,
-run37805341273: checksPASS/nativeFAIL at TCPpositive control because fixture
-upstream served onlyUDP. Authenticated native-run1.log saved. Fixture now
-supports boundedTCP too; localtwo-address UDP/TCP/malformed/restart checksPASS.
-Only workflow differs from source on validation branch; no SDK/Rust/Android
-rebuild dispatched. Corrected focused CI is next, never rerun old failedSHA.
-Officialkmod-veth6.12.94-r1 andcoreutils-timeout9.9-r2 installed (each1package),
-private toolsstate=/etc/csqtt/backups/activation6-tools-20261008-155613-10661.
-world.before/4confighashes preserved. Initialprovisionexit1: bareapkquery gave
-emptyarrays, corrected all-package pattern; complete after-map retained. Do not
-claim complete preinstall package-map proof. All4ownerconfigshashmatch.
-Read-only independent helperreviewPASS. Nativeattempt1 stoppedbeforetests on
-missingstat; replaced withnativefs.stat. Attempt2 stopped on HTTPfixture
-canonicalpathhiddenbyprivateoverlay; visibleprivatedocroot fixed. Attempt3
-reproduced BEFOREDNSbypass afteractualnft-cfailure+fw4rebuild, then stoppedon
-releasefilecanonicalpath (no actual releaseproof). Changed nftreleaseinput to
-visible/private/etc/csqtt path. Allfailedattempts/evidence preserved; config and
-namespace cleanupverified. Attempt4 running, exactpath/results inlocal
-.work/activation6/router-run4.public.log oncecomplete. Rootownsnextactions.
-Actual failed-first-activation boot proof remains pending; do not claim that
-isolated firewall restoration equals a real boot. Manual Android/VK needs actual
-challenge. Auto VPN remains cancelled.
+Finish corrected focused CI run37806843287, then review/deploy the one-file
+maintenance DNS fix over signed r6 and verify unchanged owner configuration,
+transport identity, normal DNS and WAN/VPN exits. Do not call it a signed r7.
+Source745e801b3cae10e62daeec5c784677b19cd4f9dc;
+validation1a4cabfa6fab0f1a5b4dc2dafdc6c8de24b66fb2 on
+codex/activation6-validation differs only in its two-job workflow.
+No SDK/Rust/Android rebuild dispatched. Root owns integration/live/Git/STATUS.
+activation_audit is preparing ignored deployment helper/review; recheck agent
+liveness before delegating. Auto VPN remains cancelled.
 
-Current router: signed preview6, all3 packages0.1.0-r6, connected72/no errors,
-owner groups1/devices2/rules5. No synthetic state remains. Four current owner
-config files unchanged by upgrade; never restore older owner backups. Recheck
-SSH/Git/current state before mutations. Do not repeat completed crash/normal
-boot/IPv6 proofs. Root owns integration/live/Git; preview6_stage and ipv6_checks
-completed. Recheck agent liveness before delegating.
+Current router: exact signed preview6, all3 packages0.1.0-r6, connected72,
+owner groups1/devices2/rules5, no pending edits. No product patch yet. After
+test cleanup, all11 signed payload hashes and read-only postcheck exit0:
+local/group DNS, WAN/VPN IPv4 HTTPS and distinct exits PASS. Owner settings
+remain unchanged. Never restore an older owner configuration.
+
+## Failed-activation maintenance DNS fix (2026-10-08)
+
+- Native failed first apply exposed a gap: saved hold guarded forwarding only,
+  allowing new protected LAN DNS through primary dnsmasq. policy.uc now guards
+  INPUT TCP/UDP53 and5400-5415 for the union of old/new held LAN/MAC assignments.
+  Atomic release flushes both maintenance chains. DNS including local names
+  pauses during maintenance; normal active/VPN-down local DNS is unchanged.
+  Router-origin, loopback, unassigned clients and management by IP remain usable.
+- Source checkpoint9c481c3228728a9f0cf2658e2acccab0f984fc26: compiler, two
+  regressions, native DNS/network fixtures and implementation contract.75 local
+  policy/LuCI Node tests, Python compilation and diff-check PASS. Source and
+  corrected TCP fixture checkpoint745e801 pushed; remote/local trees matched.
+- First focused run37805341273: checks PASS, native FAIL at TCP positive control
+  because synthetic upstream served only UDP. Corrected fixture supports bounded
+  TCP too. Local two-address UDP/TCP, malformed-length, follow-up and restart
+  checks PASS. Authenticated native-run1.log retained. Do not rerun failed SHA.
+- Actual ARM64 router proof attempt4 exit0:
+  /etc/csqtt/backups/activation6-20261008-160743-XXbbJOhi.
+  Isolated network+mount namespaces used native installed manage/runtime/ucode/
+  dnsmasq/nft/fw4 and private ubusd/UCI/runtime/state; no test link joined real LAN.
+  BEFORE was exact signed r6, AFTER overlaid only candidate policy.uc privately.
+  Genuine nft-c type rejection occurred after saved hold but before full policy
+  or DNS context existed. BEFORE protected UDP/TCP53/5400 queries reached the
+  isolated upstream and answered; AFTER each had actual ingress,0 upstream
+  packets and no answer. Same results after private fw4 restored saved include.
+  Unassigned/router DNS, LAN ping/HTTP, forwarded-packet controls and atomic
+  release restoring all four DNS probes PASS. Host configs/world/payloads,
+  namespace identities/links and transport PID matched before/after.
+  Safe counts: .work/activation6/router-run4.public.log and exit0.
+- Attempts1-3 stopped on helper assumptions (missing stat, private HTTP path,
+  private nft release path); all retained, owner config/namespace cleanup checked.
+  They were not product regression results. Corrected attempt4 completed both
+  variants. Independent isolation/cleanup helper review PASS.
+- Only official kmod-veth6.12.94-r1 and coreutils-timeout9.9-r2 were temporarily
+  added, then removed after exact two-package simulation. Module unloaded;
+  APK world byte-matched original and complete after-map minus those two matched
+  final packages. Private tools evidence:
+  /etc/csqtt/backups/activation6-tools-20261008-155613-10661.
+  Initial bare apk query produced empty arrays; corrected wildcard map retained.
+  Do not claim a complete preinstall package-map proof.
+- Actual failed-first-activation BOOT remains pending: isolated fw4 restoration
+  is not a router reboot. Real Android Helper launch/manual VK challenge and
+  remaining ACCEPTANCE gates remain pending. Do not repeat completed normal
+  early boot/crash/routed IPv6 proofs or force an actual CAPTCHA.
 
 ## Preview6 publication and signed upgrade (2026-10-08) — complete
 
