@@ -1,7 +1,7 @@
-name: Preview 6 build
+name: Failed activation DNS validation
 on:
   push:
-    branches: [codex/preview.6-build]
+    branches: [codex/activation6-validation]
 permissions:
   contents: read
   actions: read
@@ -52,41 +52,6 @@ jobs:
           bash -n scripts/test-native-policy.sh
           sh -n install.sh
           find openwrt -type f \( -name '*.init' -o -name manage -o -name tun-hook -o -name '9*-csqtt*' \) -exec sh -n {} \;
-  core:
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}-core
-      cancel-in-progress: true
-    runs-on: ubuntu-24.04
-    needs: checks
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache/restore@v4
-        id: cargo-cache
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            vendor/csqtt/rust-client/target
-          key: cargo-host-${{ runner.os }}-1.97.1-${{ hashFiles('vendor/csqtt/rust-client/Cargo.lock') }}
-      - name: Rust and native build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake clang ninja-build pkg-config
-          rustup toolchain install 1.97.1 --profile minimal
-      - name: Rust tests
-        env:
-          RUST_BACKTRACE: '1'
-        run: |
-          cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml turn::integration_tests::authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_copy -- --exact
-          cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml
-      - uses: actions/cache/save@v4
-        if: always() && steps.cargo-cache.outputs.cache-hit != 'true'
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            vendor/csqtt/rust-client/target
-          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
   native-policy:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-native-policy
@@ -114,105 +79,4 @@ jobs:
           make -C .work/dnsmasq-2.93 -j2 COPTS=-DHAVE_NFTSET
       - name: Native ucode, DNS lifecycle and nftables integration
         run: bash scripts/test-native-policy.sh
-  openwrt:
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-openwrt
-      cancel-in-progress: false
-    runs-on: ubuntu-24.04
-    needs: [checks, core, native-policy]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Require release signing configuration
-        env:
-          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
-        run: node scripts/check-signing-key.cjs --required
-      - uses: actions/download-artifact@v4
-        with:
-          name: android-helper-debug
-          run-id: ${{ env.PREVIOUS_RUN_ID }}
-          github-token: ${{ github.token }}
-          path: dist/android
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android-helper-debug
-          path: dist/android/*.apk
-          if-no-files-found: error
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.26.8'
-          cache: false
-      - name: Build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential clang cmake ninja-build gawk gettext git iproute2 kmod libncurses-dev libssl-dev python3 python3-setuptools qemu-user rsync swig unzip zlib1g-dev file wget zstd
-          sudo modprobe tun
-          test -c /dev/net/tun
-          rustup toolchain install 1.97.1 --profile minimal
-      - uses: actions/cache/restore@v4
-        id: sdk-cache
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            vendor/csqtt/rust-client/target
-          key: cargo-musl-${{ runner.os }}-1.97.1-openwrt25.12.5-${{ hashFiles('vendor/csqtt/rust-client/Cargo.lock') }}
-      - uses: actions/cache/restore@v4
-        id: sdk-dependencies
-        with:
-          path: .work/sdk/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64
-          key: sdk-dependencies-${{ runner.os }}-25.12.5-filogic-v1
-      - name: Native OpenWrt packages
-        id: packages
-        env:
-          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
-          CSQTT_PACKAGE_RELEASE: '6'
-        run: bash scripts/build-sdk.sh
-      - uses: actions/cache/save@v4
-        if: always() && steps.sdk-cache.outputs.cache-hit != 'true'
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            vendor/csqtt/rust-client/target
-          key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
-      - uses: actions/cache/save@v4
-        if: always() && steps.packages.outputs.sdk_ready == 'true' && steps.sdk-dependencies.outputs.cache-hit != 'true'
-        with:
-          path: .work/sdk/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64
-          key: ${{ steps.sdk-dependencies.outputs.cache-primary-key }}
-      - name: Compress SDK diagnostics
-        if: always()
-        run: |
-          for log in .work/sdk/*.log; do
-            [ ! -f "$log" ] || gzip -f "$log"
-          done
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: sdk-build-diagnostics
-          path: .work/sdk/*.log.gz
-      - name: Require signed revision 6 artifacts
-        run: |
-          python3 - <<'PY'
-          import json, pathlib
-          root = pathlib.Path('dist')
-          expected = {'csqtt-0.1.0-r6.apk', 'csqtt-captcha-0.1.0-r6.apk', 'luci-app-csqtt-0.1.0-r6.apk'}
-          assert {p.name for p in root.glob('*.apk')} == expected, 'Unexpected package revisions'
-          manifest = json.loads((root / 'manifest.json').read_text())
-          assert {p['name'] for p in manifest['packages']} == expected, 'Unexpected manifest revisions'
-          PY
-          openssl dgst -sha256 -verify release/csqtt-public.pem -signature dist/manifest.sig dist/manifest.json
-          python3 scripts/verify-release.py dist
-          (cd dist && sha256sum -c SHA256SUMS)
-      - uses: actions/upload-artifact@v4
-        with:
-          name: openwrt-25.12.5-aarch64-cortex-a53
-          path: |
-            dist/*.apk
-            dist/manifest.json
-            dist/manifest.sig
-            dist/SHA256SUMS
-          if-no-files-found: error
+
