@@ -231,7 +231,9 @@ export function compile(input) {
 // Separate persistent chain: a failed apply keeps old and proposed clients closed.
 export function hold(models, closed) {
 	let lines = ['add table inet csqtt', 'add chain inet csqtt maintenance_guard { type filter hook forward priority -20; policy accept; }',
-		'flush chain inet csqtt maintenance_guard'];
+		'flush chain inet csqtt maintenance_guard',
+		'add chain inet csqtt maintenance_dns { type filter hook input priority -20; policy accept; }',
+		'flush chain inet csqtt maintenance_dns'];
 	let macs = [], lans = [], locals = [];
 	for (let i = 0; i < length(models); i++) {
 		let m = models[i];
@@ -245,6 +247,12 @@ export function hold(models, closed) {
 		rule(lines, 'maintenance_guard', 'oifname ' + setvalues(lans, true) + ' return');
 		if (length(locals)) rule(lines, 'maintenance_guard', 'ip daddr ' + setvalues(locals, false) + ' return');
 		rule(lines, 'maintenance_guard', 'ether saddr ' + setvalues(macs, false) + ' reject');
+		// Before first publication, router DNS can still recurse over WAN. Old
+		// group listeners may also use WAN while their replacement is staged.
+		// Pause DNS, including local names, until the ready transaction releases
+		// both guards. Other LAN management and router-origin DNS stay available.
+		rule(lines, 'maintenance_dns', 'iifname ' + setvalues(lans, true) + ' ether saddr ' + setvalues(macs, false) +
+			' meta l4proto { tcp, udp } th dport { 53, 5400-5415 } reject');
 	}
 	return join('\n', lines) + '\n';
 };

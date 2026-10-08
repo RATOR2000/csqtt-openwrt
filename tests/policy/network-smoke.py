@@ -143,6 +143,9 @@ try:
         ("router", ("192.168.1.1", "fd00:1::1")),
     ):
         echo_server(namespace, namespace, addresses)
+    dns_script = pathlib.Path(__file__).with_name("dns-smoke.py").resolve()
+    first_dns = run("python3", str(dns_script), "maintenance", str(out), *(names[name] for name in ("router", "a", "b", "wan", "vpn")))
+    print(first_dns.stdout.strip())
     load("native-policy.nft")
     expect("b", "198.51.100.2", "wan")
     expect("a", "203.0.113.2", "wan")
@@ -190,7 +193,6 @@ try:
     expect("a", "fd00:1::1", "router")
     load("native-release.nft")
     expect("a", "203.0.113.2", "wan")
-    dns_script = pathlib.Path(__file__).with_name("dns-smoke.py").resolve()
     dns_checks = run("python3", str(dns_script), str(out), *(names[name] for name in ("router", "a", "b", "wan", "vpn")))
     print(dns_checks.stdout.strip())
     ip("b", "link", "set", "cb", "address", "02:00:00:00:00:03")

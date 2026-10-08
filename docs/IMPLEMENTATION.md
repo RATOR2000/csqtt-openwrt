@@ -71,6 +71,12 @@ independent DoH. Do not claim arbitrary hostname-level fail-closed guarantees.
 Use dnsmasq-full nftsets and separate managed DNS contexts; no public DNS WAN
 fallback for VPN-default queries. Keep local names available. Preserve/reseed
 domain sets across firewall reload; hold affected groups closed on failure.
+During a policy transaction, the persistent maintenance guard also closes held
+devices' TCP/UDP DNS input on port 53 and group ports 5400–5415. This prevents
+first-activation or old-resolver WAN recursion before replacement DNS is ready.
+DNS, including local names, pauses until the atomic release after readiness;
+LAN management by IP and unassigned/router-origin DNS remain available. Normal
+active-policy local DNS remains available when the VPN transport is stopped.
 
 ## Delivery and acceptance
 

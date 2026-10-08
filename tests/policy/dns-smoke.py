@@ -68,7 +68,17 @@ def decode_response(packet, ident):
     return {"answers": result, "rcode": flags & 15}
 
 
-def query(name, server="9.9.9.9"):
+def receive(client, size):
+    packet = b""
+    while len(packet) < size:
+        chunk = client.recv(size - len(packet))
+        if not chunk:
+            raise OSError("Truncated DNS TCP reply")
+        packet += chunk
+    return packet
+
+
+def query(name, server="9.9.9.9", port=53, transport="udp"):
     labels = name.encode("ascii").split(b".")
     if any(not label or len(label) > 63 for label in labels):
         raise ValueError("Invalid fixture query")
@@ -76,14 +86,19 @@ def query(name, server="9.9.9.9"):
     packet = struct.pack("!6H", ident, 0x0100, 1, 0, 0, 0)
     packet += b"".join(bytes([len(label)]) + label for label in labels) + b"\0\0\x01\0\x01"
     family = socket.AF_INET6 if ":" in server else socket.AF_INET
-    with socket.socket(family, socket.SOCK_DGRAM) as client:
+    with socket.socket(family, socket.SOCK_STREAM if transport == "tcp" else socket.SOCK_DGRAM) as client:
         client.settimeout(1.2)
         # An explicitly configured public DNS server must be intercepted into
         # the client's own group listener, including reply address/port NAT.
-        client.connect((server, 53))
         try:
-            client.send(packet)
-            return decode_response(client.recv(4096), ident)
+            client.connect((server, port))
+            if transport == "tcp":
+                client.sendall(struct.pack("!H", len(packet)) + packet)
+                reply = receive(client, struct.unpack("!H", receive(client, 2))[0])
+            else:
+                client.send(packet)
+                reply = client.recv(4096)
+            return decode_response(reply, ident)
         except OSError:
             return {"answers": [], "rcode": None}
 
@@ -103,6 +118,134 @@ def serve(address, binds):
                 listener.sendto(dns_response(packet, address), peer)
             except ValueError:
                 continue
+
+
+def maintenance(out, namespaces):
+    """First failed publication: only the saved hold exists, no policy/DNS redirect."""
+    script = pathlib.Path(__file__).resolve()
+    binary = script.parents[2] / ".work/dnsmasq-2.93/src/dnsmasq"
+    processes, configs = [], []
+    answer = "93.184.216.101"
+    token, counter = os.urandom(4).hex(), 0
+    observer = "csqtt_dns_proof"
+
+    def run(namespace, *args, check=True):
+        result = subprocess.run(["ip", "netns", "exec", namespaces[namespace], *args],
+                                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+        if check and result.returncode:
+            raise RuntimeError(f"Maintenance fixture failed: {' '.join(args)}\n{result.stderr.strip()}")
+        return result
+
+    def spawn(namespace, *args, ready=False):
+        process = subprocess.Popen(["ip", "netns", "exec", namespaces[namespace], *args],
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        processes.append(process)
+        if ready:
+            readable, _, _ = select.select([process.stdout], [], [], 5)
+            if not readable or process.stdout.readline().strip() != "ready":
+                raise RuntimeError(f"Maintenance listener did not start in {namespace}")
+        return process
+
+    def expect(client, port, transport, expected, server="192.168.1.1"):
+        nonlocal counter
+        counter += 1
+        name = f"hold-{token}-{counter}.example.invalid"
+        response = json.loads(run(client, "python3", str(script), "query", name, server, str(port), transport).stdout)
+        wanted = [] if expected is None else [expected]
+        if response["answers"] != wanted or (expected and response["rcode"] != 0):
+            raise AssertionError(f"Maintenance {client} {transport} DNS {server}:{port}: expected {wanted}, got {response}")
+
+    def upstream_packets():
+        result = json.loads(run("router", "nft", "-j", "list", "chain", "inet", observer, "output").stdout)
+        return sum(expr["counter"]["packets"] for entry in result["nftables"] if "rule" in entry
+                   for expr in entry["rule"]["expr"] if "counter" in expr)
+
+    try:
+        if not binary.is_file():
+            raise RuntimeError("Pinned DNS fixture binary is missing")
+        if run("router", "nft", "list", "table", "inet", "csqtt", check=False).returncode == 0:
+            raise AssertionError("First-activation fixture already has a full policy")
+        run("wan", "ip", "addr", "add", "9.9.9.9/32", "dev", "lo")
+        spawn("wan", "python3", str(script), "serve", answer, "9.9.9.9", ready=True)
+        # Real primary DNS and an old WAN group listener both recurse over WAN.
+        # A hold that protects only forwarding would leave both sockets reachable.
+        for port in (53, 5400):
+            config = out / f"maintenance-dns-{port}.conf"
+            configs.append(config)
+            config.write_text(f"port={port}\nbind-interfaces\nlisten-address=127.0.0.1,192.168.1.1,fd00:1::1\n"
+                              f"no-resolv\nno-hosts\ncache-size=0\nserver=9.9.9.9\nuser=root\npid-file={out / ('maintenance-' + str(port) + '.pid')}\n")
+            process = spawn("router", str(binary), "--keep-in-foreground", f"--conf-file={config}", "--log-facility=-")
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                if process.poll() is not None:
+                    raise RuntimeError(f"Maintenance dnsmasq exited: {process.stderr.read()[:1600]}")
+                listeners = run("router", "ss", "-H", "-lun").stdout
+                if f"192.168.1.1:{port}" in listeners and f"[fd00:1::1]:{port}" in listeners:
+                    break
+                time.sleep(.05)
+            else:
+                raise RuntimeError(f"Maintenance dnsmasq did not bind port {port}")
+        http = """import socket
+s=socket.socket();s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);s.bind(('192.168.1.1',8080));s.listen()
+print('ready',flush=True)
+while True:
+ c,_=s.accept();c.settimeout(2)
+ try:c.recv(4096);c.sendall(b'HTTP/1.0 200 OK\\r\\nContent-Length: 2\\r\\n\\r\\nok')
+ except OSError:pass
+ finally:c.close()
+"""
+        spawn("router", "python3", "-c", http, ready=True)
+        run("b", "ip", "link", "set", "cb", "address", "02:00:00:00:00:03")
+        run("router", "ip", "neigh", "flush", "dev", "br-lan")
+        run("router", "ip", "-6", "neigh", "flush", "dev", "br-lan")
+        for server in ("192.168.1.1", "fd00:1::1"):
+            for port in (53, 5400):
+                for transport in ("udp", "tcp"):
+                    expect("a", port, transport, answer, server)
+                    expect("b", port, transport, answer, server)
+        run("router", "nft", "add", "table", "inet", observer)
+        run("router", "nft", "add", "chain", "inet", observer, "output",
+            "{ type filter hook output priority -5; policy accept; }")
+        run("router", "nft", "add", "rule", "inet", observer, "output", "ip daddr 9.9.9.9 meta l4proto { tcp, udp } th dport 53 counter")
+        run("router", "nft", "-f", str(out / "native-hold.nft"))
+        before = upstream_packets()
+        for server in ("192.168.1.1", "fd00:1::1"):
+            for port in (53, 5400):
+                for transport in ("udp", "tcp"):
+                    expect("a", port, transport, None, server)
+        if upstream_packets() != before:
+            raise AssertionError("Protected maintenance DNS reached the WAN resolver")
+        for server in ("192.168.1.1", "fd00:1::1"):
+            for port in (53, 5400):
+                for transport in ("udp", "tcp"):
+                    expect("b", port, transport, answer, server)
+        for port in (53, 5400):
+            for transport in ("udp", "tcp"):
+                expect("router", port, transport, answer, "127.0.0.1")
+        expect("router", 53, "udp", answer, "9.9.9.9")
+        run("a", "ping", "-c", "1", "-W", "1", "192.168.1.1")
+        run("a", "python3", "-c", "import urllib.request; r=urllib.request.urlopen('http://192.168.1.1:8080/',timeout=2); assert r.status==200 and r.read()==b'ok'")
+        # One nft transaction empties both forwarding and DNS maintenance chains.
+        run("router", "nft", "-f", str(out / "native-release.nft"))
+        for port in (53, 5400):
+            for transport in ("udp", "tcp"):
+                expect("a", port, transport, answer)
+        print("Native maintenance DNS checks passed: first activation without full policy, TCP/UDP IPv4/IPv6 input held, zero WAN recursion, old group port, unassigned/loopback/router DNS, LAN ping/HTTP, atomic release")
+    finally:
+        run("router", "nft", "delete", "table", "inet", observer, check=False)
+        run("b", "ip", "link", "set", "cb", "address", "02:00:00:00:00:02", check=False)
+        run("router", "ip", "neigh", "flush", "dev", "br-lan", check=False)
+        run("router", "ip", "-6", "neigh", "flush", "dev", "br-lan", check=False)
+        for process in reversed(processes):
+            process.terminate()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=2)
+        run("wan", "ip", "addr", "del", "9.9.9.9/32", "dev", "lo", check=False)
+        for config in configs:
+            config.unlink(missing_ok=True)
 
 
 def smoke(out, namespaces):
@@ -252,6 +395,9 @@ if __name__ == "__main__":
     if sys.argv[1] == "serve":
         serve(sys.argv[2], sys.argv[3:])
     elif sys.argv[1] == "query":
-        print(json.dumps(query(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "9.9.9.9")))
+        print(json.dumps(query(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "9.9.9.9",
+                               int(sys.argv[4]) if len(sys.argv) > 4 else 53, sys.argv[5] if len(sys.argv) > 5 else "udp")))
+    elif sys.argv[1] == "maintenance":
+        maintenance(pathlib.Path(sys.argv[2]).resolve(), dict(zip(("router", "a", "b", "wan", "vpn"), sys.argv[3:])))
     else:
         smoke(pathlib.Path(sys.argv[1]).resolve(), dict(zip(("router", "a", "b", "wan", "vpn"), sys.argv[2:])))

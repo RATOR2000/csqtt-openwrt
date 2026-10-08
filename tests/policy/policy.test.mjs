@@ -83,6 +83,37 @@ test('maintenance guard closes both old and new clients and retains local routes
   assert.doesNotMatch(hold([], false), /reject/);
 });
 
+test('maintenance DNS holds old and proposed LAN membership until atomic release', () => {
+  const old = validate(input()); const next = input();
+  next.main.lan_device = ['br-next'];
+  next.devices[0].mac = '02:00:00:00:00:03';
+  next.devices[1].enabled = '0';
+  next.devices.push({ id: 'parked', group: 'private', mac: '02:00:00:00:00:04', enabled: '0' });
+  const closed = hold([old, validate(next)], true);
+  const dns = closed.split('\n').filter(line => line.startsWith('add rule inet csqtt maintenance_dns '));
+  assert.equal(dns.length, 1);
+  assert.match(dns[0], /iifname \{ "br-lan", "br-next" \}/);
+  for (const mac of ['02:00:00:00:00:01', '02:00:00:00:00:02', '02:00:00:00:00:03'])
+    assert.ok(dns[0].includes(mac), `Missing previous or proposed MAC ${mac}`);
+  assert.doesNotMatch(dns[0], /02:00:00:00:00:04/);
+  assert.match(dns[0], /meta l4proto \{ tcp, udp \} th dport \{ 53, 5400-5415 \} reject$/);
+  assert.match(closed, /maintenance_dns \{ type filter hook input priority -20; policy accept; \}/);
+  assert.doesNotMatch(closed, /hook output|iifname "lo"/);
+  const released = hold([], false);
+  for (const chain of ['maintenance_guard', 'maintenance_dns'])
+    assert.ok(released.includes(`flush chain inet csqtt ${chain}`));
+  assert.doesNotMatch(released, /add rule|reject/);
+});
+
+test('first activation holds router DNS for active clients without a previous policy', () => {
+  const data = input(); data.devices[1].enabled = '0';
+  const closed = hold([null, validate(data)], true);
+  assert.match(closed, /maintenance_dns .*02:00:00:00:00:01/);
+  assert.doesNotMatch(closed, /02:00:00:00:00:02/);
+  data.devices[0].enabled = false;
+  assert.doesNotMatch(hold([null, validate(data)], true), /add rule|reject/);
+});
+
 test('invalid UCI values cannot inject nft or DNS configuration', () => {
   for (const value of ['example.org\nserver=8.8.8.8', 'example.org; accept', '../bad', 'bad..example', '-bad.example', '256.1.1.1/32', '1.1.1.1/33']) {
     const data = input(); data.rules[0].destination = value;

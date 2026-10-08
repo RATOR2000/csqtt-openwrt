@@ -6,11 +6,28 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Review the failed-first-activation guard persistence path and prepare a scoped
-real boot proof that preserves current owner settings; fix any demonstrated gap.
-Manual Android Helper/VK CAPTCHA still needs an actual challenge. Do not force
-CAPTCHA or change owner devices for a green result. Other unresolved ACCEPTANCE
-rows and outage observation remain stable-release gates. Auto VPN is cancelled.
+Finish native before/after first-activation DNS proof for the new maintenance
+INPUT guard, then fresh CI/checkpoint and deploy only after native verification.
+Source gap: saved hold only guarded forwarding; new protected LAN DNS could
+recurse through primary DNS. policy.uc now also closes heldMAC TCP/UDP53 and
+5400-5415 until atomic release. DNS including local names temporarily pauses
+during maintenance; normal active/VPN-down local DNS behavior is unchanged.
+Four source/test files changed;75local Node tests and Python syntax PASS, native
+not yet run. activation_audit owns those4files (completed); activation_proof_plan
+prepares ignored .work/activation6/router-proof.sh. Root owns live/integration.
+SSH r6 health72/groups1/devices2/rules5 and11signed hashes PASS. No live product
+changes. Officialkmod-veth no-cache simulation exactly1package6.12.94-r1 PASS;
+root prepares private provisioning backup and isolated native fixture, no owner
+policy edits or global service/fw4 calls. Go ARM64 bounded DNS probe compiled.
+Officialkmod-veth installed exactly1package (install log), module loaded. Private
+toolsstate=/etc/csqtt/backups/activation6-tools-20261008-155613-10661; world.before
+and4confighashes saved. Provision helper exited1 because bare apk query returned
+empty arrays; corrected all-package pattern, complete after-map saved. No other
+package change observed; do not claim complete preinstall package-map proof.
+Four ownerconfigs still hashmatch. Nativebefore/after helper is being prepared.
+Actual failed-first-activation boot proof remains pending; do not claim that
+isolated firewall restoration equals a real boot. Manual Android/VK needs actual
+challenge. Auto VPN remains cancelled.
 
 Current router: signed preview6, all3 packages0.1.0-r6, connected72/no errors,
 owner groups1/devices2/rules5. No synthetic state remains. Four current owner
