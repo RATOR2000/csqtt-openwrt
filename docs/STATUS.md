@@ -11,9 +11,15 @@ publish and test signed upgrade. Never dispatch a duplicate or move preview5 ref
 Frozen source1d9c470dd89e7b820ff13c91fd3d7531181bfb9e,
 build e274bedca1a72d0d8e03073abf1838f4a809fe8d,
 tree5f1455bebd8fc49828e64e89354c3d7a816661f9,
-branch codex/preview.6-build; tag v0.1.0-preview.6/package r6. One run in_progress
-at08:46:35Z. .work/preview6-build.json retains exact dispatch metadata. Root owns refs/
-CI/publish/live, preview6_stage owns ignored .work/preview.6 verification helpers.
+branch codex/preview.6-build; tag v0.1.0-preview.6/package r6. Single run:
+checks113227497194/native113227633654/core113227633836 success; SDK113228570283
+in_progress Native OpenWrt packages at08:52Z. .work/preview6-build.json retains
+exact dispatch metadata. Root owns refs/CI/publish/live and ignored .work/preview.6.
+preview6_stage completed helper adaptation/review;3 authenticated job logs and
+job-log-metadata.json saved. Partial release-config currently only build_sha/run_id
+for ci-status; fill complete exact artifact IDs/digests after SDK success. Reviewed
+release notes/title and revision-only upgrade/postcheck helpers prepared; no new
+assets/publish/r6 upgrade yet. Old r5 provenance/assets remain unchanged.
 Local Node release2/Python release4 and git diff--check passed. Keep
 the real Android/manual VK CAPTCHA gate pending until an actual challenge can be
 tested. Other remaining stable gates include failed first activation across boot,
