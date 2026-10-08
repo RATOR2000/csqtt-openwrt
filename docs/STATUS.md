@@ -6,21 +6,30 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Finish corrected focused CI run37806843287, then review/deploy the one-file
-maintenance DNS fix over signed r6 and verify unchanged owner configuration,
-transport identity, normal DNS and WAN/VPN exits. Do not call it a signed r7.
-Source745e801b3cae10e62daeec5c784677b19cd4f9dc;
-validation1a4cabfa6fab0f1a5b4dc2dafdc6c8de24b66fb2 on
-codex/activation6-validation differs only in its two-job workflow.
-No SDK/Rust/Android rebuild dispatched. Root owns integration/live/Git/STATUS.
-activation_audit is preparing ignored deployment helper/review; recheck agent
-liveness before delegating. Auto VPN remains cancelled.
+Prepare a signed preview7 containing the verified maintenance DNS fix. No r7
+refs/build/run/artifacts exist yet: freeze source, change package release/workflow
+identity, dispatch exactly one build and verify signed assets before publication
+or upgrade. Preserve preview6 refs/assets and the current owner configuration.
+Actual failed-first-activation boot and real Android Helper/manual VK remain
+separate pending stable-release gates. Do not force CAPTCHA or repeat completed
+normal boot/crash/routed IPv6 tests. Auto VPN remains cancelled.
 
-Current router: exact signed preview6, all3 packages0.1.0-r6, connected72,
-owner groups1/devices2/rules5, no pending edits. No product patch yet. After
-test cleanup, all11 signed payload hashes and read-only postcheck exit0:
-local/group DNS, WAN/VPN IPv4 HTTPS and distinct exits PASS. Owner settings
-remain unchanged. Never restore an older owner configuration.
+Current router: signed preview6 packages0.1.0-r6 PLUS one development source
+patch, /usr/share/csqtt/policy.uc SHA256
+df6649c61ef6620c3a2bc2ef93bbe8089eacc9dc8001b7790c1c42304d11e059.
+Ten other payloads still exactly match signed r6. Do not call this a signed r7
+or claim all11 live files match public r6. Normal r6 installer would replace the
+patch; use exact development health manifest until a new signed upgrade.
+Current health: connected72/no errors, owner groups1/devices2/rules5, no pending
+edits, DNS and distinct WAN/VPN HTTPS exits PASS. No synthetic state/test packages
+remain. Preserve current settings; never restore older owner configuration.
+
+Root owns live/integration/Git/STATUS. activation_audit completed helper/review;
+activation_proof_plan reviewed isolation and rollback lock. Recheck agent
+liveness before delegation. Exact recovery metadata/helpers remain ignored in
+.work/activation6; active private backup:
+/etc/csqtt/backups/activation6-deploy-20261008-162048-XXJCHHJI.
+Do not repeat apply: apply.completed exists, helper.exit/apply.exit0.
 
 ## Failed-activation maintenance DNS fix (2026-10-08)
 
@@ -38,6 +47,13 @@ remain unchanged. Never restore an older owner configuration.
   because synthetic upstream served only UDP. Corrected fixture supports bounded
   TCP too. Local two-address UDP/TCP, malformed-length, follow-up and restart
   checks PASS. Authenticated native-run1.log retained. Do not rerun failed SHA.
+- Corrected focused run37806843287 completed SUCCESS: checks113413237947 and
+  native113413329825.77 Node tests and4 Python release tests PASS. Native ucode
+  parser/control/redaction, DNS lifecycle, maintenance TCP/UDP IPv4/IPv6 with
+  zero WAN recursion, normal DNS paths/sets/local names and packet routing/
+  tunnel-down/IPv6 guards PASS. Authenticated checks-run2.log/native-run2.log
+  retained under ignored .work/activation6. Product source matches the pushed
+  checkpoint; only workflow differs on the validation branch.
 - Actual ARM64 router proof attempt4 exit0:
   /etc/csqtt/backups/activation6-20261008-160743-XXbbJOhi.
   Isolated network+mount namespaces used native installed manage/runtime/ucode/
@@ -62,6 +78,22 @@ remain unchanged. Never restore an older owner configuration.
   /etc/csqtt/backups/activation6-tools-20261008-155613-10661.
   Initial bare apk query produced empty arrays; corrected wildcard map retained.
   Do not claim a complete preinstall package-map proof.
+- Live development patch deployed exit0 over signed r6 after native preflight
+  and independent helper review. Only policy.uc replaced atomically; managed
+  init reload succeeded. All4 config bytes, APK world, client.json, generated
+  policy files and exact transport PID/startticks/executable/argv preserved.
+  Ten signed r6 payload hashes plus candidate hash verified; both live maintenance
+  chains have0rules/expected hooks/priority and saved hold equals empty release.
+  DNS-ready, local/group DNS, WAN/VPN IPv4 HTTPS and distinct exits PASS. Repeated
+  read-only development postcheck exit0; LuCI Overview connected72, protection
+  enabled. Screenshot .work/activation6/router-after-policy.jpg.
+  Public apply counts/exit0 saved locally and in private backup above.
+  Helper SHA256 fd36624208c65dc5ee8166928181b5932341e3f418eafdb95052262b288d762c.
+  Rollback was reviewed but NOT executed. It restores signed policy only,
+  retries old managed apply, then under owned policy lock verifies state/DNS and
+  pinned two-chain release before clearing/persisting it. Old r6 release alone
+  cannot flush the new maintenance_dns chain. Never manually flush guards before
+  successful apply/readiness; inspect lock/process/private evidence on failure.
 - Actual failed-first-activation BOOT remains pending: isolated fw4 restoration
   is not a router reboot. Real Android Helper launch/manual VK challenge and
   remaining ACCEPTANCE gates remain pending. Do not repeat completed normal
