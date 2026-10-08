@@ -1,17 +1,51 @@
 # Development status — resume here
 
-Updated 2026-10-06. Read this first, then IMPLEMENTATION.md. Files, Git and CI
+Updated 2026-10-08. Read this first, then IMPLEMENTATION.md. Files, Git and CI
 are the source of truth. Preserve current owner configuration. Historical
 details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Preview5 is published, independently verified and installed on the live router.
-Continue remaining stable-release ACCEPTANCE gates: controlled boot/crash,
-manual CAPTCHA and routed IPv6. Start with a reviewed boot/crash test that keeps
-local management and owner VPN protection; announce router mutations first.
+Finish armed real boot test, inspect private results then perform precise cleanup.
+Temporary /etc/init.d/cq-acceptance5-boot (START21, bounded20s) is enabled;
+reviewed helper in private STATE/boot-router.sh. Root announced controlled reboot.
+STATE=/etc/csqtt/backups/device-toggle-test-20261006-132153.OmHlBi.
+Read ignored .work/acceptance5/BOOT-PLAN.md before reboot/cleanup. Preserve current
+owner edits: csqtt changed since Oct6. Current/expected owner baselines saved in
+STATE/owner-current-20261008 and owner-expected-20261008 (only synthetic rows removed
+in private expected copy). Do not restore Oct6 owner files. Old cleanup compares
+Oct6 exports and may report this known owner change; compare final state with
+current expected copy. Remaining manual CAPTCHA and routed IPv6 gates apply.
 Do not rebuild/publish preview5 again, move frozen refs, or resume cancelled Auto
 VPN. Check current Git/router state before subsequent work.
+
+## Acceptance continuation (2026-10-08)
+
+- User reported CAPTCHA opened blank browser page; Helper did not launch.
+  Reconnect helped. Root delegated LuCI handoff fix/tests to captcha_fix;
+  no real CAPTCHA success claimed. Recheck agent liveness on resume.
+- SSH current connected72. Oct6 synthetic group/device/1.1.1.1 WAN rule and
+  cq-toggle-test namespace still existed after interruption; owner active devices2
+  plus synthetic1. Official test-only kmod-veth6.12.94-r1/coreutils-timeout9.9-r2
+  remain installed; world.before under acceptance5-tools-20261006 private backup.
+- Prior controlled stop packet evidence:4 ICMP/TCP attempts,0WAN passes;
+  fresh DNS query1/guarded-source WAN0; direct1.1.1.1 HTTPS and LAN ping/HTTP
+  succeeded. Service recovered72. Original command session lost at interruption;
+  count evidence retained but do not invent its final exit code. Current config
+  has newer owner edits; dhcp/firewall/network unchanged against stop backup.
+- One real SIGKILL crash test PASS exit0 in16s on signed r5 binary. Strict
+  PID/startticks/exe/argv/hash validation before signal, TUN disappeared;
+  real ICMP1/TCP2 ingress attempts,0WAN egress, guards/unreachable retained,
+  LAN available. procd new process recovered72 + VPN HTTPS. Four configs exact
+  against current precrash copies, no pending edits, passive observer removed.
+  Private evidence /etc/csqtt/backups/acceptance5-crash-EImneD;
+  STATE/crash-run.public-result.log + crash-run.exit persist safe result.
+- Test helper corrections only: asynchronous graceful stop needs TUN disappearance
+  wait; BusyBox sleep has no fractions and nc has no -w; CGI cold load exceeded
+  short probe, static LAN HTTP used. These were test assumptions, no source fix.
+- Boot helper armed, no reboot result yet. Root owns live mutation/cleanup/docs;
+  former native_device_checks/ui_finish/boot_checks sessions are gone. Current
+  captcha_fix owns LuCI CAPTCHA handoff implementation only.
 
 ## Preview5 publication and signed upgrade (2026-10-06) — complete
 
