@@ -6,9 +6,10 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Finish armed real boot test, inspect private results then perform precise cleanup.
-Temporary /etc/init.d/cq-acceptance5-boot (START21, bounded20s) is enabled;
-reviewed helper in private STATE/boot-router.sh. Root announced controlled reboot.
+Finish prepared routed IPv6 test then perform precise cleanup. Boot proof PASS.
+Temporary /etc/init.d/cq-acceptance5-boot (START21, bounded20s) remains enabled;
+disable/remove exact owned service after saved-hash validation before ending.
+Reviewed helper in private STATE/boot-router.sh; no further reboot required.
 STATE=/etc/csqtt/backups/device-toggle-test-20261006-132153.OmHlBi.
 Read ignored .work/acceptance5/BOOT-PLAN.md before reboot/cleanup. Preserve current
 owner edits: csqtt changed since Oct6. Current/expected owner baselines saved in
@@ -44,8 +45,26 @@ VPN. Check current Git/router state before subsequent work.
   wait; BusyBox sleep has no fractions and nc has no -w; CGI cold load exceeded
   short probe, static LAN HTTP used. These were test assumptions, no source fix.
 - Boot helper armed, no reboot result yet. Root owns live mutation/cleanup/docs;
-  former native_device_checks/ui_finish/boot_checks sessions are gone. Current
-  captcha_fix owns LuCI CAPTCHA handoff implementation only.
+  former native_device_checks/ui_finish/boot_checks sessions are gone.
+- Real early boot proof PASS exit0 after actual reboot before START95, no core/TUN:
+  TCP1/ICMP2 attempts, VPN-to-WAN0, direct WAN exception16 packets + HTTPS success,
+  LAN ping available; unchanged4configs, normal connected72 afterward. First
+  attempt stopped on policy.nft hash difference from legitimate netifd hotplug
+  regeneration (benchmark alias disappears at boot); configs were exact. Private
+  boot-attempt1 retains that failure. Corrected helper records generated policy
+  hash but gates on unchanged4configs and actual live classifier/guard packets.
+  Second actual boot proof files STATE/boot.* contain PASS/counts/exit0.
+- Before UI patch, all11 signed r5 payload hashes + versions and postboot WAN/VPN
+  HTTPS/DNS PASS. LuCI CAPTCHA handoff source patch now installed OVER signed r5:
+  Android direct-tap intent targets exact Helper package, secret-free same-origin
+  Overview fallback; desktop manual-copy flow avoids unsupported scheme navigation.
+  Pairing wipe/expiry remains. Source73 Node tests PASS including17 LuCI cases;
+  independent review PASS. Actual browser blank cause not reproduced, no real
+  Android/VK success claimed. Broker/Android/core unchanged. Private original
+  overview.r5.js under /etc/csqtt/backups/captcha-handoff-20261008; source SHA cmp
+  passed and client PID unchanged. Browser relogin confirms connected72.
+- captcha_fix completed; ipv6_checks owns only ignored IPv6 helper preparation.
+  Root owns integration/live testing/cleanup/docs/Git; recheck liveness on resume.
 
 ## Preview5 publication and signed upgrade (2026-10-06) — complete
 

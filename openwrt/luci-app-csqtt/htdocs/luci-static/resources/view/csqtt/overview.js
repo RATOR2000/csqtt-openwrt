@@ -16,7 +16,7 @@ return view.extend({
 			pairingTimer = null;
 			if (pairing) {
 				pairing.field.value = '';
-				pairing.link.removeAttribute('href');
+				if (pairing.link) pairing.link.removeAttribute('href');
 				pairing = null; ui.hideModal();
 			}
 		}
@@ -24,13 +24,23 @@ return view.extend({
 			if (!model.validPairing(result, Date.now() / 1000) || !currentChallenge ||
 				new URL(result.uri).searchParams.get('id') !== currentChallenge.id) throw new Error('invalid_pairing');
 			closePairing();
-			pairing = { id: currentChallenge.id, expires_at: Number(result.expires_at) };
 			var field = E('textarea', { 'class': 'csqtt-pairing', readonly: true, spellcheck: false, autocomplete: 'off', 'aria-label': 'Одноразовая ссылка для Android' });
 			field.value = result.uri;
-			var helperLink = E('a', { href: result.uri, 'class': 'cbi-button cbi-button-action', rel: 'noreferrer' }, 'Открыть CSQTT Helper');
+			var helperLink = null;
+			if (/Android/i.test(window.navigator.userAgent || '')) {
+				// Keep the launch on a direct user tap. Chrome can return to LuCI if
+				// the installed helper cannot handle it; the fallback contains no grant.
+				var fallback = new URL(L.url('admin/services/csqtt/overview'), window.location.origin);
+				if (fallback.origin !== window.location.origin || !/^https?:$/.test(fallback.protocol) || fallback.search || fallback.hash) throw new Error('invalid_fallback');
+				var intentUri = 'intent://pair' + new URL(result.uri).search +
+					'#Intent;scheme=csqtt-helper;package=org.csqtt.openwrt.helper;S.browser_fallback_url=' + encodeURIComponent(fallback.href) + ';end';
+				helperLink = E('a', { href: intentUri, 'class': 'cbi-button cbi-button-action', rel: 'noreferrer' }, 'Открыть CSQTT Helper');
+			}
+			pairing = { id: currentChallenge.id, expires_at: Number(result.expires_at) };
 			pairing.field = field; pairing.link = helperLink;
 			ui.showModal('Решить CAPTCHA на Android', [
 				E('p', {}, 'Подключите телефон к локальной сети роутера и откройте ссылку в CSQTT Helper. Ссылка одноразовая; не публикуйте её.'),
+				E('p', {}, helperLink ? 'Нажмите «Открыть CSQTT Helper». Если приложение не открылось, скопируйте ссылку и вставьте её в помощник вручную. После возврата на «Обзор» создайте новую ссылку.' : 'Скопируйте ссылку и вставьте её в CSQTT Helper на Android. Затем нажмите в приложении «Открыть проверку VK».'),
 				field,
 				E('p', { 'class': 'csqtt-small' }, 'Действует до ' + new Date(pairing.expires_at * 1000).toLocaleTimeString()),
 				E('div', { 'class': 'csqtt-actions' }, [

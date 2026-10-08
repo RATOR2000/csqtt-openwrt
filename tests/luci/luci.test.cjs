@@ -75,7 +75,7 @@ test('pairing accepts only the broker schema, unique fields, expiry and safe dee
 	const pair = pairing();
 	assert.equal(model.validPairing(pair, Date.now() / 1000), true);
 	assert.equal(model.validPairing(pairing(1), Date.now() / 1000), false);
-	for (const uri of ['javascript:alert(1)', pair.uri.replace('csqtt-helper:', 'https:'), pair.uri + '&grant=other', pair.uri + '#secret', pair.uri.replace('pair?', 'attacker@pair?'), pair.uri.replace('9443', '0'), pair.uri.replace('id=challenge-1', 'id=%3Cscript%3E')]) {
+	for (const uri of ['javascript:alert(1)', pair.uri.replace('csqtt-helper:', 'https:'), pair.uri + '&grant=other', pair.uri + '#secret', pair.uri + '#Intent;package=other.app;end', pair.uri.replace('pair?', 'attacker@pair?'), pair.uri.replace('9443', '0'), pair.uri.replace('id=challenge-1', 'id=%3Cscript%3E'), pair.uri.replace('id=challenge-1', 'id=challenge-1%3Bpackage%3Dother.app')]) {
 		assert.equal(model.validPairing({ ...pair, uri }, Date.now() / 1000), false);
 	}
 });
@@ -108,7 +108,7 @@ function uiStub() {
 }
 
 test('CAPTCHA grants appear only after a user action and are wiped on challenge change', async () => {
-	const ui = uiStub(), calls = [], polls = [], window = { clearTimeout() {}, setTimeout() { return 1; }, navigator: {} };
+	const ui = uiStub(), calls = [], polls = [], window = { clearTimeout() {}, setTimeout() { return 1; }, navigator: { userAgent: 'Mozilla/5.0 (Linux; Android 15)' }, location: { origin: 'http://192.168.1.1', href: 'http://192.168.1.1/cgi-bin/luci/admin/services/csqtt/overview?unrelated=value#section' } };
 	const challenge = { id: 'challenge-1', state: 'manual', expires_at: pairing().expires_at };
 	let status = { core: { state: 'captcha_required', captcha: challenge, password: 'HIDDEN_PASSWORD', tunnel_ip: '<img onerror=evil>', tun_device: '<script>evil</script>' }, uri: 'HIDDEN_LINK' };
 	const api = { call: async method => { calls.push(method); return method === 'captcha_begin' ? pairing() : status; } };
@@ -122,12 +122,66 @@ test('CAPTCHA grants appear only after a user action and are wiped on challenge 
 	const field = walk(ui.modal).find(n => n.tag === 'textarea');
 	const anchor = walk(ui.modal).find(n => n.tag === 'a');
 	assert.match(field.value, /csqtt-helper:/);
+	const [intent, options] = anchor.attrs.href.split('#Intent;');
+	assert.equal(intent.replace(/^intent:/, 'csqtt-helper:'), pairing().uri);
+	assert.match(options, /^scheme=csqtt-helper;package=org\.csqtt\.openwrt\.helper;S\.browser_fallback_url=/);
+	const fallback = decodeURIComponent(options.match(/S\.browser_fallback_url=([^;]+);end$/)[1]);
+	assert.equal(fallback, 'http://192.168.1.1/admin/services/csqtt/overview');
+	assert.doesNotMatch(fallback, /grant|pin|unrelated|section|\?|#/);
+	assert.equal(anchor.attrs.target, undefined, 'launch stays on a direct anchor tap without opening a blank tab');
+	assert.match(text(ui.modal), /вставьте её в помощник вручную/);
 	assert.doesNotMatch(text(page), /grant=/);
 	status = { core: { state: 'captcha_required', captcha: { ...challenge, id: 'challenge-2' } } };
 	await polls[0]();
 	assert.equal(ui.modal, null);
 	assert.equal(field.value, '');
 	assert.equal(anchor.attrs.href, undefined);
+});
+
+test('desktop CAPTCHA pairing gives a manual copy path without navigating to an unsupported scheme', async () => {
+	const ui = uiStub(), calls = [], window = { clearTimeout() {}, setTimeout() { return 1; }, navigator: { userAgent: 'Windows' } };
+	const status = { core: { captcha: { id: 'challenge-1', expires_at: pairing().expires_at } } };
+	const api = { call: async method => { calls.push(method); return method === 'captcha_begin' ? pairing() : status; } };
+	const view = load('view/csqtt/overview.js', { view: extend, E, L, ui, api, model, window, poll: { add() {} } });
+	const page = view.render(status);
+	await walk(page).find(n => n.tag === 'button' && text(n) === 'Решить на Android').click();
+	const field = walk(ui.modal).find(n => n.tag === 'textarea');
+	assert.equal(walk(ui.modal).some(n => n.tag === 'a'), false);
+	assert.match(text(ui.modal), /вставьте её в CSQTT Helper на Android/);
+	await walk(ui.modal).find(n => n.tag === 'button' && text(n) === 'Скопировать ссылку').click();
+	assert.equal(field.focused, true);
+	assert.equal(field.selected, true);
+	assert.equal(field.value, pairing().uri);
+	assert.deepEqual(calls, ['captcha_begin', 'status'], 'copying does not replace or consume the grant');
+	await walk(ui.modal).find(n => n.tag === 'button' && text(n) === 'Скрыть').click();
+	assert.equal(field.value, '');
+	assert.equal(ui.modal, null);
+});
+
+test('Android pairing expires and rejects unsafe launch destinations without leaving a partial modal', async () => {
+	for (const route of ['/admin/services/csqtt/overview', 'https://other.example/', 'javascript:alert(1)', '/admin/services/csqtt/overview?grant=invalid', '/admin/services/csqtt/overview#Intent;package=other.app']) {
+		const ui = uiStub(), polls = [];
+		let expire;
+		const window = { clearTimeout() {}, setTimeout(fn) { expire = fn; return 1; }, navigator: { userAgent: 'Android' }, location: { origin: 'https://192.168.1.1' } };
+		const status = { core: { captcha: { id: 'challenge-1', expires_at: pairing().expires_at } } };
+		const api = { call: async method => method === 'captcha_begin' ? pairing() : status };
+		const view = load('view/csqtt/overview.js', { view: extend, E, L: { ...L, url: () => route }, ui, api, model, window, poll: { add: fn => polls.push(fn) } });
+		const page = view.render(status);
+		await walk(page).find(n => n.tag === 'button' && text(n) === 'Решить на Android').click();
+		if (route === '/admin/services/csqtt/overview') {
+			const field = walk(ui.modal).find(n => n.tag === 'textarea'), anchor = walk(ui.modal).find(n => n.tag === 'a');
+			expire();
+			assert.equal(ui.modal, null);
+			assert.equal(field.value, '');
+			assert.equal(anchor.attrs.href, undefined);
+		} else {
+			assert.equal(ui.modal, null);
+			assert.equal(ui.notifications.length, 1);
+			assert.doesNotMatch(text(ui.notifications[0]), /grant=|other\.example|other\.app|javascript:/);
+			await polls[0]();
+			assert.equal(ui.notifications.length, 1, 'failed validation leaves no partial pairing to break polling');
+		}
+	}
 });
 
 test('diagnostics render and download only allowlisted facts, never raw logs or credentials', () => {
