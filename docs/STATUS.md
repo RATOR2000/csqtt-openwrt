@@ -6,19 +6,18 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Finish prepared routed IPv6 test then perform precise cleanup. Boot proof PASS.
-Temporary /etc/init.d/cq-acceptance5-boot (START21, bounded20s) remains enabled;
-disable/remove exact owned service after saved-hash validation before ending.
-Reviewed helper in private STATE/boot-router.sh; no further reboot required.
-STATE=/etc/csqtt/backups/device-toggle-test-20261006-132153.OmHlBi.
-Read ignored .work/acceptance5/BOOT-PLAN.md before reboot/cleanup. Preserve current
-owner edits: csqtt changed since Oct6. Current/expected owner baselines saved in
-STATE/owner-current-20261008 and owner-expected-20261008 (only synthetic rows removed
-in private expected copy). Do not restore Oct6 owner files. Old cleanup compares
-Oct6 exports and may report this known owner change; compare final state with
-current expected copy. Remaining manual CAPTCHA and routed IPv6 gates apply.
-Do not rebuild/publish preview5 again, move frozen refs, or resume cancelled Auto
-VPN. Check current Git/router state before subsequent work.
+Prepare the next preview containing the already-tested LuCI Helper handoff fix;
+follow BUILD.md and freeze new source/build refs, never move preview5 refs. Keep
+the real Android/manual VK CAPTCHA gate pending until an actual challenge can be
+tested. Other remaining stable gates include failed first activation across boot,
+the unresolved ACCEPTANCE rows and outage observation. Do not force CAPTCHA or
+change owner devices merely to obtain a green result. No synthetic test state
+remains active; do not repeat boot/crash/IPv6 just to recover old tool sessions.
+Current router is signed r5 plus the source-patched overview.js, connected72,
+owner groups1/devices2/rules5. Check current Git/router state before mutations.
+STATE=/etc/csqtt/backups/device-toggle-test-20261006-132153.OmHlBi retains private
+evidence and current/expected owner baselines. Never restore older owner files.
+Auto VPN remains cancelled. Public preview5 does not contain the handoff patch.
 
 ## Acceptance continuation (2026-10-08)
 
@@ -44,7 +43,7 @@ VPN. Check current Git/router state before subsequent work.
 - Test helper corrections only: asynchronous graceful stop needs TUN disappearance
   wait; BusyBox sleep has no fractions and nc has no -w; CGI cold load exceeded
   short probe, static LAN HTTP used. These were test assumptions, no source fix.
-- Boot helper armed, no reboot result yet. Root owns live mutation/cleanup/docs;
+- Initial boot helper arm recorded before reboot. Root owns mutation/cleanup/docs;
   former native_device_checks/ui_finish/boot_checks sessions are gone.
 - Real early boot proof PASS exit0 after actual reboot before START95, no core/TUN:
   TCP1/ICMP2 attempts, VPN-to-WAN0, direct WAN exception16 packets + HTTPS success,
@@ -54,6 +53,8 @@ VPN. Check current Git/router state before subsequent work.
   boot-attempt1 retains that failure. Corrected helper records generated policy
   hash but gates on unchanged4configs and actual live classifier/guard packets.
   Second actual boot proof files STATE/boot.* contain PASS/counts/exit0.
+  Exact owned init service and startup links subsequently removed; all4 current
+  owner configs still byte-match pretest baseline after both reboots.
 - Before UI patch, all11 signed r5 payload hashes + versions and postboot WAN/VPN
   HTTPS/DNS PASS. LuCI CAPTCHA handoff source patch now installed OVER signed r5:
   Android direct-tap intent targets exact Helper package, secret-free same-origin
@@ -65,6 +66,39 @@ VPN. Check current Git/router state before subsequent work.
   passed and client PID unchanged. Browser relogin confirms connected72.
 - captcha_fix completed; ipv6_checks owns only ignored IPv6 helper preparation.
   Root owns integration/live testing/cleanup/docs/Git; recheck liveness on resume.
+- First routed IPv6 attempt stopped at positive HTTP403 from isolated uhttpd
+  without default index config (8 controlTCP packets passed fw4). No protection
+  PASS claimed. All4config bytes/policy hash unchanged. All temporary IPv6
+  routes/addresses/veth/ns/fw4 rules/observer removed and synthetic MAC restored;
+  helper cleanup reported0, likely its own child process reaping check. Agent
+  fixes explicit index.html URL and cleanup diagnostics before retry. Private
+  evidence acceptance5-ipv6-lAejlL; root prepared reviewed final-cleanup.sh.
+- Second actual routed IPv6 packet proof PASS before/after real fw4 reload:
+  unassigned TCP HTTP + UDP AAAA positive controls passed both phases; protected
+  TCP2/UDP1 ingress attempts each phase,0 packets past product guard, localIPv6
+  ping passed. Isolated documentation endpoint, no ISPIPv6 claim. All4configs
+  exact and policy hash unchanged. Helper exit1 only on cleanup checks for
+  missing client-neighbor/endpoint-alias identity; no product packet failure.
+  Independent root inspection confirmed all IPv6 aliases/routes/neighbors,
+  endpoint namespace/veth, scoped fw4 rules and observer gone, MAC restored.
+  Keep distinction between packet proof and helper exit. Private evidence
+  acceptance5-ipv6-fmChDp; STATE/ipv6-run.public-result.log/exit retained.
+- Reviewed final-cleanup.sh native sh-n PASS; actual cleanup exit0. Removed
+  exact cq_accept_wan then original owned toggle sections/ns/veth/198.19 alias/
+  resolver/pointer and exact synthetic ARP. Original helper exit1 was expected
+  newer-owner vs Oct6 export comparison; cleanup-complete existed. Final all4
+  config files byte-match Oct8 owner-expected copy, pending edits empty. Owner
+  rules5 preserved. Removed only test-added coreutils-timeout9.9-r2/kmod-veth
+  6.12.94-r1 after simulation proved exactly2 removals; unloaded veth, APK world
+  byte-match pretest. No temporary init/observer/accept/address/route/ns/link.
+  STATE/final-cleanup.public.log/exit0 retains proof; private logs stay private.
+- Final read-only final-health.sh native sh-n + real run exit0:10 signed r5
+  payload hashes, original signed overview backup hash and1source patch hash,
+  r5 package versions; connected72/no errors, owner groups1/devices2/rules5,
+  local+group DNS, WAN+VPN HTTPS and different exits all PASS. Served HTTP JS
+  hash also matches source. Source73 Node tests/17 LuCI passed before install;
+  no source changed afterward. No new compilation or public binary release.
+  captcha_fix/ipv6_checks completed; root owns next preview and real acceptance.
 
 ## Preview5 publication and signed upgrade (2026-10-06) — complete
 
@@ -387,7 +421,8 @@ works. scripts/export-github-tree.py exports committed delta to .work/publish-de
 Compare remote/local tree before fetch+softalign. Use labelled [skip ci] checkpoint
 commits and push dev, never move frozen release refs or claim checkpoints tested.
 
-Stable release remains gated by daily outage observation and real boot/crash,
-existing flows across policy changes, manualAndroidCAPTCHA and routedIPv6.
+Stable release remains gated by outage observation, failed first activation boot,
+manualAndroidCAPTCHA and remaining ACCEPTANCE scenarios. Real crash, normal early
+boot and synthetic routedIPv6 TCP/UDP packet proof are now recorded above.
 One active originalv2.1.9 tunnel; VPN traffic cannot fall back to WAN; explicitWAN
 exceptions and LANmanagement retained. No project-wide stable readiness claim.
