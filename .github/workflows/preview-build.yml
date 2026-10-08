@@ -1,7 +1,7 @@
-name: Preview 5 build
+name: Preview 6 build
 on:
   push:
-    branches: [codex/preview.5-build]
+    branches: [codex/preview.6-build]
 permissions:
   contents: read
   actions: read
@@ -168,7 +168,7 @@ jobs:
         id: packages
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
-          CSQTT_PACKAGE_RELEASE: '5'
+          CSQTT_PACKAGE_RELEASE: '6'
         run: bash scripts/build-sdk.sh
       - uses: actions/cache/save@v4
         if: always() && steps.sdk-cache.outputs.cache-hit != 'true'
@@ -194,12 +194,12 @@ jobs:
         with:
           name: sdk-build-diagnostics
           path: .work/sdk/*.log.gz
-      - name: Require signed revision 5 artifacts
+      - name: Require signed revision 6 artifacts
         run: |
           python3 - <<'PY'
           import json, pathlib
           root = pathlib.Path('dist')
-          expected = {'csqtt-0.1.0-r5.apk', 'csqtt-captcha-0.1.0-r5.apk', 'luci-app-csqtt-0.1.0-r5.apk'}
+          expected = {'csqtt-0.1.0-r6.apk', 'csqtt-captcha-0.1.0-r6.apk', 'luci-app-csqtt-0.1.0-r6.apk'}
           assert {p.name for p in root.glob('*.apk')} == expected, 'Unexpected package revisions'
           manifest = json.loads((root / 'manifest.json').read_text())
           assert {p['name'] for p in manifest['packages']} == expected, 'Unexpected manifest revisions'

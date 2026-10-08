@@ -6,8 +6,11 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Prepare the next preview containing the already-tested LuCI Helper handoff fix;
-follow BUILD.md and freeze new source/build refs, never move preview5 refs. Keep
+Prepare preview6 containing the already-tested LuCI Helper handoff fix; workflow
+now targets codex/preview.6-build and r6 only. Publish/freeze new source/build refs
+and record exact CI run before waiting; never move preview5 refs. Root owns refs/
+CI/publish/live, preview6_stage owns ignored .work/preview.6 verification helpers.
+Local Node release2/Python release4 and git diff--check passed. Keep
 the real Android/manual VK CAPTCHA gate pending until an actual challenge can be
 tested. Other remaining stable gates include failed first activation across boot,
 the unresolved ACCEPTANCE rows and outage observation. Do not force CAPTCHA or
