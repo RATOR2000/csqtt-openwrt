@@ -19,12 +19,26 @@ SSH r6 health72/groups1/devices2/rules5 and11signed hashes PASS. No live product
 changes. Officialkmod-veth no-cache simulation exactly1package6.12.94-r1 PASS;
 root prepares private provisioning backup and isolated native fixture, no owner
 policy edits or global service/fw4 calls. Go ARM64 bounded DNS probe compiled.
-Officialkmod-veth installed exactly1package (install log), module loaded. Private
-toolsstate=/etc/csqtt/backups/activation6-tools-20261008-155613-10661; world.before
-and4confighashes saved. Provision helper exited1 because bare apk query returned
-empty arrays; corrected all-package pattern, complete after-map saved. No other
-package change observed; do not claim complete preinstall package-map proof.
-Four ownerconfigs still hashmatch. Nativebefore/after helper is being prepared.
+Focused validation source9c481c3228728a9f0cf2658e2acccab0f984fc26 / CIcommit
+f1cf65ce34827207ed1ea44b8bef5df50b62934f, branchcodex/activation6-validation,
+run37805341273: checksPASS/nativeFAIL at TCPpositive control because fixture
+upstream served onlyUDP. Authenticated native-run1.log saved. Fixture now
+supports boundedTCP too; localtwo-address UDP/TCP/malformed/restart checksPASS.
+Only workflow differs from source on validation branch; no SDK/Rust/Android
+rebuild dispatched. Corrected focused CI is next, never rerun old failedSHA.
+Officialkmod-veth6.12.94-r1 andcoreutils-timeout9.9-r2 installed (each1package),
+private toolsstate=/etc/csqtt/backups/activation6-tools-20261008-155613-10661.
+world.before/4confighashes preserved. Initialprovisionexit1: bareapkquery gave
+emptyarrays, corrected all-package pattern; complete after-map retained. Do not
+claim complete preinstall package-map proof. All4ownerconfigshashmatch.
+Read-only independent helperreviewPASS. Nativeattempt1 stoppedbeforetests on
+missingstat; replaced withnativefs.stat. Attempt2 stopped on HTTPfixture
+canonicalpathhiddenbyprivateoverlay; visibleprivatedocroot fixed. Attempt3
+reproduced BEFOREDNSbypass afteractualnft-cfailure+fw4rebuild, then stoppedon
+releasefilecanonicalpath (no actual releaseproof). Changed nftreleaseinput to
+visible/private/etc/csqtt path. Allfailedattempts/evidence preserved; config and
+namespace cleanupverified. Attempt4 running, exactpath/results inlocal
+.work/activation6/router-run4.public.log oncecomplete. Rootownsnextactions.
 Actual failed-first-activation boot proof remains pending; do not claim that
 isolated firewall restoration equals a real boot. Manual Android/VK needs actual
 challenge. Auto VPN remains cancelled.

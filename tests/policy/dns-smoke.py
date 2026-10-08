@@ -106,18 +106,35 @@ def query(name, server="9.9.9.9", port=53, transport="udp"):
 def serve(address, binds):
     sockets = []
     for bind in binds:
-        listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        listener.bind((bind, 53))
-        sockets.append(listener)
+        for transport in (socket.SOCK_DGRAM, socket.SOCK_STREAM):
+            listener = socket.socket(socket.AF_INET, transport)
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            listener.bind((bind, 53))
+            if transport == socket.SOCK_STREAM:
+                listener.listen(16)
+            sockets.append(listener)
     print("ready", flush=True)
     while True:
         ready, _, _ = select.select(sockets, [], [])
         for listener in ready:
-            packet, peer = listener.recvfrom(4096)
-            try:
-                listener.sendto(dns_response(packet, address), peer)
-            except ValueError:
-                continue
+            if listener.type == socket.SOCK_STREAM:
+                client, _ = listener.accept()
+                with client:
+                    client.settimeout(2)
+                    try:
+                        size = struct.unpack("!H", receive(client, 2))[0]
+                        if size < 12 or size > 4096:
+                            raise ValueError("Invalid DNS TCP query size")
+                        response = dns_response(receive(client, size), address)
+                        client.sendall(struct.pack("!H", len(response)) + response)
+                    except (OSError, ValueError):
+                        continue
+            else:
+                packet, peer = listener.recvfrom(4096)
+                try:
+                    listener.sendto(dns_response(packet, address), peer)
+                except ValueError:
+                    continue
 
 
 def maintenance(out, namespaces):
