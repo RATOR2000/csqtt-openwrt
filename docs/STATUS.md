@@ -6,9 +6,13 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Prepare preview6 containing the already-tested LuCI Helper handoff fix; workflow
-now targets codex/preview.6-build and r6 only. Publish/freeze new source/build refs
-and record exact CI run before waiting; never move preview5 refs. Root owns refs/
+Complete already-dispatched preview6 CI37752081113, then verify exact artifacts,
+publish and test signed upgrade. Never dispatch a duplicate or move preview5 refs.
+Frozen source1d9c470dd89e7b820ff13c91fd3d7531181bfb9e,
+build e274bedca1a72d0d8e03073abf1838f4a809fe8d,
+tree5f1455bebd8fc49828e64e89354c3d7a816661f9,
+branch codex/preview.6-build; tag v0.1.0-preview.6/package r6. One run in_progress
+at08:46:35Z. .work/preview6-build.json retains exact dispatch metadata. Root owns refs/
 CI/publish/live, preview6_stage owns ignored .work/preview.6 verification helpers.
 Local Node release2/Python release4 and git diff--check passed. Keep
 the real Android/manual VK CAPTCHA gate pending until an actual challenge can be
