@@ -6,31 +6,68 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Complete already-dispatched preview6 CI37752081113, then verify exact artifacts,
-publish and test signed upgrade. Never dispatch a duplicate or move preview5 refs.
-Frozen source1d9c470dd89e7b820ff13c91fd3d7531181bfb9e,
-build e274bedca1a72d0d8e03073abf1838f4a809fe8d,
-tree5f1455bebd8fc49828e64e89354c3d7a816661f9,
-branch codex/preview.6-build; tag v0.1.0-preview.6/package r6. Single run:
-checks113227497194/native113227633654/core113227633836 success; SDK113228570283
-in_progress Native OpenWrt packages at08:52Z. .work/preview6-build.json retains
-exact dispatch metadata. Root owns refs/CI/publish/live and ignored .work/preview.6.
-preview6_stage completed helper adaptation/review;3 authenticated job logs and
-job-log-metadata.json saved. Partial release-config currently only build_sha/run_id
-for ci-status; fill complete exact artifact IDs/digests after SDK success. Reviewed
-release notes/title and revision-only upgrade/postcheck helpers prepared; no new
-assets/publish/r6 upgrade yet. Old r5 provenance/assets remain unchanged.
-Local Node release2/Python release4 and git diff--check passed. Keep
-the real Android/manual VK CAPTCHA gate pending until an actual challenge can be
-tested. Other remaining stable gates include failed first activation across boot,
-the unresolved ACCEPTANCE rows and outage observation. Do not force CAPTCHA or
-change owner devices merely to obtain a green result. No synthetic test state
-remains active; do not repeat boot/crash/IPv6 just to recover old tool sessions.
-Current router is signed r5 plus the source-patched overview.js, connected72,
-owner groups1/devices2/rules5. Check current Git/router state before mutations.
-STATE=/etc/csqtt/backups/device-toggle-test-20261006-132153.OmHlBi retains private
-evidence and current/expected owner baselines. Never restore older owner files.
-Auto VPN remains cancelled. Public preview5 does not contain the handoff patch.
+Review the failed-first-activation guard persistence path and prepare a scoped
+real boot proof that preserves current owner settings; fix any demonstrated gap.
+Manual Android Helper/VK CAPTCHA still needs an actual challenge. Do not force
+CAPTCHA or change owner devices for a green result. Other unresolved ACCEPTANCE
+rows and outage observation remain stable-release gates. Auto VPN is cancelled.
+
+Current router: signed preview6, all3 packages0.1.0-r6, connected72/no errors,
+owner groups1/devices2/rules5. No synthetic state remains. Four current owner
+config files unchanged by upgrade; never restore older owner backups. Recheck
+SSH/Git/current state before mutations. Do not repeat completed crash/normal
+boot/IPv6 proofs. Root owns integration/live/Git; preview6_stage and ipv6_checks
+completed. Recheck agent liveness before delegating.
+
+## Preview6 publication and signed upgrade (2026-10-08) — complete
+
+- Public prerelease:
+  https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.6
+  Frozen source1d9c470dd89e7b820ff13c91fd3d7531181bfb9e;
+  tag/build e274bedca1a72d0d8e03073abf1838f4a809fe8d;
+  tree5f1455bebd8fc49828e64e89354c3d7a816661f9;
+  branch codex/preview.6-build. Do not move frozen refs or dispatch duplicate CI.
+- Single run37752081113 success: checks113227497194, native113227633654,
+  core113227633836, SDK113228570283.75Node(73policy/LuCI+2release),4Python;
+  Rust353passed/0failed/7existing ignored plus focusedTURN1. Native ucode/DNS/
+  nftables, fresh SDK ARM64/LinuxTUN/offlineDNS tests passed.
+- Authenticated logs and exact archives verified; .work/preview.6 retains
+  release-config, provenance, assets, logs and helpers. OpenWrt artifact
+  11539109569 SHA2567d8b01b544f4ee8aadd0841ec486829dd8215d436adfedb39de27eb8d5a37b17;
+  Android11538572219 SHA256db0587b3a89fdfa1cdddd05c42f4b83d31c7d5f2791dd3ba1ba92afb49ee6d9b.
+- verify-build-tree/fetch-artifacts/prepare-release PASS: pinned3APK+manifest
+  signatures, exact frozen payloads/modes/licenses/dependencies,22packagedLuCI
+  and6packagedinit tests, compiled ARM64 feature proof, originalAndroid reuse.
+  Android/broker/installer/transport source unchanged. Initial prepare stopped
+  on one optional overview.js newline after '+' removed by SDK C jsmin.
+  Partial attempt retained; independent review approved exactly one separator
+  normalization with all remaining bytes compared. Fresh prepare passed;
+  no source/binary change or repeat CI. Provenance records the normalization.
+- All8 assets uploaded; verify-public-release PASS: exact tag/title/body/flags,
+  all8API sizes/digests and all8download hashes. provenance published=true and
+  public_download_verified=true. Initial upload autosave failed; explicit Save
+  draft allowed all8 to finish before Publish. No package bytes/ref changed.
+  Agent tab3 is public release deliverable; published-release.png saved.
+- SSH root/no pending edits, native helper sh-n PASS. Signed installer exit0,
+  installer SHA2561bf8b9270a973283e51ce21e10364fc1d6a3d1236ce9d69b625fdaf6f9caa9ad
+  matched published bytes; all3packages0.1.0-r6. All4files csqtt/dhcp/firewall/
+  network byte-match preupgrade. Private backup:
+  /etc/csqtt/backups/preview6-upgrade-20261008-092607-15078.
+  Never export raw configs/installer logs/diagnostics. Safe local upgrade log
+  .work/preview.6/router-upgrade.public.log and exit0 persist.
+- Read-only router-post-check exit0: all11signedr6 payload hashes, versions,
+  running/enabled/policies active, connected72/noerrors, groups1/devices2/rules5,
+  local/groupDNS example.com, WAN/VPN IPv4 HTTPS and different exits. Evidence
+  .work/preview.6/router-post-check.public.log/.exit. Fresh LuCI relogin shows
+  connected72, decimal units and policy protection; policies page has two enabled
+  owner checkboxes checked, no pending edits. Owner rows were not toggled.
+  Screenshot .work/preview.6/router-r6-overview.png saved. Actual Android
+  launch/manualVK remains pending.
+- README/BUILD/USAGE/PREVIEW_NOTES/ACCEPTANCE updated for verified preview6;
+  git diff--check PASS. Checkpoint is development evidence, not a stable release.
+- STATE=/etc/csqtt/backups/device-toggle-test-20261006-132153.OmHlBi retains
+  private earlier acceptance/current owner baselines. All synthetic objects,
+  temporary test packages and init hooks removed, as recorded below.
 
 ## Acceptance continuation (2026-10-08)
 
