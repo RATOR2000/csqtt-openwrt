@@ -1,0 +1,4 @@
+#!/bin/sh
+chmod 0755 /usr/libexec/rpcd/csqtt
+/etc/init.d/rpcd reload >/dev/null 2>&1 || true
+exit 0
