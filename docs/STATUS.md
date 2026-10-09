@@ -1,6 +1,6 @@
 # Development status — resume here
 
-Updated 2026-10-08. Read this first, then IMPLEMENTATION.md. Files, Git and CI
+Updated 2026-10-09. Read this first, then IMPLEMENTATION.md. Files, Git and CI
 are the source of truth. Preserve current owner configuration. Historical
 details are recoverable from Git; do not restart completed work.
 
@@ -10,6 +10,12 @@ Prepare a signed preview7 containing the verified maintenance DNS fix. No r7
 refs/build/run/artifacts exist yet: freeze source, change package release/workflow
 identity, dispatch exactly one build and verify signed assets before publication
 or upgrade. Preserve preview6 refs/assets and the current owner configuration.
+Workflow identity now prepared for codex/preview.7-build, release7/exact3APK gate;
+local77 Node/4Python tests and diff-check PASS. Freeze/push is next. SSH preflight
+read-only health exit0: ten signed r6 files+candidate policy, connected72, normal
+DNS/WAN/VPN and distinct exits PASS. No live changes on Oct9 yet.
+Root owns source/freeze/Git/live/publication; preview7_stage owns ignored
+.work/preview.7 helper adaptation only. Recheck liveness before delegation.
 Actual failed-first-activation boot and real Android Helper/manual VK remain
 separate pending stable-release gates. Do not force CAPTCHA or repeat completed
 normal boot/crash/routed IPv6 tests. Auto VPN remains cancelled.
