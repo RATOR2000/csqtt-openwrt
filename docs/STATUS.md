@@ -6,52 +6,65 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Finish the single preview7 build37927521094, verify authenticated logs/artifacts,
-then publish exact signed assets and upgrade only after gates pass. Frozen source
-a690ea728458e2b64fe46e42a8c965036b859313;
-build/tag55433d25d21601616a3a77b9343a8f8b04c88db6;
-tree06b0e9282a4b70154d52e667b40c65a2af675773;
-branchcodex/preview.7-build. No tag/public release yet; never move frozen build
-or dispatch duplicate CI. Source/build trees matched; Git clean after alignment.
-Workflow release7/exact3APK gate and local77Node/4Python/diff-check PASS.
-Rootmetadata .work/preview.7/build-source.json + discover-build.py + ci.json.
-Preserve preview6 refs/assets and current owner configuration. SSH preflight
-read-only health exit0: ten signed r6 files+candidate policy, connected72, normal
-DNS/WAN/VPN and distinct exits PASS. No live changes on Oct9 yet.
-Root owns source/freeze/Git/live/publication. preview7_stage completed ignored
-helpers and independent review: Python10/CJS2/sh-n2, strict new75/77 Node/4Python
-logs and5native markers,7missing-config refusals and5corrupt-log rejections PASS.
-Existing .work/preview.2/check-tools supplies PyYAML/jsmin; no install needed.
-Root reviewed/polished draft notes. Helpers pin11 signed payload hashes through
-provenance/manifest/transfer; postcheck checks both empty maintenance chains and
-exact saved release. Only helper evidence; signatures/publication still pending.
-Three fresh jobs passed: checks113809922470, native113810003827,
-core113810003875 (353/0failed/7ignored + focusedTURN1). SDK113810564239 running.
-Authenticated three logs and SHA metadata retained; SDK log is not fetched yet.
-preview7_stage now prepares ignored update-docs.py only; no tracked docs altered.
-IAB agent tab3 new-release form, target codex/preview.7-build and Pre-release
-selected; no tag/title/body/assets saved or published. Owner router tab2 intact.
-Recheck liveness before delegation.
-Actual failed-first-activation boot and real Android Helper/manual VK remain
-separate pending stable-release gates. Do not force CAPTCHA or repeat completed
-normal boot/crash/routed IPv6 tests. Auto VPN remains cancelled.
+Prepare the remaining stable-release proof: actual boot after failed first
+activation. Use signed r7 and the current owner configuration. Read the plan
+under .work/preview.7 if present and the boot/activation history below; build
+bounded fault/probe/rollback helpers before any live fault. Announce live
+operations. A namespace test or service restart is not an actual router boot.
+Real Android Helper/manual VK also remains pending; do not force CAPTCHA.
+Do not repeat completed normal boot/crash/routed IPv6 tests. Auto VPN is cancelled.
 
-Current router: signed preview6 packages0.1.0-r6 PLUS one development source
-patch, /usr/share/csqtt/policy.uc SHA256
-df6649c61ef6620c3a2bc2ef93bbe8089eacc9dc8001b7790c1c42304d11e059.
-Ten other payloads still exactly match signed r6. Do not call this a signed r7
-or claim all11 live files match public r6. Normal r6 installer would replace the
-patch; use exact development health manifest until a new signed upgrade.
-Current health: connected72/no errors, owner groups1/devices2/rules5, no pending
-edits, DNS and distinct WAN/VPN HTTPS exits PASS. No synthetic state/test packages
-remain. Preserve current settings; never restore older owner configuration.
+## Signed preview.7 complete (2026-10-09)
 
-Root owns live/integration/Git/STATUS. activation_audit completed helper/review;
-activation_proof_plan reviewed isolation and rollback lock. Recheck agent
-liveness before delegation. Exact recovery metadata/helpers remain ignored in
-.work/activation6; active private backup:
-/etc/csqtt/backups/activation6-deploy-20261008-162048-XXJCHHJI.
-Do not repeat apply: apply.completed exists, helper.exit/apply.exit0.
+Public: https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.7.
+Frozen source a690ea728458e2b64fe46e42a8c965036b859313;
+build/tag 55433d25d21601616a3a77b9343a8f8b04c88db6;
+tree 06b0e9282a4b70154d52e667b40c65a2af675773;
+branch codex/preview.7-build; single CI run 37927521094. Never move these refs
+or dispatch duplicate builds. Preserve earlier preview refs/assets.
+
+- All four jobs passed: checks113809922470, native113810003827,
+  core113810003875, SDK113810564239. Four authenticated logs and SHA provenance
+  retained in ignored .work/preview.7. OpenWrt artifact11615213664, ZIP SHA256
+  20f08ac3620efc55851da110ac9206b24e3dcc619c9618ccda63e4e6450081ff;
+  Android artifact11614583392, ZIP SHA256
+  7c17a300f72d2ef0242841aa9ba0589dd19985264df56e5ca07478d0b038cdf8.
+- Local 77 Node/4 Python/diff-check and fresh CI 75+2 Node/4 Python,
+  353 Rust/0 failed/7 existing ignored, focused TURN1, native ucode/DNS/network
+  IPv4/IPv6 first-activation maintenance fixtures, ARM64 startup/Linux TUN PASS.
+  fetch-artifacts/verify-build-tree/prepare-release exit0: pinned three APK and
+  manifest signatures, payload/source/modes/license/deps, 22 packaged UI and
+  6 packaged reload checks, unchanged installer and whole Android reuse PASS.
+- All eight staged assets uploaded before Publish. verify-public-release exit0:
+  exact tag commit/title/body/prerelease, API sizes/digests and all eight full
+  public downloads PASS. Provenance sets verified/published/public_download_verified
+  true. Installer SHA256 1bf8b9270a973283e51ce21e10364fc1d6a3d1236ce9d69b625fdaf6f9caa9ad.
+- Root announced upgrade. Signed installer and live postcheck both exit0.
+  csqtt/csqtt-captcha/luci-app-csqtt installed as 0.1.0-r7; current csqtt/dhcp/
+  firewall/network files byte-preserved. All eleven installed payload hashes
+  match signed APKs, including the previously deployed policy fix. Both live
+  maintenance chains are empty with expected hooks; saved hold exactly equals
+  the native empty two-chain release. Connected72/no errors, groups1/devices2/
+  rules5, primary/group DNS and distinct WAN/VPN HTTPS exits PASS.
+- Fresh LuCI login after rpcd restart shows connected72; no settings/toggles
+  changed. User tabs preserved. Agent tab3 public release marked deliverable.
+  Screenshots .work/preview.7/public-release.jpg and router-overview.jpg.
+- Gated update-docs.py executed only after public and live acceptance, then root
+  reviewed/polished all five docs. Root-owned run-router.py saves local public
+  logs/exits and remote completion markers. Persistent private current backup:
+  /etc/csqtt/backups/preview7-upgrade-20261009-123234-12943.
+  It retains current configs/private diagnostics plus readonly router-post-check.sh,
+  router-payloads.txt, upgrade/post-check public logs and zero exit files.
+  Do not restore older activation6 configurations or repeat either installation.
+
+Root owns Git/live/publication/STATUS. preview7_stage prepared ignored verification
+helpers, update-docs.py and reviewed upgrade/postcheck; independent review PASS.
+Helper checks Python10/CJS2/sh-n2, seven missing-config refusals, five corrupt-log
+rejections PASS. Existing .work/preview.2/check-tools supplies PyYAML/jsmin.
+preview7_stage is now preparing only an ignored actual-boot proof plan; no live/
+Git/tracked changes. Recheck liveness before delegation. Old activation agents
+are historical; .work/activation6 and its private backups remain intact.
+Current signed r7 health is the source of truth, not the earlier r6+source patch.
 
 ## Failed-activation maintenance DNS fix (2026-10-08)
 
