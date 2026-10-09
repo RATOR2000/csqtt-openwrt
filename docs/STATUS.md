@@ -6,12 +6,16 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Prepare a signed preview7 containing the verified maintenance DNS fix. No r7
-refs/build/run/artifacts exist yet: freeze source, change package release/workflow
-identity, dispatch exactly one build and verify signed assets before publication
-or upgrade. Preserve preview6 refs/assets and the current owner configuration.
-Workflow identity now prepared for codex/preview.7-build, release7/exact3APK gate;
-local77 Node/4Python tests and diff-check PASS. Freeze/push is next. SSH preflight
+Finish the single preview7 build37927521094, verify authenticated logs/artifacts,
+then publish exact signed assets and upgrade only after gates pass. Frozen source
+a690ea728458e2b64fe46e42a8c965036b859313;
+build/tag55433d25d21601616a3a77b9343a8f8b04c88db6;
+tree06b0e9282a4b70154d52e667b40c65a2af675773;
+branchcodex/preview.7-build. No tag/public release yet; never move frozen build
+or dispatch duplicate CI. Source/build trees matched; Git clean after alignment.
+Workflow release7/exact3APK gate and local77Node/4Python/diff-check PASS.
+Rootmetadata .work/preview.7/build-source.json + discover-build.py + ci.json.
+Preserve preview6 refs/assets and current owner configuration. SSH preflight
 read-only health exit0: ten signed r6 files+candidate policy, connected72, normal
 DNS/WAN/VPN and distinct exits PASS. No live changes on Oct9 yet.
 Root owns source/freeze/Git/live/publication; preview7_stage owns ignored
