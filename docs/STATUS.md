@@ -18,8 +18,20 @@ Rootmetadata .work/preview.7/build-source.json + discover-build.py + ci.json.
 Preserve preview6 refs/assets and current owner configuration. SSH preflight
 read-only health exit0: ten signed r6 files+candidate policy, connected72, normal
 DNS/WAN/VPN and distinct exits PASS. No live changes on Oct9 yet.
-Root owns source/freeze/Git/live/publication; preview7_stage owns ignored
-.work/preview.7 helper adaptation only. Recheck liveness before delegation.
+Root owns source/freeze/Git/live/publication. preview7_stage completed ignored
+helpers and independent review: Python10/CJS2/sh-n2, strict new75/77 Node/4Python
+logs and5native markers,7missing-config refusals and5corrupt-log rejections PASS.
+Existing .work/preview.2/check-tools supplies PyYAML/jsmin; no install needed.
+Root reviewed/polished draft notes. Helpers pin11 signed payload hashes through
+provenance/manifest/transfer; postcheck checks both empty maintenance chains and
+exact saved release. Only helper evidence; signatures/publication still pending.
+Three fresh jobs passed: checks113809922470, native113810003827,
+core113810003875 (353/0failed/7ignored + focusedTURN1). SDK113810564239 running.
+Authenticated three logs and SHA metadata retained; SDK log is not fetched yet.
+preview7_stage now prepares ignored update-docs.py only; no tracked docs altered.
+IAB agent tab3 new-release form, target codex/preview.7-build and Pre-release
+selected; no tag/title/body/assets saved or published. Owner router tab2 intact.
+Recheck liveness before delegation.
 Actual failed-first-activation boot and real Android Helper/manual VK remain
 separate pending stable-release gates. Do not force CAPTCHA or repeat completed
 normal boot/crash/routed IPv6 tests. Auto VPN remains cancelled.
