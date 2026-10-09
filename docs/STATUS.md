@@ -7,9 +7,11 @@ details are recoverable from Git; do not restart completed work.
 ## First unfinished action
 
 Prepare the remaining stable-release proof: actual boot after failed first
-activation. Use signed r7 and the current owner configuration. Read the plan
-under .work/preview.7 if present and the boot/activation history below; build
-bounded fault/probe/rollback helpers before any live fault. Announce live
+activation. Use signed r7 and the current owner configuration. Read
+.work/preview.7/failed-activation-boot-plan.md and the boot/activation history
+below. First build readonly preflight and persistent rollback helpers; verify
+independent unassigned LAN management, protected probe source and boot ordering.
+The full safe fault/reboot design remains unfinished. Announce live
 operations. A namespace test or service restart is not an actual router boot.
 Real Android Helper/manual VK also remains pending; do not force CAPTCHA.
 Do not repeat completed normal boot/crash/routed IPv6 tests. Auto VPN is cancelled.
@@ -61,8 +63,9 @@ Root owns Git/live/publication/STATUS. preview7_stage prepared ignored verificat
 helpers, update-docs.py and reviewed upgrade/postcheck; independent review PASS.
 Helper checks Python10/CJS2/sh-n2, seven missing-config refusals, five corrupt-log
 rejections PASS. Existing .work/preview.2/check-tools supplies PyYAML/jsmin.
-preview7_stage is now preparing only an ignored actual-boot proof plan; no live/
-Git/tracked changes. Recheck liveness before delegation. Old activation agents
+preview7_stage completed a 35-line ignored actual-boot proof plan; no actual
+fault/reboot or helper implementation. Root reviewed its unresolved assumptions.
+No live/Git/tracked changes by that agent. Recheck liveness before delegation. Old activation agents
 are historical; .work/activation6 and its private backups remain intact.
 Current signed r7 health is the source of truth, not the earlier r6+source patch.
 
