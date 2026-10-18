@@ -107,6 +107,12 @@ Auto VPN group switching remains cancelled; reliability recovery is separate.
   trees to authenticated ZIP bytes. No live mutation occurred. All agents
   finished; root owns publication/live. Next: complete SDK, verify signed r8,
   announce/install observe-only, controlled recovery, then72h observation.
+- Pre-release review found the lifecycle operation gate hid the admitted
+  recovery's UI state. Corrected display-only handling requires a fresh matching
+  running action/current process and retains Stop/other gate/epoch invalidation;
+  decision gates are unchanged. Focused recovery14 PASS; adds one regression.
+  Source2 packages are superseded before publication; next candidate needs
+  fresh104 policy/UI+2release checks, native ucode and SDK packages. No live change.
 
 ## Boot7 preparation in progress (2026-10-09)
 

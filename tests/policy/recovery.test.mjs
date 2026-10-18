@@ -144,6 +144,32 @@ test('public status immediately invalidates a prior healthy sample on Stop, take
   }
 });
 
+test('public recovery displays an admitted running stage while its own lifecycle lock gates decisions', () => {
+  for (const stage of ['soft_running', 'transport_running']) {
+    const state = { ...reserve(until(180), 180, 'soft'), stage,
+      reason: stage === 'soft_running' ? 'repairing_policy' : 'restarting_transport' };
+    const ctx = { ...base, now: 181, gate: 'operation_active' };
+    const view = api.health_public(state, ctx);
+    assert.equal(view.health.state, 'recovering');
+    assert.equal(view.recovery.state, 'recovering');
+    assert.equal(view.health.reason, state.reason);
+    assert.equal(view.recovery.attempts, 1);
+    assert.equal(advance(state, 181, { gate: 'operation_active' }).action, undefined);
+    assert.equal(reserve(state, 181, 'soft', { gate: 'operation_active' }), null);
+    for (const change of [{ gate: 'disabled' }, { gate: 'maintenance' }, { gate: 'human_active' },
+      { gate: 'pending_edits' }, { gate: 'status_stale' }, { intent: 'stop-request' },
+      { config_epoch: 'b'.repeat(64) }, { network_epoch: 'new-path' }, { process_epoch: 'new-process' },
+      { process: 'unknown' }, { process: 'fail' }, { now: 226 }, { now: 179 }]) {
+      const changed = api.health_public(state, { ...ctx, ...change });
+      assert.notEqual(changed.health.state, 'recovering', JSON.stringify(change));
+      assert.equal(changed.recovery.state, 'paused', JSON.stringify(change));
+    }
+  }
+  const idle = api.health_public(until(180), { ...base, now: 181, gate: 'operation_active' });
+  assert.equal(idle.health.state, 'unknown');
+  assert.equal(idle.recovery.state, 'paused');
+});
+
 function live(status = {}) {
   return { packages: { csqtt: { main: { '.type': 'client', enabled: '1' } } },
     services: { csqtt: { instances: { client: { running: true, pid: 901 } } } }, files: {

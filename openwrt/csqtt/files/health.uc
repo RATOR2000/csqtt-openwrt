@@ -119,25 +119,30 @@ export function health_complete(state, ctx, action, success) {
 	return state;
 }
 export function health_public(state, ctx) {
-	let good = state && state.version === 1 && state.boot_id === ctx.boot_id &&
+	let fresh = state && state.version === 1 && state.boot_id === ctx.boot_id &&
 		state.config_epoch === ctx.config_epoch && state.network_epoch === ctx.network_epoch &&
 		state.intent === ctx.intent && state.process_epoch === ctx.process_epoch &&
-		state.last_sample <= ctx.now && ctx.now - state.last_sample <= 45 && !ctx.gate;
+		state.last_sample <= ctx.now && ctx.now - state.last_sample <= 45;
+	// The admitted action itself owns the lifecycle lock. Show its saved stage
+	// while that is the only gate; admission and escalation still use ctx.gate.
+	let active = fresh && ctx.automatic && ctx.process === 'ok' && ctx.gate === 'operation_active' &&
+		state.state === 'recovering' && (state.stage === 'soft_running' || state.stage === 'transport_running');
+	let gate = active ? null : ctx.gate, good = fresh && !gate;
 	let states = ['healthy', 'degraded', 'wan_down', 'unknown', 'disabled', 'recovering', 'captcha_required'];
 	let reasons = ['awaiting_sample', 'disabled', 'human_active', 'maintenance', 'policy_error', 'guard_missing', 'pending_edits',
 		'operation_active', 'status_stale', 'configuration_changed', 'probe_uncertain', 'vpn_reachable', 'group_dns_failed',
 		'vpn_transport_failed', 'observe_only', 'hourly_limit', 'cooldown', 'repairing_policy',
 		'restarting_transport', 'waiting_after_policy', 'intent_changed', 'transport_restarted', 'recovery_failed'];
-	let reason = ctx.gate && h_has(reasons, ctx.gate) ? ctx.gate :
+	let reason = gate && h_has(reasons, gate) ? gate :
 		(good && h_has(reasons, state.reason) ? state.reason : 'awaiting_sample');
 	let phase = !ctx.automatic ? 'observing' : 'idle';
-	if (ctx.gate && ctx.automatic) phase = 'paused';
+	if (gate && ctx.automatic) phase = 'paused';
 	if (good && ctx.automatic) {
 		if (state.stage === 'soft_running' || state.stage === 'transport_running') phase = 'recovering';
 		else if (reason === 'cooldown') phase = 'cooldown';
 		else if (reason === 'hourly_limit') phase = 'limited';
 		else if (reason === 'waiting_after_policy' || state.failure_since != null) phase = 'waiting';
-		else if (ctx.gate) phase = 'paused';
+		else if (gate) phase = 'paused';
 	}
 	let age = good ? ctx.now - state.last_sample : 0;
 	let visible_state = ctx.gate === 'disabled' ? 'disabled' :
