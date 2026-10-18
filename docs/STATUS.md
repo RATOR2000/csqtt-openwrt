@@ -1,869 +1,134 @@
 # Development status — resume here
 
-Updated 2026-10-18. Read this first, then IMPLEMENTATION.md. Files, Git and CI
-are the source of truth. Preserve current owner configuration. Historical
-details are recoverable from Git; do not restart completed work.
-
-## First unfinished action
-
-Await corrected CI run39161176161, then build/publish/install signed preview.9 and
-acceptance followed by72hours observation. Reliability source is implemented;
-exact candidate, checks and next action are in the current checkpoint below.
-Owner reports several outages daily; Reconnect helps without solving CAPTCHA.
-The exact original daily outage cause is unproven. Preserve owner configuration.
-The deferred boot7 proof authorizes no live fault or reboot; announce all
-reliability live changes within the accepted reliability plan.
-Actual failed-first-activation boot and real Android/VK acceptance remain deferred
-stable-release gates. Do not repeat completed normal boot/crash/routed IPv6 tests.
-Auto VPN group switching remains cancelled; reliability recovery is separate.
-
-## Reliability implementation — current checkpoint (2026-10-18)
-
-CRITICAL: preview.8 was published, then WITHDRAWN after real installation exposed
-an untested ucode module export grammar error. All eight asset names now start
-withdrawn- (old installer/manifest URLs disabled); tag/build bytes are preserved.
-Never install r8 or call its native acceptance complete. Current live router is
-r8 plus a temporary source-only health.uc correction (six export terminators),
-connected72 before controlled acceptance, WAN/VPN/group DNS healthy, one client.
-Root enabled auto_recover=1 for the accepted bounded recovery test; no other
-configuration change was made. Source probe-only fault PASSED and is removed.
-Four config files byte-match current backup
-/etc/csqtt/backups/preview8-upgrade-20261018-193101-17695; signed r7 rollback
-assets/native signatures and rollback solver simulation PASS there. No reboot.
-The first rollback checksum helper had CRLF line endings and refused before
-install; normalized only that unsigned control file. Signed installer then exit0,
-three packages r8/four configs unchanged, but final diagnostics failed because
-health.uc export declarations needed };. Mocked/flattened CI fixtures hid this.
-Root fixed only health.uc atomically from source, native full runtime import PASS,
-guarded restart restored72. Hotfix is deliberately not represented as signed APK.
-Logs: .work/preview.8/router-upgrade.public.log, router-runtime-status.private.log,
-router-restore-ucode.public.log. .work/preview.8/provenance.json withdrawn=true,
-live_accepted=false. Public release title/body explicitly warn against install.
-
-Correction source: health.uc six }; terminators, real filesystem import regression
-tests/policy/native-health-import.uc called by native-policy CI BEFORE flattening,
-reliability-build package_release9. Focused Node runtime/recovery37, native
-fixture generation/sh-n PASS. The unchanged real import fixture was also copied
-to a private temporary router directory and ran successfully with all six exports:
-Native ucode health module import and exported recovery API passed.
-Correction checkpoint65be52bcbfdd97d1c02cbdcabf0a129106e261a7 is pushed.
-Source9 treebc6315f1d3c04ec41951113f84c60fb1c86cd9e7,
-build3d2ade5ec6ea9ced4e1dc6b7889d5f1a9bdef5df on validation branch2;
-run39159616158 checks/core/native/Android PASS, SDK117770357959 FAILED in the
-ARM64 Linux TUN fixture: daemon process ownership incorrect. No9 published,
-no OpenWrt artifact produced. Authenticated failed log .work/preview.9/sdk-failed.log;
-authenticated diagnostics12148612801 SHA256e9fa7eef3b12a3bd22ea98c1243fce4049408940a160467db0abec93d6b62e7f
-are decompressed in .work/preview.9/sdk-diagnostics. Root and active
-/root/final_recovery_review diagnosed the exact comparison: QEMU8.2.2 synthesizes
-/proc/self/stat AND /proc/<pid>/stat starttime from its later initialization
-clock; equality with host kernel startticks can pass by chance. Primary source:
-https://github.com/qemu/qemu/blob/v8.2.2/linux-user/syscall.c#L7632-L7720
-Correction uses /proc/<pid>/task/<pid>/stat, selecting the actual kernel TGID
-leader on native Linux and bypassing QEMU's fake-stat shortcut. Router readonly
-check confirms both native paths have identical leader ticks. Existing Rust
-ownership unit now also checks an independent kernel path and spawned thread;
-test count unchanged. Python exact PID/startticks/boot/freshness assertions remain
-strict; diagnostics contain only3 fixed booleans. Local90 invalid schema+3
-diagnostic regressions and py_compile PASS. Rust and ARM64 TUN await fresh CI.
-Both corrections (real health import and leader ticks) must pass before9 release.
-The new real module import passes both CI and the unchanged native router fixture.
-.work/preview.9 contains isolated verification scaffolding and four authenticated
-successful job logs; no old8 artifacts/provenance were reused. Full verification
-and publication remain blocked on the diagnosed SDK check. Preserve current auto_recover=1.
-Controlled source fault evidence: /tmp/csqtt-preview8-check/controlled.public.log
-and controlled.exit. At215s: one soft repair/one budget reservation, no transport
-restart yet, WAN/DNS ok, VPN fail,72workers, one configured client, guards checked
-every5s. At276s: one transport restart, exactly one cycle charged, no duplicate
-client; controller removed test table and exited0. Subsequent fresh observation
-shows connected72, healthy WAN/VPN/DNS and one client/one observer. Public proof:
-.work/preview.9/source-controlled-acceptance.public.log. This is SOURCE acceptance
-on the temporary r8+health.uc router, not signed9 acceptance. Fault matched only
-router-origin198.18.0.1TCP443, no forwarded LAN packet.
-Native SOURCE management acceptance also PASS exit0: manualStop produced0clients,
-enabled0/guards/budget retained; observer restart produced a fresh disabled sample
-and did not restart the client throughout the stopped observation; Start restored
-oneclient; unchanged Reload preserved PID:startticks, effective config and guards.
-Four configs byte-match the baseline after enabled restored1. The one charged
-attempt/last_action survived observer/client restart. Public evidence
-.work/preview.9/source-management.public.log. First preflight refused before any
-mutation on transient status_stale; bounded waiting for a fresh healthy baseline
-then allowed the test. This is not signed9/real Helper/VK or LAN packet acceptance.
-The first launcher refused before fault because nohup is absent; setsid with
-readiness/liveness checks is used instead. Do not use nohup on this router.
-Next: finish controlled recovery and Stop/Reload/observer budget checks; verify
-signed9, install with current settings, all15 payload hashes/rollback/native status;
-start router-local72h collection and infrequent followup (not started/completed).
-
-Root owns Git/integration/publication/live access. All producer/review agents
-finished; recheck liveness before delegation. Owner requests low token usage:
-reuse settled evidence, use focused checks, compact outputs and this summary.
-
-## Continuation — fresh preview9 candidate2 (2026-10-18 20:00UTC)
-
-Frozen product candidate source20d405f272ec24fdd4cb02780e6a9068e3274351,
-treef7ee0b0931e151f4c732bfe7e3949577d74ee893,
-build926a44f31caeb760df70d808eee53d6f715d0d8b on existing unpublished
-codex/reliability-full-20261018-2. Run39161176161 is in progress, not accepted.
-https://github.com/RATOR2000/csqtt-openwrt/actions/runs/39161176161
-It includes the real ucode import correction AND explicit kernel leader ticks.
-At20:01UTC new core117774641601, native117774641441 and checks117774641657
-PASS; Android117774641697 and SDK117774930559 are in progress. Successful
-job logs and signed artifacts still need the exact-head verification below.
-Current live readonly native leader-path equality PASS; management exit0, one
-client/observer,72workers, WAN/VPN/DNS healthy, enabled1/auto_recover1, one cycle.
-Keep this state while waiting. Review agent finished; no active producer remains.
-
-Heartbeat csqtt-preview9-72 is ACTIVE in this same chat, every20minutes while CI
-is pending; created to avoid token-heavy repeated waiting. It must continue the
-accepted plan without asking again. After signed9 acceptance and actual collector
-start, update THIS automation to24hour cadence. Notify only meaningful changes,
-failure, required action or completion; stop after full acceptance. A running
-desktop/PC is needed for local heartbeat work; router collector itself runs there.
-72H COLLECTION IS NOT STARTED. Never infer it from source/native tests alone.
-
-.work/preview.9/candidate.json pins the NEW candidate. Old logs, candidate and
-authenticated failed SDK diagnostics moved to failed-candidate1/; old paths above
-are historical. No new successful job logs/artifacts/config/provenance yet.
-Scaffolding candidate2 references updated in notes, early-modes.sh and finalize-ci.
-Do not reuse any failed-run or withdrawn8 log, APK or provenance for new proof.
-Pinned public PEM SHA25639259baf94d83602c784b103506445cd7e26ec9c3635cc277b90ff31fe4d4bac.
-
-Concrete continuation (all authorized):
-1. One compact GitHub jobs query for39161176161. If still pending, no raw logs or
-   repeated audits. On failure diagnose exact cause, retain logs/checkpoint. On5
-   successes fetch authenticated logs to checks/core/native/sdk/android-success.log;
-   save ci.json normalized names checks/core/native-policy/openwrt/android and exact
-   run/head. finalize-ci.py binds log IDs/digests. Native log must show the real
-   filesystem health module import success; SDK must show exact ownership/TUN PASS.
-2. Get fresh OpenWrt+Android artifact metadata/id/digest/size/head, write frozen
-   release-config.json; obtain ephemeral download URLs via connector (never print)
-   and downloads.json, run fetch-artifacts.py. Run verify-build-tree.py. To obtain
-   native early-mode proof BEFORE prepare-release requires extracted core, run
-   extract-smoke-core.cjs (pinned signed manifest +wholeAPK hashes first); copy its
-   candidate-client to private /tmp/csqtt-preview9-check, run early-modes.sh with
-   exactELFsha; save fixed public JSON to arm64-early-modes.json. It verifies no
-   device-id or live client PID change. Then prepare-release.py on empty staging
-   validates all signatures/frozen payloads/104source+25packedUI+6reload/376Rust.
-   Do not rerun preparation over partial extracted/signatures/assets; preserve
-   failed directories within verified workspace path first if repair needed.
-3. Publish verified8assets/newtag9 targeting exact build926a44f; public verify
-   all8 downloads, API sizes/digests/tag/title/body via verify-public-release.py.
-   Browser tab2 has an UNSAVED new9 form (tag9, branch2, pre-release, title only);
-   it is not a release. Recheck target current commit before publication. Tab3
-   still shows the superseded failed SDK. User tab1preview1 must be preserved.
-4. create-router-manifest.py; stage-router.py copies reviewed helpers/public r7
-   rollback, root must copy router-payloads too. run-router.py upgrade requires
-   verified published provenance and runs only verified public9installer. It backs
-   up current4configs and budget, persists signed7rollback+publickeys, checks3r9
-   versions,4unchanged configs, preserved rolling limits and3native simulated
-   r9-to-r7 downgrades. Then post-check all15payloads/status/groupDNS/guards and
-   distinct WAN/VPN HTTPS exits. Keep native actual import proof. Auto1 stays1.
-5. Only after signed9 passes, create private
-   /etc/csqtt/backups/preview9-acceptance-<timestamp>, copy reviewed collect72.sh and
-   live-state.uc there. Launch with setsid (NO nohup), verify collector.ready,
-   collector.pid/cmdline and liveness/exit; do not reset an existing window. Save
-   .work/preview.9/acceptance.json {remote_directory:<exactpath>} and run readonly
-   check-acceptance.py: bounded redacted evidence, sameboot, livecollector or
-   finished72h marker. Update STATUS exact start/deadline and heartbeat cadence.
-   Real72h/complete evidence review remains required. Source defaultauto remains0
-   until acceptance; live ownerflag1 is intentional. Boot7/AndroidVK gates deferred.
-
-SSH scripts must use LF bytes through Python subprocess input; PowerShell raw
-pipeline addsCR; router has setsid, no nohup. BundledPython absolute path is
-C:/Users/Alexander/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe.
-Git push via connector tree/commit/ref and export-github-tree.py, credential-free
-fetch+tree equality+update-ref; no ordinary push/GCM. Keep dev commits skipci;
-validation commit parentdev+previousvalidation parent keeps branch cache history.
-
-Historical withdrawn8 source dc1b4fe050ca82fabcc73bc95ff544c500c78ba6.
-Final candidate4 build31d3e1e2fbbe7c489b50b4ee2b469866dc5ea248,
-tree46515ac303c4438d5427f7cd53b6f3e85012778b.
-Validation branch codex/reliability-full-20261018-2 was advanced (unpublished)
-with a second parent preserving fast-forward history, to reuse its saved caches.
-Run39135663354: checks117699541242, core117699541532,
-native117699541634, Android117699541487 and SDK117699919391 PASS.
-All five authenticated logs, exact build tree and signed staging verified.
-
-Implemented in source: auth network permit released during CAPTCHA wait;
-cohort single-flight, unclaimed60s retry, explicit Helper takeover, stale-answer
-rejection, atomic90s recovery lease. Original READY liveness/protocol retained.
-Private PID/startticks/boot-clock status, redacted counters/incidents;
-root-only early --health-probe/--control-request/--recovery-step before identity.
-VPN DNS/HTTPS binds198.18.0.1 AND csqtt0. Fixed two TLS targets, bounded replies,
-no proxy/redirect/system DNS. Independent30s procd observer; confirmed180s failure
-then guarded soft repair, fresh30s failure before transport restart; cycles300s
-apart/max3 rollinghour survive observer/client respawn this boot. Lifecycle lock
-precedes procd lock; queued Stop/config/maintenance/Helper cancel admission.
-Prepared start avoids duplicate policy preparation; bounded70s/remaining-lease
-workers reap descendants. LuCI health/recovery and auto_recover default0.
-A missing/stale core cannot fabricate admission; process exits remain procd's job.
-
-Completed checks:
-- Local policy/LuCI/release105 before last display regression; focused recovery14
-  after it. CI candidate3 confirms104policy/UI+2release+7installer+4Python,
-  95named regressions. Candidate4 authenticated logs confirm all those checks,
-  Rust376pass/0fail/7existing ignored, focusedTURN1, native ucode/DNS/IPv4/IPv6
-  and Android PASS. Five logs and full metadata are in .work/preview.8.
-- Lifecycle/reload18 real separate-process checks PASS; six shell syntax checks,
-  diff-check PASS. Installed router's readonly rc.common confirms lock order.
-- Native ucode runtime with fully in-memory fs/UCI/ubus adapters PASS on router
-  (no files/policy/services changed), including180s/reserve/soft30s/transport.
-- SDK fixture now validates exact private status/19-field health, kernel
-  PID/startticks/bootID/boottime. Embedded90 invalid/2valid schema cases and
-  py_compile PASS locally; updated native ARM64/TUN fixture PASS in candidate4.
-- Current readonly live router: signed r7, one configured process, connected72,
-  no CAPTCHA, no observer (baseline BEFORE withdrawn r8 installation above).
-
-Prior failed candidates are superseded, not releases:
-- Boot7 materials saved in checkpoint ee557fd5dbf66c20466916ca76c9f30402aa7a90.
-  Auth/probe partial Rust39108663550:371pass/1failed/7ignored; fixed dropped test
-  receiver. SDK39108667411 lacked lifecycle payload in the partial checkpoint.
-  Logs .work/reliability/job-117619879620.log and job-117620208861.log.
-- Run39133207038 native failed ucode forward function binding; declaration
-  ordering fixed/native checked. Log .work/reliability/native-full1.log.
-- Run39133559601 SDK117693811946 reached payload/signature metadata + ARM64
-  smoke, then old exact status fixture rejected new private fields. Log
-  .work/preview.8/superseded-run2/sdk-failed.log. SDK/cargo caches saved.
-- Candidate3 sourceb991f2e/build587bd1e/run39134602447 has the same old ARM64
-  fixture and cannot release. Its four authenticated successful logs and
-  verified Android ZIP are in .work/preview.8/superseded-run3.
-- Display-only recovery gate bug fixed: a fresh matching admitted running stage
-  may show recovering while owning lifecycle lock. Other gates/epochs/Stop and
-  decision admission remain unchanged; recovery14 includes regression.
-
-Release staging is ignored .work/preview.8, candidate.json identifies candidate4.
-Helpers bind source/build tree, five authenticated logs, pinned public key,
-three APK+manifest signatures, exact extracted ZIP bytes,15 installed payloads,
-25packaged UI/6reload tests and eight assets PASS; provenance verified=true,
-published=false. OpenWrt artifact12140106370 ZIP
-sha256:6799f48895fe8471ccf8728b5b99b7860ced0494d79e2593f16c031ea73dbdc2;
-Android12139906067 ZIP
-sha256:6cf3507e45a6ec17b71b23d0edee6ed42a88b63bfaeaa8d32b891f9451f983d7.
-Initial local compiled-string check failed because optimized CLI comparisons
-contain no contiguous flag strings; replaced by native ARM64 execution of all
-three early modes against invalid input, no identity/client mutation. One helper
-used an old identity filename and one PowerShell pipe appended CR after success;
-corrected device-id path and exact Python byte transport then exit0. Evidence
-arm64-early-modes.json; previous extracted attempt preserved in staging-attempt1.
-Browser tab2: UNSAVED release form targets codex/reliability-full-20261018-2,
-no tag selected; final tag must resolve candidate4 exact buildSHA above.
-Controlled-fault.sh is root-reviewed but NOT RUN: only router-origin198.18.0.1
-TCP443 (no forwarded LAN match), independent450s cleanup, config/intent refusal.
-live-state.uc parsed readonly on r7. All private evidence/URLs stay ignored.
-Six signed/public-verified r7 rollback files rehashed/staged in rollback7/;
-upgrade helper will save/verify them privately and simulate a rollback after r8.
-collect72.sh is prepared (not started): fixed redacted states/counts,10s sampling,
-event/10min heartbeat writes,72h/2MiB bounds; no raw config/identity or log copying.
-
-The candidate4 publication/staging facts below are historical evidence, not
-installation acceptance. Follow the correction/next actions at the top of this
-section. Do not claim72h or stable release.
-
-## Boot7 preparation in progress (2026-10-09)
-
-- Readonly signed-r7 postcheck passed again: eleven installed hashes, four
-  unchanged config files, connected72, empty maintenance chains, saved release,
-  primary/group DNS and distinct WAN/VPN HTTPS. LuCI also shows connected72.
-- Native readonly preflight passed. Actual SSH LAN socket/route, router ARP and
-  neighbor facts match the active physical Windows NIC; management has no active
-  assignment. Private facts were supplied only in memory, never printed/saved in
-  source. No pending edits. Firewall19 precedes DNS94/client95.
-- First preflight attempt exposed a helper-only POSIX regex mismatch; fixed the
-  route interface parser. Both initial refusal and corrected exit0 are retained
-  under ignored .work/boot7. No product source was changed.
-- Native ARM64 fw4 missing-full-files check passed inside a private mount
-  namespace: saved hold included, absent full includes skipped, nft-c accepted.
-  All four owner configs byte-matched afterward. This was print/check only,
-  not a ruleset load or reboot. Private fixture /tmp/boot7-mount-proof remains;
-  its mount namespace has exited. Evidence .work/boot7/fw4-missing.public.log.
-- Static probe/preflight/recovery/fw4-check helpers are being moved to
-  tests/router/boot7 so future sessions can resume from source alone. Bounded
-  UDP/TCP DNS parser fixtures and Windows/ARM64 crossbuilds passed; root reran
-  explicit-file Go tests (PASS). A blocked probe requires passive ingress proof.
-  Generated binaries/private evidence remain ignored.
-- No temporary device, changed startup, armed recovery, live policy fault or
-  reboot has occurred. Persistent recovery/native checks and real-host protected
-  client fixture are still unfinished; complete these before fault/reboot.
-- Root owns integration/live/Git/STATUS. boot7_fault_review is improving recovery
-  phase resume in recovery.sh; boot7_preflight is preparing passive observation
-  in observe.sh. Both are source-only; recheck liveness before reassigning.
-
-## Signed preview.7 complete (2026-10-09)
-
-Public: https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.7.
-Frozen source a690ea728458e2b64fe46e42a8c965036b859313;
-build/tag 55433d25d21601616a3a77b9343a8f8b04c88db6;
-tree 06b0e9282a4b70154d52e667b40c65a2af675773;
-branch codex/preview.7-build; single CI run 37927521094. Never move these refs
-or dispatch duplicate builds. Preserve earlier preview refs/assets.
-
-- All four jobs passed: checks113809922470, native113810003827,
-  core113810003875, SDK113810564239. Four authenticated logs and SHA provenance
-  retained in ignored .work/preview.7. OpenWrt artifact11615213664, ZIP SHA256
-  20f08ac3620efc55851da110ac9206b24e3dcc619c9618ccda63e4e6450081ff;
-  Android artifact11614583392, ZIP SHA256
-  7c17a300f72d2ef0242841aa9ba0589dd19985264df56e5ca07478d0b038cdf8.
-- Local 77 Node/4 Python/diff-check and fresh CI 75+2 Node/4 Python,
-  353 Rust/0 failed/7 existing ignored, focused TURN1, native ucode/DNS/network
-  IPv4/IPv6 first-activation maintenance fixtures, ARM64 startup/Linux TUN PASS.
-  fetch-artifacts/verify-build-tree/prepare-release exit0: pinned three APK and
-  manifest signatures, payload/source/modes/license/deps, 22 packaged UI and
-  6 packaged reload checks, unchanged installer and whole Android reuse PASS.
-- All eight staged assets uploaded before Publish. verify-public-release exit0:
-  exact tag commit/title/body/prerelease, API sizes/digests and all eight full
-  public downloads PASS. Provenance sets verified/published/public_download_verified
-  true. Installer SHA256 1bf8b9270a973283e51ce21e10364fc1d6a3d1236ce9d69b625fdaf6f9caa9ad.
-- Root announced upgrade. Signed installer and live postcheck both exit0.
-  csqtt/csqtt-captcha/luci-app-csqtt installed as 0.1.0-r7; current csqtt/dhcp/
-  firewall/network files byte-preserved. All eleven installed payload hashes
-  match signed APKs, including the previously deployed policy fix. Both live
-  maintenance chains are empty with expected hooks; saved hold exactly equals
-  the native empty two-chain release. Connected72/no errors, groups1/devices2/
-  rules5, primary/group DNS and distinct WAN/VPN HTTPS exits PASS.
-- Fresh LuCI login after rpcd restart shows connected72; no settings/toggles
-  changed. User tabs preserved. Agent tab3 public release marked deliverable.
-  Screenshots .work/preview.7/public-release.jpg and router-overview.jpg.
-- Gated update-docs.py executed only after public and live acceptance, then root
-  reviewed/polished all five docs. Root-owned run-router.py saves local public
-  logs/exits and remote completion markers. Persistent private current backup:
-  /etc/csqtt/backups/preview7-upgrade-20261009-123234-12943.
-  It retains current configs/private diagnostics plus readonly router-post-check.sh,
-  router-payloads.txt, upgrade/post-check public logs and zero exit files.
-  Do not restore older activation6 configurations or repeat either installation.
-
-Root owns Git/live/publication/STATUS. preview7_stage prepared ignored verification
-helpers, update-docs.py and reviewed upgrade/postcheck; independent review PASS.
-Helper checks Python10/CJS2/sh-n2, seven missing-config refusals, five corrupt-log
-rejections PASS. Existing .work/preview.2/check-tools supplies PyYAML/jsmin.
-preview7_stage completed a 35-line ignored actual-boot proof plan; no actual
-fault/reboot or helper implementation. Root reviewed its unresolved assumptions.
-No live/Git/tracked changes by that agent. Recheck liveness before delegation. Old activation agents
-are historical; .work/activation6 and its private backups remain intact.
-Current signed r7 health is the source of truth, not the earlier r6+source patch.
-
-## Failed-activation maintenance DNS fix (2026-10-08)
-
-- Native failed first apply exposed a gap: saved hold guarded forwarding only,
-  allowing new protected LAN DNS through primary dnsmasq. policy.uc now guards
-  INPUT TCP/UDP53 and5400-5415 for the union of old/new held LAN/MAC assignments.
-  Atomic release flushes both maintenance chains. DNS including local names
-  pauses during maintenance; normal active/VPN-down local DNS is unchanged.
-  Router-origin, loopback, unassigned clients and management by IP remain usable.
-- Source checkpoint9c481c3228728a9f0cf2658e2acccab0f984fc26: compiler, two
-  regressions, native DNS/network fixtures and implementation contract.75 local
-  policy/LuCI Node tests, Python compilation and diff-check PASS. Source and
-  corrected TCP fixture checkpoint745e801 pushed; remote/local trees matched.
-- First focused run37805341273: checks PASS, native FAIL at TCP positive control
-  because synthetic upstream served only UDP. Corrected fixture supports bounded
-  TCP too. Local two-address UDP/TCP, malformed-length, follow-up and restart
-  checks PASS. Authenticated native-run1.log retained. Do not rerun failed SHA.
-- Corrected focused run37806843287 completed SUCCESS: checks113413237947 and
-  native113413329825.77 Node tests and4 Python release tests PASS. Native ucode
-  parser/control/redaction, DNS lifecycle, maintenance TCP/UDP IPv4/IPv6 with
-  zero WAN recursion, normal DNS paths/sets/local names and packet routing/
-  tunnel-down/IPv6 guards PASS. Authenticated checks-run2.log/native-run2.log
-  retained under ignored .work/activation6. Product source matches the pushed
-  checkpoint; only workflow differs on the validation branch.
-- Actual ARM64 router proof attempt4 exit0:
-  /etc/csqtt/backups/activation6-20261008-160743-XXbbJOhi.
-  Isolated network+mount namespaces used native installed manage/runtime/ucode/
-  dnsmasq/nft/fw4 and private ubusd/UCI/runtime/state; no test link joined real LAN.
-  BEFORE was exact signed r6, AFTER overlaid only candidate policy.uc privately.
-  Genuine nft-c type rejection occurred after saved hold but before full policy
-  or DNS context existed. BEFORE protected UDP/TCP53/5400 queries reached the
-  isolated upstream and answered; AFTER each had actual ingress,0 upstream
-  packets and no answer. Same results after private fw4 restored saved include.
-  Unassigned/router DNS, LAN ping/HTTP, forwarded-packet controls and atomic
-  release restoring all four DNS probes PASS. Host configs/world/payloads,
-  namespace identities/links and transport PID matched before/after.
-  Safe counts: .work/activation6/router-run4.public.log and exit0.
-- Attempts1-3 stopped on helper assumptions (missing stat, private HTTP path,
-  private nft release path); all retained, owner config/namespace cleanup checked.
-  They were not product regression results. Corrected attempt4 completed both
-  variants. Independent isolation/cleanup helper review PASS.
-- Only official kmod-veth6.12.94-r1 and coreutils-timeout9.9-r2 were temporarily
-  added, then removed after exact two-package simulation. Module unloaded;
-  APK world byte-matched original and complete after-map minus those two matched
-  final packages. Private tools evidence:
-  /etc/csqtt/backups/activation6-tools-20261008-155613-10661.
-  Initial bare apk query produced empty arrays; corrected wildcard map retained.
-  Do not claim a complete preinstall package-map proof.
-- Live development patch deployed exit0 over signed r6 after native preflight
-  and independent helper review. Only policy.uc replaced atomically; managed
-  init reload succeeded. All4 config bytes, APK world, client.json, generated
-  policy files and exact transport PID/startticks/executable/argv preserved.
-  Ten signed r6 payload hashes plus candidate hash verified; both live maintenance
-  chains have0rules/expected hooks/priority and saved hold equals empty release.
-  DNS-ready, local/group DNS, WAN/VPN IPv4 HTTPS and distinct exits PASS. Repeated
-  read-only development postcheck exit0; LuCI Overview connected72, protection
-  enabled. Screenshot .work/activation6/router-after-policy.jpg.
-  Public apply counts/exit0 saved locally and in private backup above.
-  Helper SHA256 fd36624208c65dc5ee8166928181b5932341e3f418eafdb95052262b288d762c.
-  Rollback was reviewed but NOT executed. It restores signed policy only,
-  retries old managed apply, then under owned policy lock verifies state/DNS and
-  pinned two-chain release before clearing/persisting it. Old r6 release alone
-  cannot flush the new maintenance_dns chain. Never manually flush guards before
-  successful apply/readiness; inspect lock/process/private evidence on failure.
-- Actual failed-first-activation BOOT remains pending: isolated fw4 restoration
-  is not a router reboot. Real Android Helper launch/manual VK challenge and
-  remaining ACCEPTANCE gates remain pending. Do not repeat completed normal
-  early boot/crash/routed IPv6 proofs or force an actual CAPTCHA.
-
-## Preview6 publication and signed upgrade (2026-10-08) — complete
-
-- Public prerelease:
-  https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.6
-  Frozen source1d9c470dd89e7b820ff13c91fd3d7531181bfb9e;
-  tag/build e274bedca1a72d0d8e03073abf1838f4a809fe8d;
-  tree5f1455bebd8fc49828e64e89354c3d7a816661f9;
-  branch codex/preview.6-build. Do not move frozen refs or dispatch duplicate CI.
-- Single run37752081113 success: checks113227497194, native113227633654,
-  core113227633836, SDK113228570283.75Node(73policy/LuCI+2release),4Python;
-  Rust353passed/0failed/7existing ignored plus focusedTURN1. Native ucode/DNS/
-  nftables, fresh SDK ARM64/LinuxTUN/offlineDNS tests passed.
-- Authenticated logs and exact archives verified; .work/preview.6 retains
-  release-config, provenance, assets, logs and helpers. OpenWrt artifact
-  11539109569 SHA2567d8b01b544f4ee8aadd0841ec486829dd8215d436adfedb39de27eb8d5a37b17;
-  Android11538572219 SHA256db0587b3a89fdfa1cdddd05c42f4b83d31c7d5f2791dd3ba1ba92afb49ee6d9b.
-- verify-build-tree/fetch-artifacts/prepare-release PASS: pinned3APK+manifest
-  signatures, exact frozen payloads/modes/licenses/dependencies,22packagedLuCI
-  and6packagedinit tests, compiled ARM64 feature proof, originalAndroid reuse.
-  Android/broker/installer/transport source unchanged. Initial prepare stopped
-  on one optional overview.js newline after '+' removed by SDK C jsmin.
-  Partial attempt retained; independent review approved exactly one separator
-  normalization with all remaining bytes compared. Fresh prepare passed;
-  no source/binary change or repeat CI. Provenance records the normalization.
-- All8 assets uploaded; verify-public-release PASS: exact tag/title/body/flags,
-  all8API sizes/digests and all8download hashes. provenance published=true and
-  public_download_verified=true. Initial upload autosave failed; explicit Save
-  draft allowed all8 to finish before Publish. No package bytes/ref changed.
-  Agent tab3 is public release deliverable; published-release.png saved.
-- SSH root/no pending edits, native helper sh-n PASS. Signed installer exit0,
-  installer SHA2561bf8b9270a973283e51ce21e10364fc1d6a3d1236ce9d69b625fdaf6f9caa9ad
-  matched published bytes; all3packages0.1.0-r6. All4files csqtt/dhcp/firewall/
-  network byte-match preupgrade. Private backup:
-  /etc/csqtt/backups/preview6-upgrade-20261008-092607-15078.
-  Never export raw configs/installer logs/diagnostics. Safe local upgrade log
-  .work/preview.6/router-upgrade.public.log and exit0 persist.
-- Read-only router-post-check exit0: all11signedr6 payload hashes, versions,
-  running/enabled/policies active, connected72/noerrors, groups1/devices2/rules5,
-  local/groupDNS example.com, WAN/VPN IPv4 HTTPS and different exits. Evidence
-  .work/preview.6/router-post-check.public.log/.exit. Fresh LuCI relogin shows
-  connected72, decimal units and policy protection; policies page has two enabled
-  owner checkboxes checked, no pending edits. Owner rows were not toggled.
-  Screenshot .work/preview.6/router-r6-overview.png saved. Actual Android
-  launch/manualVK remains pending.
-- README/BUILD/USAGE/PREVIEW_NOTES/ACCEPTANCE updated for verified preview6;
-  git diff--check PASS. Checkpoint is development evidence, not a stable release.
-- STATE=/etc/csqtt/backups/device-toggle-test-20261006-132153.OmHlBi retains
-  private earlier acceptance/current owner baselines. All synthetic objects,
-  temporary test packages and init hooks removed, as recorded below.
-
-## Acceptance continuation (2026-10-08)
-
-- User reported CAPTCHA opened blank browser page; Helper did not launch.
-  Reconnect helped. Root delegated LuCI handoff fix/tests to captcha_fix;
-  no real CAPTCHA success claimed. Recheck agent liveness on resume.
-- SSH current connected72. Oct6 synthetic group/device/1.1.1.1 WAN rule and
-  cq-toggle-test namespace still existed after interruption; owner active devices2
-  plus synthetic1. Official test-only kmod-veth6.12.94-r1/coreutils-timeout9.9-r2
-  remain installed; world.before under acceptance5-tools-20261006 private backup.
-- Prior controlled stop packet evidence:4 ICMP/TCP attempts,0WAN passes;
-  fresh DNS query1/guarded-source WAN0; direct1.1.1.1 HTTPS and LAN ping/HTTP
-  succeeded. Service recovered72. Original command session lost at interruption;
-  count evidence retained but do not invent its final exit code. Current config
-  has newer owner edits; dhcp/firewall/network unchanged against stop backup.
-- One real SIGKILL crash test PASS exit0 in16s on signed r5 binary. Strict
-  PID/startticks/exe/argv/hash validation before signal, TUN disappeared;
-  real ICMP1/TCP2 ingress attempts,0WAN egress, guards/unreachable retained,
-  LAN available. procd new process recovered72 + VPN HTTPS. Four configs exact
-  against current precrash copies, no pending edits, passive observer removed.
-  Private evidence /etc/csqtt/backups/acceptance5-crash-EImneD;
-  STATE/crash-run.public-result.log + crash-run.exit persist safe result.
-- Test helper corrections only: asynchronous graceful stop needs TUN disappearance
-  wait; BusyBox sleep has no fractions and nc has no -w; CGI cold load exceeded
-  short probe, static LAN HTTP used. These were test assumptions, no source fix.
-- Initial boot helper arm recorded before reboot. Root owns mutation/cleanup/docs;
-  former native_device_checks/ui_finish/boot_checks sessions are gone.
-- Real early boot proof PASS exit0 after actual reboot before START95, no core/TUN:
-  TCP1/ICMP2 attempts, VPN-to-WAN0, direct WAN exception16 packets + HTTPS success,
-  LAN ping available; unchanged4configs, normal connected72 afterward. First
-  attempt stopped on policy.nft hash difference from legitimate netifd hotplug
-  regeneration (benchmark alias disappears at boot); configs were exact. Private
-  boot-attempt1 retains that failure. Corrected helper records generated policy
-  hash but gates on unchanged4configs and actual live classifier/guard packets.
-  Second actual boot proof files STATE/boot.* contain PASS/counts/exit0.
-  Exact owned init service and startup links subsequently removed; all4 current
-  owner configs still byte-match pretest baseline after both reboots.
-- Before UI patch, all11 signed r5 payload hashes + versions and postboot WAN/VPN
-  HTTPS/DNS PASS. LuCI CAPTCHA handoff source patch now installed OVER signed r5:
-  Android direct-tap intent targets exact Helper package, secret-free same-origin
-  Overview fallback; desktop manual-copy flow avoids unsupported scheme navigation.
-  Pairing wipe/expiry remains. Source73 Node tests PASS including17 LuCI cases;
-  independent review PASS. Actual browser blank cause not reproduced, no real
-  Android/VK success claimed. Broker/Android/core unchanged. Private original
-  overview.r5.js under /etc/csqtt/backups/captcha-handoff-20261008; source SHA cmp
-  passed and client PID unchanged. Browser relogin confirms connected72.
-- captcha_fix completed; ipv6_checks owns only ignored IPv6 helper preparation.
-  Root owns integration/live testing/cleanup/docs/Git; recheck liveness on resume.
-- First routed IPv6 attempt stopped at positive HTTP403 from isolated uhttpd
-  without default index config (8 controlTCP packets passed fw4). No protection
-  PASS claimed. All4config bytes/policy hash unchanged. All temporary IPv6
-  routes/addresses/veth/ns/fw4 rules/observer removed and synthetic MAC restored;
-  helper cleanup reported0, likely its own child process reaping check. Agent
-  fixes explicit index.html URL and cleanup diagnostics before retry. Private
-  evidence acceptance5-ipv6-lAejlL; root prepared reviewed final-cleanup.sh.
-- Second actual routed IPv6 packet proof PASS before/after real fw4 reload:
-  unassigned TCP HTTP + UDP AAAA positive controls passed both phases; protected
-  TCP2/UDP1 ingress attempts each phase,0 packets past product guard, localIPv6
-  ping passed. Isolated documentation endpoint, no ISPIPv6 claim. All4configs
-  exact and policy hash unchanged. Helper exit1 only on cleanup checks for
-  missing client-neighbor/endpoint-alias identity; no product packet failure.
-  Independent root inspection confirmed all IPv6 aliases/routes/neighbors,
-  endpoint namespace/veth, scoped fw4 rules and observer gone, MAC restored.
-  Keep distinction between packet proof and helper exit. Private evidence
-  acceptance5-ipv6-fmChDp; STATE/ipv6-run.public-result.log/exit retained.
-- Reviewed final-cleanup.sh native sh-n PASS; actual cleanup exit0. Removed
-  exact cq_accept_wan then original owned toggle sections/ns/veth/198.19 alias/
-  resolver/pointer and exact synthetic ARP. Original helper exit1 was expected
-  newer-owner vs Oct6 export comparison; cleanup-complete existed. Final all4
-  config files byte-match Oct8 owner-expected copy, pending edits empty. Owner
-  rules5 preserved. Removed only test-added coreutils-timeout9.9-r2/kmod-veth
-  6.12.94-r1 after simulation proved exactly2 removals; unloaded veth, APK world
-  byte-match pretest. No temporary init/observer/accept/address/route/ns/link.
-  STATE/final-cleanup.public.log/exit0 retains proof; private logs stay private.
-- Final read-only final-health.sh native sh-n + real run exit0:10 signed r5
-  payload hashes, original signed overview backup hash and1source patch hash,
-  r5 package versions; connected72/no errors, owner groups1/devices2/rules5,
-  local+group DNS, WAN+VPN HTTPS and different exits all PASS. Served HTTP JS
-  hash also matches source. Source73 Node tests/17 LuCI passed before install;
-  no source changed afterward. No new compilation or public binary release.
-  captcha_fix/ipv6_checks completed; root owns next preview and real acceptance.
-
-## Preview5 publication and signed upgrade (2026-10-06) — complete
-
-- Release https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.5
-  is public prerelease, not stable. Exact tag/build
-  38e0283f724aa3110cfc75ad22f9bf57801e4b80, frozen source
-  295fa037a007d77e40899109cd70e8df53ad1c5a,
-  tree adb5492d7177a7a508cf182d8997a8b532ea56de. Build branch
-  codex/preview.5-build; one run37464598550, no duplicate dispatch.
-- All four fresh jobs success: checks112272354749, native112272425249,
-  core112272425384, SDK112273279793.71 source tests,20 packaged LuCI,
-  6 packaged init;353 Rust /0 failed /7 ignored plus focused TURN;
-  native policy flags/DNS/nftables, ARM64 ELF/TUN, offline DNS restoration.
-- verify-build-tree.py, fetch-artifacts.py, prepare-release.py PASS: exact
-  authenticated logs/artifacts, frozen payload/source/modes/dependencies/license,
-  pinned manifest and3APK signatures, Android whole APK/signature reuse proof.
-  SDK artifact11415902761 ZIP SHA256
-  401f404152f76d83f449c6653f9e00b06437b255bc0d9e8e2684a964070e9f9e;
-  Android11414083202 ZIP SHA256
-  5bad74c69bfe1520046f7f01a91420d643893ed59d85c0e4d398b7b42597b8ff.
-- All8 assets fully uploaded. verify-public-release.py PASS: exact tag/title/body,
-  API uploaded states/sizes/digests and all8 public downloads/hash matches.
-  Ignored .work/preview.5 retains complete frozen release-config, signed assets,
-  authenticated logs, provenance and reviewed upgrade/postcheck helpers.
-- Reviewed upgrade-router.sh executed through SSH: installer hash
-  1bf8b9270a973283e51ce21e10364fc1d6a3d1236ce9d69b625fdaf6f9caa9ad
-  matched published bytes; signed installer exit0, all3 packages0.1.0-r5.
-  /etc/config/csqtt,dhcp,firewall,network byte-match private preupgrade backups.
-  Backup /etc/csqtt/backups/preview5-upgrade-20261006-131154-7089 contains private
-  configuration, installer/diagnostics/logs; never publish raw contents.
-- Read-only router-post-check.sh PASS: all11 installed payload hashes match
-  exact signed r5 packages, versions r5, running/enabled/policies active,
-  connected72, groups1/devices2/rules4/no errors, LAN/group DNS example.com,
-  WAN/VPN IPv4 HTTPS and differing exits. Local management available.
-- Real LuCI after rpcd restart/relogin: two owner checkbox rows checked; Overview
-  connected72 and decimal Кб values, no old binary units/Auto VPN. Owner rows
-  were not toggled. Earlier synthetic VPN→WAN→VPN test remains separate below.
-- Verification helper first stopped after successful11 hashes on missing status
-  rules field. Corrected to count UCI rule sections privately; complete rerun
-  PASS. No router/product fault or source change. Cold SDK compilation warning
-  did not prevent its success. Initial artifact download needed User-Agent;
-  exact digest/size gates then passed. No downloaded old SDK/core reused.
-- Agent ui_finish updated README/USAGE/BUILD/PREVIEW_NOTES only; native_device_checks
-  fixed ignored helper only. Both completed, no ongoing ownership. Root owns
-  publication/live upgrade/checkpoint. Recheck agents on resume.
-
-## Device source fixes (2026-10-06) — before signed r5 upgrade
-
-Owner cancelled Auto VPN; original WAN/VPN only. Overview formats decimal byte
-counts as Б/Кб/Мб/Гб (1000), finite/negative guards retained. Saved device rows
-have an inline enabled checkbox; missing/1 remains active,0 removes routing,
-DNS redirect and IPv6 guard membership while retaining row/name/MAC/group.
-Validation still covers inactive IDs/MACs/groups/duplicates/flags. RPC group and
-status count reflect active assignments. Explanation moved above the table so
-checkbox column stays compact. Fresh LuCI confirms two owner rows checked.
-
-Actual LuCI Save & Apply revealed old init reload always restarted transport.
-Fixed csqtt.init to snapshot client.json privately, apply guarded policies once,
-keep the same running process when transport config is unchanged, and restart
-only when changed/missing/stopped. Disabled main stops transport after apply;
-failed apply leaves original process/guards, cleans snapshot and returns error.
-Existing procd file-watch scope retained; no protocol/core changes.
-
-Checks:
-- All71 Node policy/runtime/DNS/LuCI/service-reload tests PASS, final full command:
-  `node --test --test-reporter=dot tests/policy/*.test.mjs tests/luci/*.test.cjs`.
-  Six service tests use a real disposable process: same PID, config change,
-  failed apply, main disabled, absent/stopped process, stop failure.
-- Real router ucode native policy + generated runtime adapter assertions PASS:
-  flag types, full inactive validation, active-only model/RPC/status, DNS/IPv6
-  removal, reenable equality, existing control/redaction/DNS lifecycle.
-  Runtime compile and init/helper `sh -n` PASS; git diff --check PASS.
-- Real synthetic bridged namespace VPN → browser-uncheck/SaveApply → WAN →
-  browser-check/SaveApply → VPN PASS. Actual HTTPS exits distinguished WAN/VPN,
-  DNS and LAN management worked both modes; previous conntracks absent before
-  fresh traffic. Disabled row persisted after browser reload, runtime/live nft
-  excluded its MAC/group, reenable restored it. Original PID/startticks survived
-  both successful browser toggles (only original failed test restarted it).
-- Cleanup PASS: synthetic rows/group/namespace/veth/address/resolver/ARP removed;
-  all four owner UCI exports match retest baseline exactly, no pending edits.
-  Temporary exact official kmod-veth/coreutils-timeout removed, veth unloaded.
-  Final installed five files cmp match source, DNS ready, connected72/devices2,
-  no remaining private reload snapshot. Management remains unassigned.
-
-Before the signed r5 upgrade, five source files were patched over signed r4:
-policy.uc/runtime.uc/csqtt.init/model.js/policies.js. Persistent rollback copies
-and all four original configs remain private under
-/etc/csqtt/backups/device-enabled-fix-20261006-121314-31188.
-Ignored .work/device-toggle has reviewed deployment/helper scripts and UI proofs;
-private packet-test evidence remains under device-toggle-test backups on router.
-No test-state pointer/process/namespace is left. Agent-created browser test tab4
-retained for final LuCI verification; user-owned tabs1/2 preserved. Long-open tab1 retained
-old HTTP scripts; fresh tabs load updated UI. Screenshots remain ignored.
-
-Failures/corrections retained:
-- Original init restart caught by strict PID assertion before WAN probe; fixed
-  and complete fresh retest passed. First browser save materialized enabled1 on
-  two legacy rows only (same behavior); private memory comparison confirmed
-  dhcp/firewall/network unchanged, no owner route/credentials changed.
-- Router timeout was a BusyBox symlink to a missing applet; temporary official
-  coreutils-timeout fixed helper. Stale owned ARP after first cleanup was checked
-  by MAC/IP/interface and removed before retest; final ARP cleanup done.
-- Standalone policy `ucode -c` is invalid for module exports; native import worked.
-  Generated runtime wrapper needs command dns-ready. Portable Git lacked sleep/
-  stat; shell process test corrected to available tail, mode600 asserted on Linux.
-
-Root integrated/published; ui_finish/native_device_checks completed. Recheck
-agent liveness on resume. Cancelled Auto archive stays local and never installed.
-
-## Current requested changes (2026-10-04)
-
-Owner explicitly cancelled Auto VPN. All three Auto agents stopped. Active
-development restored to bca8f60; cancelled unfinished source saved only locally
-at codex/auto-vpn-cancelled-20261004 /05e14d5 for recovery, never published or
-installed. Do not resume that branch or add Auto to runtime/UI/packages.
-No Auto changes ever reached the router. New task owns only existing WAN/VPN
-release fixes. Root owns integration, docs, Git/publication and live testing;
-recheck agent ownership before assigning UI/backend work.
-
-**v0.1.0-preview.4 is published, verified and installed.**
-https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.4
-Exact tag/build SHA **3e493716b564266c48af28b4310d2abc2783df7f**,
-tree f899ad98288661cc6aafa2d59d92cc502da4431b, branch codex/preview.4-build.
-Do not move frozen refs or trigger duplicate builds.
-
-All eight public files verified by API sizes/digests and full downloads:
-python .work/preview.4/verify-public-release.py PASS.
-Ignored provenance records verified/published/public_download_verified=true.
-GitHub Assets10 means eight files plus two source archives. First publication
-lacked Android because reload interrupted upload. Failed placeholder removed,
-same verified APK reuploaded and saved. Require data-state=uploaded, not just
-filename rows. No package bytes or frozen tag changed.
-
-Signed upgrade completed exit0; csqtt/csqtt-captcha/luci-app-csqtt all0.1.0-r4.
-All four configs (csqtt/dhcp/firewall/network) compared unchanged.
-Private backup /etc/csqtt/backups/preview4-upgrade-20261004-092016-21289.
-At upgrade groups1/devices3/rules4, connected72 and all diagnostics green.
-Owner has since removed one device: current groups1/devices2/rules4,
-six links/72workers, management known and unassigned. Preserve current values.
-Latest owner report: no Internet outages yet; daily cure still needs observation.
-
-**Real INPUT-only allocation recovery PASS exit0 in143s.**
-Private persistent result /etc/csqtt/backups/preview4-proof-cNDeLF/result.log;
-safe local copy .work/preview.4/fault-result-input.txt.
-Selected old UDP socket closed after133s with exactly one new typed
-PEER_LIVENESS_TIMEOUT; all71other baseline socket inodes survived every poll.
-421 inbound ChannelData packets dropped; STUN sent5/received5.
-No new local send error or TURN control timeout; all72workers restored at the
-first recovery sample (5s polling). Client PID/startticks unchanged.
-VPN-bound ping passed, all four configs/UCI unchanged, temporary nft table gone.
-Private config backup /etc/csqtt/backups/liveness-fault-IAMjHf stays on router.
-This proves single-allocation recovery, not absence of every later outage.
-
-Readonly post-check repeated after fault cleanup PASS:
-ten installed core/broker/runtime/manage/policy/fiveUI hashes match signed r4;
-connected72/noerror; local and group DNS example.com; WAN/VPN HTTPS IPv4,
-VPN exit differs from WAN. Safe result .work/preview.4/post-check-result.txt.
-Actual LuCI overview confirms connected72 and policy protection active.
-README/USAGE/BUILD now use preview4 and describe the real recovery proof.
-
-Ignored helpers in .work/preview.4:
-upgrade-router.sh, router-liveness-fault.sh, run-router-fault.sh,
-router-post-check.sh. Native router sh-n/nft-c and independent review passed.
-Fault helper targets only INPUT ChannelData on one unique owned UDP port,
-preserves STUN/output, checks71other sockets, exactly one timeout, no new send
-error, duration>=120s, recovery<=30s, overall<=285s and trap cleanup.
-Result wrapper creates a private persistent log across tool interruptions.
-No fault process/table is left. Never export private configuration/raw logs.
-
-Test failures preserved for continuation:
-- Earlier foreground result lost across interruption; /tmp helpers disappeared.
-  No complete proof from that attempt, and no process/table remained.
-- Outbound DROP test closed socket in5s without peer timeout: existing TURN UDP
-  send failure/retry. Exit1/elapsed45s, all config/process/cleanup checks passed.
-  Result /etc/csqtt/backups/preview4-proof-igCeDM/result.log. INPUT-only test above
-  corrects the fault method; no production bug inferred from outbound DROP.
-- Initial ignored post-check falsely reported zero matching hashes because its
-  async watchdog lost pipeline stdin. Explicit savedFD3 fixed that helper.
-  Installed files were unchanged; actual ten hashes and connectivity then pass.
-
-The documentation checkpoint covers publication, signed upgrade and real
-recovery proof. Verify local/remote alignment after push; use Git log for its
-exact SHA. The continuation point is the first unfinished action above.
-
-## Owner report and live state before r4
-
-Oct4: VPN clients still lose Internet about twice/day. Router reboot does not
-help; LuCI Reconnect helps. Owner answered: currently working, failure later.
-SSH openwrt-router BatchMode+StrictHostKeyChecking succeeded, uid0.
-GL-MT6000/OpenWrt25.12.5/mediatek-filogic/aarch64_cortex-a53/kernel6.12.94.
-Explicit authorized scope: CSQTT install, debug and router/browser acceptance.
-Tell owner before changes; preserve LAN management. Never print private values.
-
-Before upgrade packages were r2 with tested local DNS/UI patches; now all3r4.
-At upgrade sixVKlinks/72workers/groups1/devices3/rules4 were unchanged. Owner
-has since changed devices to2; current management known+unassigned. Enabledtrue.
-Do not restore earlier values.
-Latest readonly samples: connected72, statusPID matches procd, age1–3s,
-traffic grows, RSS13920KiB, DNS/policy/tunnel checks green, unreplied0,
-TUNerrors/drops0 and no TURN/session fatal counters. Managementknowntrue,
-management_unassigned=false. WANIPv6default absent. No outage captured today.
-Helper .work/preview.2/router-triage-readonly.sh, deployed
-/tmp/csqtt-triage-readonly.sh; values are fixed counts/booleans/enums.
-Captures .work/preview.3/router-triage-20261004.txt and
-.work/preview.4/before-upgrade-triage.txt. No broad live transport fault/reboot.
-
-Private backups stay on router, never export:
-- /etc/csqtt/backups/20260930-175413-32114 (original installation)
-- /etc/csqtt/backups/preview2-upgrade-20260930-195841-17634
-- /etc/csqtt/backups/dns-ready-fix-20261001-121411-11049
-R4 wrapper will print its new private backup directory.
-
-## New native liveness implementation and verification
-
-Established TURN allocations previously counted as connected even if CSQTT
-server replies stopped indefinitely. Existing reader could wait forever.
-Pinned upstream expires authenticated sessions after10h idle; bare TURN0xff
-keepalive bypasses CSQTT activity. Existing authenticated READY updates activity
-and returns READY_OK without epoch/config changes. This is a plausible outage
-path, not proof of the owner's exact failure or explanation of reboot behavior.
-
-Source: vendor/csqtt/rust-client/liveness.rs, session.rs, main.rs.
-Per-allocation pending ACK state; existing sole reader accepts exact authenticated
-and replay-filtered READY_OK. Single-flight60s probes,5s send+reply deadline,
-3consecutive misses -> typed PeerLivenessTimeout and normal allocation cleanup/
-worker reconnect. Idle traffic still probed. Immediate reply/lost wake/cancellation
-handled; child tasks aborted and awaited. No new wire message/crate/credentials,
-external ICMP dependency or upstream server modification. Worker.rs unchanged.
-READY has no per-probe nonce; do not claim stronger wire correlation.
-Internet beyond the server remains separate.
-
-Source checkpoint2cc5596b666d359568467f19ae97ae0f57566307 pushed.
-Current development HEAD before publication checkpoint:
-fee8079855189c989f51e3ba7d1cf1b592805699 (docs/native-success evidence).
-Frozen focused run **37189418467 SUCCESS**, all4jobs:
-checks111398302622, native-policy111398350556, core111398350565,
-SDK111398669183. https://github.com/RATOR2000/csqtt-openwrt/actions/runs/37189418467
-Fresh Rust focusedTURN1/1 and full353passed/0failed/7ignored.
-All11paused-clock liveness and9session tests confirmed in authenticated logs:
-silence, idle, successfulreset, immediate/late/unsolicited ACK, incarnation,
-malformed/unrelated replies, stalledwriter deadline, cancellation, authenticated
-Audio/Video ACK/replay/corruption/wrongkey and childtaskcleanup.
-Independent read-only source/fault review and git diff--check PASS.
-Local Cargo unavailable; native compilation/tests occurred in GitHub Actions.
-
-Verified SDKartifact11298099574, ZIPSHA256
-a6eaa11451916ca2b65a657114672aa51e1d83f8c12eb941417975347e13c0e4.
-ReusedAndroid11297874928 ZIPSHA256
-1a5d5bc761bfa57924b64ebfc9784ff0650e44afd04a9286818cb89d2485c968.
-OriginalAndroid11117296798/run36757684228 byte equality, signing retained.
-AndroidAPK SHA256c3cda9bbd2d7f614c7afa9225fdf72bcbad0055fa2d9b9cf9c2adcd23923babe.
-Installer unchanged SHA256
-1bf8b9270a973283e51ce21e10364fc1d6a3d1236ce9d69b625fdaf6f9caa9ad.
-Actual signed ARM64core SHA256
-6d7e18539226c175b91a4da0ff7beea2f081e16fcd0e111888ce9aeb2299ed28,
-ELF64/AArch64/0755 and exact PEER_LIVENESS_TIMEOUT marker verified.
-This proves compiled feature inclusion, not real router behavior alone.
-
-.work/preview.4/provenance.json verified=true; publication flag set only after
-python .work/preview.4/verify-public-release.py passes. All3APK+manifest pinned
-signatures, exactr4metadata/checksums/frozenruntime/manage/policy/5minifiedJS/menu,
-modes/license/defaultconfig/dependencies,16packagedLuCItests passed.
-SDK ARM64startup/TUN, native ucode/DNS/nftables and isolated offline DNS rollback
-passed. Workflow fresh core/native precede SDK; unchanged-source guards cover
-broker/Android/installer; no stale r3 binary relabelled as4.
-Preview3 tagcb6357832b079e3d159a1a7187d783be958b5c90/run36861604341 and all8
-publicbytes verified; no r3 upgrade run. R4 directly replaces patchedr2.
-
-## Earlier real acceptance and fixed failures
-
-Real r1 install and signedr2 upgrade completed exit0 with config unchanged.
-Real LuCI import/fullVKlinks SaveApply and actual VK connection passed.
-Empty group select fixed: use modal option clone and plain string label.
-vk.ru/m.vk.ru accepted; six separate full-link inputs preserve rawhash protocol.
-Empty DynamicList add-input valid while final LAN scope must be nonempty.
-Native runtime POSIX regex blockers fixed with explicit ASCII/length validation.
-TCP/TLS UI now stores canonical tcp (native also understands tcp_tls).
-
-Oct1 real DNS endurance reproduced Connectionrefused immediately afterapply,
-despite directIP/VPNHTTPS/APKdownload passing and old dns-ready reportingtrue.
-Fix waits for oldDNSPIDs to exit and requires currentPID-owned UDP+TCP listeners
-for all exact active groupIDs on every LANIPv4 address. Missing/wrong/duplicateID,
-wrongPID/UDPonly/loopbackonly staysguarded. No new runtime dependency.
-Native router ucode/parser/fixture, manage sh-n and4POSIXrestart regressions PASS;
-final Node policy/LuCI51/51 PASS. First native fixture adapter had forwardreference,
-corrected before live deploy. Same real LAN endurance with no addedwarmup:
-DNS12/12, directIPping12/12, VPNHTTPSexit differsWAN12/12, SHAverifiedHTTPS
-APKdownload12/12 PASS in168s. Config unchanged and all ephemeral cleanup passed.
-Temporary kmod-veth/coreutils-timeout removed exit0, no namespaces/addresses left.
-
-Real IPv4 LAN acceptance onr2 passed VPNexit!=WAN, managed/localDNS, WANdomain
-exception, failclosed fulltransportstop, localmanagement, recovery, fw4check/reload.
-First stop assertion raced asynchronous procd termination; boundedstoppedwait
-fixed test timing, secondfullrun PASS. No boot/crash/routedIPv6/manualCAPTCHA proof.
-Owner's uncontrolled reboot+initialworkingVPN does not prove early-boot guards.
-
-Installer architecture uses firmware+APKDB tunedarch, not generic print-arch.
-OpenWrt signs repositoryindex, individualDNSAPK is unsigned. Installer trusts
-signedindex, caches exactoriginalDNSversion, proves offline restore beforechange,
-compares complete installedstate/world and preserves guard/config on rollback.
-36local scenarios and nativeAPK3.0.5 signature/tamper/offline/exactrollback PASS
-run36739033136. secret1 now valid; per-file APK signing uses freshprocess.
-Do not repeat key setup or ask owner to expose key. Private credentials never
-belong in source, fixtures, statusRPC, logs or public release.
-
-## Repository, ownership and continuation
-
-Repository https://github.com/RATOR2000/csqtt-openwrt; dev codex/csqtt-openwrt.
-DraftPR1 attached, PR3 used CI; no merge into main merely to save progress.
-Root owns live router, browser/publication, STATUS and checkpoints.
-Agent preview3_verify completed r4artifact verification and ignoredpostchecker.
-Agent transport_outage and childreview completed. Fresh preview4_docs completed
-README/USAGE/BUILD updates; fault_review approved corrected INPUT/71inode proof.
-Recheck collaboration.list_agents; do not assume past sessions remain alive.
-All .work/ evidence/helpers are ignored; generated dist/build/private keys ignored.
-Windows/PowerShell, Node/Python/portableGo present. No localRust/WSL/Docker.
-Native Git sh available under cached runtime usr/bin/sh.exe; derive from git path.
-Local git push lacks auth. Connector github_create_tree/create_commit/update_ref
-works. scripts/export-github-tree.py exports committed delta to .work/publish-delta.
-Compare remote/local tree before fetch+softalign. Use labelled [skip ci] checkpoint
-commits and push dev, never move frozen release refs or claim checkpoints tested.
-
-Stable release remains gated by outage observation, failed first activation boot,
-manualAndroidCAPTCHA and remaining ACCEPTANCE scenarios. Real crash, normal early
-boot and synthetic routedIPv6 TCP/UDP packet proof are now recorded above.
-One active originalv2.1.9 tunnel; VPN traffic cannot fall back to WAN; explicitWAN
-exceptions and LANmanagement retained. No project-wide stable readiness claim.
-
+Updated 2026-10-18 20:32UTC. Read this first, then IMPLEMENTATION.md.
+Files, Git and current router evidence are authoritative. Preserve owner settings.
+Older detailed history is retained in Git at c509a1d1ad8d2126b86c2a1e502e46840b92cf86:
+https://github.com/RATOR2000/csqtt-openwrt/blob/c509a1d1ad8d2126b86c2a1e502e46840b92cf86/docs/STATUS.md
+
+## First unfinished action — actual72h observation
+
+Signed preview.9 is published, installed and passed native smoke acceptance.
+72H IS RUNNING, NOT COMPLETE. Do not reinstall or repeat completed fault/Stop tests.
+Start: 2026-10-18T20:28:48Z (18Oct23:28:48MSK).
+Deadline: 2026-10-21T20:28:48Z (21Oct23:28:48MSK).
+Private router directory: /etc/csqtt/backups/preview9-acceptance-20261018-202846.
+.work/preview.9/acceptance.json pins the directory, build, hashes and exact clocks.
+Latest native read: sameboot, live exactPID/startticks/argv, fresh sample,72workers,
+WAN/VPN/groupDNS healthy, one configured client/observer, no process change.
+Baseline1attempt/1soft/1transport incident came from the planned test BEFORE this
+window; do not count it as a new ordinary-use outage. Rolling attempts age out.
+
+Use the existing readonly command, no new source/CI audit for unchanged state:
+& 'C:/Users/Alexander/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe' .work/preview.9/check-acceptance.py
+It saves bounded public evidence/summary locally and validates sample freshness,
+sameboot, exact process ownership and coverage. A finished72h marker means
+finished_review_required, never automatic overall acceptance. Inspect detected
+outages and recovery results; do not declare72h before actual complete coverage.
+Process exit, boot change, sample gaps or invalid evidence mean incomplete; never
+silently reset the window. User ordinary settings/usage must be preserved.
+
+Heartbeat csqtt-preview9-72 is ACTIVE in this chat, updated from20min to DAILY
+(23:40local). It reads this status and existing evidence, stays quiet when normal,
+notifies only meaningful change/failure/action/completion. Update THIS automation,
+never create a duplicate. Desktop/PC must run for heartbeat access; router-local
+collection continues independently. After successful72h, implement the remaining
+defaultauto1 source/release step with appropriate checks/checkpoint; never replace
+published9 tag/assets. Stop this heartbeat after this stage is fully complete.
+Source defaultauto remains0 pending acceptance; live owner auto_recover=1.
+
+## Exact signed release and live state
+
+Release: https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.9
+Frozen source20d405f272ec24fdd4cb02780e6a9068e3274351,
+build926a44f31caeb760df70d808eee53d6f715d0d8b,
+treef7ee0b0931e151f4c732bfe7e3949577d74ee893.
+Run39161176161 all5 PASS: checks117774641657, core117774641601,
+native117774641441, Android117774641697, SDK117774930559.
+OpenWrt artifact12148789642, Android12149236103; exact digests/head/log bindings
+in .work/preview.9/{release-config,artifact-metadata,job-log-metadata,provenance}.json.
+All8 public downloads, API sizes/digests, tag/commit/title/body verified. All3APK
+and manifest signatures match pinned project P256 public key. Public PEM SHA256:
+39259baf94d83602c784b103506445cd7e26ec9c3635cc277b90ff31fe4d4bac.
+
+Signed installer exit0; csqtt/csqtt-captcha/luci-app-csqtt are all0.1.0-r9.
+Four files csqtt/dhcp/firewall/network byte-preserved; enabled1/auto_recover1 and
+rolling budget/last_action retained. Native all15 installed payload hashes match
+signed9; temporary production health.uc hotfix fully replaced. Normal group DNS,
+local DNS, policies,72workers, separate WAN/VPN HTTPS exits and released maintenance
+guards PASS. Router GL-MT6000/OpenWrt25.12.5, no reboot and no WAN fallback.
+Proof .work/preview.9/router-{upgrade,post-check}.public.log, both exits0.
+Private current backup: /etc/csqtt/backups/preview9-upgrade-20261018-202542-1058.
+It includes four configs, signed7 rollback APK/manifest/installer/publickeys and
+signature/hash proofs; native offline solver simulated all3 r9-to-r7 downgrades
+successfully WITHOUT actually downgrading. Do not use withdrawn8 for rollback.
+
+## Completed reliability checks — do not restart them
+
+CI:104policy/LuCI+2release Node,7installer+4release Python,376Rust passed/0failed/
+7existing ignored, focusedTURN1. Exact packaged LuCI25 and reload6 PASS.
+Native real health.uc filesystem import/all6exports, ucode/DNS TCP/UDP/IPv4/IPv6,
+traffic guards, ARM64 startup and real isolated LinuxTUN lifecycle PASS.
+New signed ELF early --health-probe/--control-request/--recovery-step native PASS
+before installation; device-id/livePID unchanged. Package/source/mode/license/
+dependency/minification verification complete in provenance. No localRust build.
+
+Source fault acceptance: router-origin198.18.0.1TCP443 only, no LAN forward match;
+soft repair at215s then one transport restart at276s, one cycle charged, guards
+checked every5s/no duplicate; cleanup/table removal exit0, restored72healthy.
+Native Stop/observerrestart/Start/unchangedReload PASS: Stop disabled/0clients,
+observer respected it, guards/budget preserved, Start1client, Reload samePID and
+effective config; four configs restored byte-identical. Source-test evidence in
+.work/preview.9/source-{controlled-acceptance,management}.public.log. One initial
+preflight refused transientstatus_stale BEFORE mutation; fresh baseline retry PASS.
+These source proofs are separate from signed9 smoke and real LAN/VK acceptance.
+
+Collector reads bounded8sucode/5subus, logs safe enums/counts/state changes and
+10min heartbeats, samples10s,2MiBcap. Rejects >60s sampling gaps/window reset.
+Reader checks fresh sample, initial/log coverage, exactPID/startticks/NULargv,
+sameboot,259200s duration and terminal/finishclock proof; SSHoverall timeout45s.
+Shell/Python syntax and isolated valid/invalid/identity/timeout cases PASS.
+Native collector readiness/fresh advancing sample PASS; native forced2stimeout
+reaped its own process group and preserved an unrelated child (public proof
+.work/preview.9/collector-timeout.public.log). All private raw stderr stays private.
+
+## Withdrawn8, implementation and deferred gates
+
+Preview.8 was published then WITHDRAWN after real ucode export grammar failure;
+all8 assets renamed withdrawn-, release warns against installation, old tag kept.
+Source9 adds six }; export terminators + real filesystem import regression.
+First9 candidate39159616158 failed only the strict QEMUownership fixture: QEMU8.2.2
+synthesizes /proc/self/stat and /proc/<pid>/stat startup clocks. Current code reads
+kernel TGID leader /proc/<pid>/task/<pid>/stat; exact ownership checks retained,
+native Rust main/thread regression and actual ARM64 fixture now pass. Old failed
+candidate/evidence isolated in .work/preview.9/failed-candidate1, never reused.
+
+Implemented auth queue release during human CAPTCHA wait, per-cohort singleflight,
+unclaimed60s retries, protected activeHelper/stale-answer rejection, atomic90s
+admission, private fresh owned status, early identity-free bounded TLS/DNS probes,
+30sprocd observer, confirmed180s/softthenfresh30s/one transport restart,300sbetween/
+3rollinghour including failures, serialized lifecycle/installer/recovery and
+failclosed policies. Original amurcanov/csqttv2.1.9 protocol/server unchanged.
+Real VK CAPTCHA may still require a person. Auto VPN group switching CANCELLED.
+Full contract and public status semantics: docs/IMPLEMENTATION.md.
+
+Stable release still requires actual failed-first-activation BOOT and full real
+Android/VK Helper/manualCAPTCHA acceptance, plus remaining ACCEPTANCE gates.
+Boot7 materials saved in ee557fd5dbf66c20466916ca76c9f30402aa7a90; do not reboot
+or run new boot faults under that deferred plan. Do not repeat passed normal
+boot/crash/synthetic routedIPv6 proof. Never call the project stable/fullyaccepted.
+
+## Tooling and ownership
+
+Root owns live/router/Git/publication. Review agents finished; check liveness
+before delegation. Keep future outputs/checks focused: owner requests lowtokens.
+Repo RATOR2000/csqtt-openwrt; dev codex/csqtt-openwrt, no merge just to save work.
+Windows/PowerShell, portableGo .work/tools/go/bin; no localRust/WSL/Docker.
+SSH openwrt-router with BatchMode/StrictHostKeyChecking/ConnectTimeout8.
+Send LF scripts as Python subprocess bytes; PowerShell pipeline appendsCR.
+Router has setsid, NO nohup. Never expose passwords/VKlinks/grants/identity/keys.
+.work/dist/build/private credentials remain ignored. GitHub publication tab2 is9;
+user tab1preview1 must remain. No OAuth/key setup needed.
+Push through GitHub connector create_tree/create_commit/update_ref using
+scripts/export-github-tree.py committed bytes; normalgitpush opens GCM OAuth.
+Credential-free fetch, require tree equality, update localref; dev checkpoints
+skipci. Frozen tags/assets immutable. Detailed old history linked at top.

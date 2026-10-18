@@ -4,7 +4,17 @@
 вкладка LuCI, группы устройств, правила по доменам/IP и Android-помощник для
 ручной CAPTCHA. Сервер разворачивается из оригинального Android-приложения.
 
-Опубликован подписанный экспериментальный
+Текущий подписанный экспериментальный выпуск —
+[v0.1.0-preview.9](https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.9).
+Он добавляет контроль WAN/VPN/DNS и ограниченное автовосстановление, устраняет
+блокировку авторизации ожиданием CAPTCHA. Установлен на GL-MT6000 с сохранением
+настроек; все 15 файлов совпали с подписанными пакетами. Идёт 72-часовое наблюдение
+до 21 октября 2026, 23:28:48 МСК; оно ещё не завершено. При новой установке
+автовосстановление пока выключено, включение описано в [USAGE.md](docs/USAGE.md).
+Preview.8 отозван из-за ошибки импорта ucode; используйте preview.9 или сохранённый
+подписанный preview.7 для отката. Условия стабильного выпуска ещё не выполнены.
+
+Предыдущий подписанный экспериментальный выпуск
 [v0.1.0-preview.7](https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.7) для
 GL.iNet GL-MT6000 / OpenWrt 25.12.5 / aarch64_cortex-a53. При неудачной первой
 активации он закрывает DNS TCP/UDP защищённых клиентов на порту 53 и групповых
@@ -37,7 +47,7 @@ CSQTT при обычной загрузке. TCP/UDP IPv6 проверены ч
 Выполните от root на указанной модели и версии OpenWrt:
 
 ```sh
-uclient-fetch -O /tmp/csqtt-install.sh https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.7/install.sh && sh /tmp/csqtt-install.sh v0.1.0-preview.7
+uclient-fetch -O /tmp/csqtt-install.sh https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.9/install.sh && sh /tmp/csqtt-install.sh v0.1.0-preview.9
 ```
 
 Затем откройте **Службы → CSQTT** в LuCI. Установщик проверяет подписи и
