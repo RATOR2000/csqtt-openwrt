@@ -6,11 +6,11 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Publish verified signed preview.8, then staged router
+Build/publish/install corrected signed preview.9, then staged router
 acceptance followed by72hours observation. Reliability source is implemented;
 exact candidate, checks and next action are in the current checkpoint below.
 Owner reports several outages daily; Reconnect helps without solving CAPTCHA.
-The exact live outage cause is unproven. Preserve current r7 configuration.
+The exact original daily outage cause is unproven. Preserve owner configuration.
 The deferred boot7 proof authorizes no live fault or reboot; announce all
 reliability live changes within the accepted reliability plan.
 Actual failed-first-activation boot and real Android/VK acceptance remain deferred
@@ -18,6 +18,36 @@ stable-release gates. Do not repeat completed normal boot/crash/routed IPv6 test
 Auto VPN group switching remains cancelled; reliability recovery is separate.
 
 ## Reliability implementation — current checkpoint (2026-10-18)
+
+CRITICAL: preview.8 was published, then WITHDRAWN after real installation exposed
+an untested ucode module export grammar error. All eight asset names now start
+withdrawn- (old installer/manifest URLs disabled); tag/build bytes are preserved.
+Never install r8 or call its native acceptance complete. Current live router is
+r8 plus a temporary source-only health.uc correction (six export terminators),
+connected72, WAN/VPN/group DNS healthy, one client, observer in observe-only mode.
+Four config files byte-match current backup
+/etc/csqtt/backups/preview8-upgrade-20261018-193101-17695; signed r7 rollback
+assets/native signatures and rollback solver simulation PASS there. No reboot.
+The first rollback checksum helper had CRLF line endings and refused before
+install; normalized only that unsigned control file. Signed installer then exit0,
+three packages r8/four configs unchanged, but final diagnostics failed because
+health.uc export declarations needed };. Mocked/flattened CI fixtures hid this.
+Root fixed only health.uc atomically from source, native full runtime import PASS,
+guarded restart restored72. Hotfix is deliberately not represented as signed APK.
+Logs: .work/preview.8/router-upgrade.public.log, router-runtime-status.private.log,
+router-restore-ucode.public.log. .work/preview.8/provenance.json withdrawn=true,
+live_accepted=false. Public release title/body explicitly warn against install.
+
+Correction source: health.uc six }; terminators, real filesystem import regression
+tests/policy/native-health-import.uc called by native-policy CI BEFORE flattening,
+reliability-build package_release9. Focused Node runtime/recovery37, native
+fixture generation/sh-n PASS. The unchanged real import fixture was also copied
+to a private temporary router directory and ran successfully with all six exports:
+Native ucode health module import and exported recovery API passed.
+Next: checkpoint/push correction and validate9 on existing unpublished validation
+branch2 (cached). In parallel perform bounded source recovery acceptance while
+VPN is healthy; then verify signed9, install with current settings, verify all15
+signed payloads and preserved limits, then start72h collection/low-token followup.
 
 Root owns Git/integration/publication/live access. All producer/review agents
 finished; recheck liveness before delegation. Owner requests low token usage:
@@ -60,7 +90,7 @@ Completed checks:
   PID/startticks/bootID/boottime. Embedded90 invalid/2valid schema cases and
   py_compile PASS locally; updated native ARM64/TUN fixture PASS in candidate4.
 - Current readonly live router: signed r7, one configured process, connected72,
-  no CAPTCHA, no observer. No reliability install/fault/reboot/config change yet.
+  no CAPTCHA, no observer (baseline BEFORE withdrawn r8 installation above).
 
 Prior failed candidates are superseded, not releases:
 - Boot7 materials saved in checkpoint ee557fd5dbf66c20466916ca76c9f30402aa7a90.
@@ -103,12 +133,9 @@ upgrade helper will save/verify them privately and simulate a rollback after r8.
 collect72.sh is prepared (not started): fixed redacted states/counts,10s sampling,
 event/10min heartbeat writes,72h/2MiB bounds; no raw config/identity or log copying.
 
-Next concrete action: publish eight verified assets as prerelease at exact build
-commit and verify all public downloads. Then announce live
-upgrade, preserve four configs/private device_id and r7 rollback, install r8
-observe-only; confirm15 hashes/status/DNS/distinct exits/observer. Controlled
-probe failure, bounded single cycle/Stop/limit persistence/guards, then enable
-owner auto recovery and start72h observation. Do not claim72h or stable release.
+The candidate4 publication/staging facts below are historical evidence, not
+installation acceptance. Follow the correction/next actions at the top of this
+section. Do not claim72h or stable release.
 
 ## Boot7 preparation in progress (2026-10-09)
 

@@ -38,13 +38,13 @@ export function health_assess(wan, vpn) {
 		vpn: vpn_ok ? 'ok' : (vpn_fail === 2 ? 'fail' : 'unknown'),
 		dns: group_dns === 'fail' ? 'fail' : (group_dns === 'unknown' ? 'unknown' : (vpn_dns === 2 ? 'ok' : 'unknown')),
 		confirmed: confirmed };
-}
+};
 export function health_initial(ctx) {
 	return { version: 1, boot_id: ctx.boot_id, config_epoch: ctx.config_epoch,
 		intent: ctx.intent, process_epoch: ctx.process_epoch, network_epoch: ctx.network_epoch, attempts: [], failure_since: null, stage: 'idle',
 		last_sample: ctx.now, last_action: null, next_action: null,
 		state: 'unknown', reason: 'awaiting_sample', wan: 'unknown', vpn: 'unknown', dns: 'unknown' };
-}
+};
 export function health_advance(previous, ctx, wan, vpn) {
 	let old = previous && previous.version === 1 && previous.boot_id === ctx.boot_id ? previous : health_initial(ctx);
 	let result = health_initial(ctx), attempts = [];
@@ -84,7 +84,7 @@ export function health_advance(previous, ctx, wan, vpn) {
 	}
 	result.action = 'soft';
 	return result;
-}
+};
 export function health_reserve(state, ctx, action) {
 	if (!state || state.boot_id !== ctx.boot_id || state.config_epoch !== ctx.config_epoch || state.network_epoch !== ctx.network_epoch || state.intent !== ctx.intent || state.process_epoch !== ctx.process_epoch ||
 		ctx.gate || !ctx.automatic || state.action !== action || state.last_sample > ctx.now || ctx.now - state.last_sample > 15)
@@ -100,7 +100,7 @@ export function health_reserve(state, ctx, action) {
 	state.state = 'recovering'; state.reason = action === 'soft' ? 'repairing_policy' : 'restarting_transport';
 	state.action = null;
 	return state;
-}
+};
 export function health_complete(state, ctx, action, success) {
 	if (!state || state.boot_id !== ctx.boot_id) return health_initial(ctx);
 	state.last_sample = ctx.now;
@@ -117,7 +117,7 @@ export function health_complete(state, ctx, action, success) {
 	}
 	state.state = 'degraded';
 	return state;
-}
+};
 export function health_public(state, ctx) {
 	let fresh = state && state.version === 1 && state.boot_id === ctx.boot_id &&
 		state.config_epoch === ctx.config_epoch && state.network_epoch === ctx.network_epoch &&
@@ -155,4 +155,4 @@ export function health_public(state, ctx) {
 		recovery: { state: phase, reason: reason, automatic: !!ctx.automatic,
 			attempts: good ? length(state.attempts || []) : 0,
 			next_attempt_in_secs: good && state.next_action > ctx.now ? h_number(state.next_action - ctx.now, 3600) : 0 } };
-}
+};

@@ -8,5 +8,5 @@ jobs:
   build:
     uses: ./.github/workflows/ci.yml
     with:
-      package_release: '8'
+      package_release: '9'
     secrets: inherit
