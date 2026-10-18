@@ -79,6 +79,12 @@ and at least300s between starts, retained across monitor/client respawn this boo
 An internal recover never enables a manually stopped service. Serialize lifecycle
 changes and exclude installation; prepared restarts must not recursively prepare
 under the policy lock. Every failed operation retains fail-closed guards.
+Take the lifecycle lock before rc.common's procd lock, including direct init
+commands. Recheck intent/configuration/pending edits after asynchronous stop.
+Each fixed recovery step runs in its own process group for at most70s, capped
+by the remaining admission deadline; stop its descendants before ending the
+lease. Process exits remain procd's responsibility; never fabricate a lease
+from a missing or stale core. VPN probe sockets also bind explicitly to csqtt0.
 
 Candidate code, CI, signed package, live controlled checks and72h observation
 are separate gates. These paragraphs describe intended candidate behavior,

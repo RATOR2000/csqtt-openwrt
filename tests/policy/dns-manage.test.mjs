@@ -30,6 +30,8 @@ scenario=${quote(scenario)}
 event() { printf '%s\\n' "$*" >> "$fixture/events"; }
 chmod() { :; }
 logger() { :; }
+csqtt_operation_enter() { :; }
+csqtt_operation_release() { :; }
 uci() { printf '0\\n'; }
 dnsmasq() { case "$1" in --version) printf 'nftset\\n' ;; esac; }
 ip() { case "$1 $2" in 'link show') return 1 ;; esac; }
@@ -111,6 +113,7 @@ ucode() {
     .replace('umask 077', 'umask 077\n' + stubs)
     .replace('RUN=/var/run/csqtt', `RUN=${quote(`${dir}/run`)}`)
     .replace('STATE=/etc/csqtt', `STATE=${quote(`${dir}/state`)}`)
+    .replace('. /usr/libexec/csqtt/lifecycle.sh', '')
     .replaceAll('/var/lock', quote(`${dir}/lock`))
     .replaceAll('/etc/init.d/csqtt-dns', 'dns_service');
   try {

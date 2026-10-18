@@ -390,6 +390,13 @@ impl ClientBuilder {
         self
     }
 
+    #[cfg(target_os = "linux")]
+    /// Bind outgoing connections to a Linux network interface.
+    pub fn interface(mut self, interface: &str) -> Self {
+        self.inner = self.inner.interface(interface);
+        self
+    }
+
     /// Set that all sockets have SO_KEEPALIVE set.
     pub fn tcp_keepalive<D>(mut self, val: D) -> Self
     where

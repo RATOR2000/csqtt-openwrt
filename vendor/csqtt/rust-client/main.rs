@@ -6,6 +6,7 @@
 mod auth;
 mod captcha;
 mod health_probe;
+mod recovery_step;
 mod captcha_slider;
 mod client_perf;
 mod cpu_task;
@@ -136,6 +137,9 @@ fn main() {
     }
     if early.get(1).map(String::as_str) == Some("--control-request") {
         std::process::exit(if early.len() == 2 { daemon::run_control_cli() } else { 2 });
+    }
+    if early.get(1).map(String::as_str) == Some("--recovery-step") {
+        std::process::exit(if early.len() == 3 { recovery_step::run_cli(&early[2]) } else { 2 });
     }
     std::panic::set_hook(Box::new(|_| {
         #[cfg(unix)]

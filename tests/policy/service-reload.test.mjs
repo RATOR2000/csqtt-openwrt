@@ -22,6 +22,7 @@ function reload({ enabled = '1', running = true, previous = '{"workers":9}', nex
     if (previous != null) fs.writeFileSync(`${dir}/run/client.json`, previous);
     const source = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/csqtt.init'), 'utf8')
       .replaceAll('/usr/libexec/csqtt/manage', 'manage')
+      .replace('. /usr/libexec/csqtt/lifecycle.sh', '')
       .replaceAll('/var/run/csqtt', `${dir}/run`);
     fs.writeFileSync(`${dir}/init`, source);
     const driver = `
@@ -31,6 +32,8 @@ client_pid=
 initial_pid=
 trap '[ -z "$client_pid" ] || { kill "$client_pid" 2>/dev/null; wait "$client_pid" 2>/dev/null; }; :' EXIT
 record() { printf '%s\\n' "$1" >> events; }
+csqtt_operation_enter() { :; }
+csqtt_operation_cleanup() { :; }
 uci() { printf '%s\\n' '${enabled}'; }
 manage() {
   record "$1"

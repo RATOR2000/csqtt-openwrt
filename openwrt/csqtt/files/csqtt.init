@@ -2,8 +2,20 @@
 START=95
 STOP=10
 USE_PROCD=1
+EXTRA_COMMANDS="prepared_start prepared_restart"
+. /usr/libexec/csqtt/lifecycle.sh
+
+# rc.common sources procd.sh after this file, and that source acquires the
+# service flock. All mutations must take the lifecycle lock before that flock,
+# including direct rc.common calls competing with a manage-owned recovery.
+# Read-only commands must neither revoke a recovery nor publish user intent.
+case "${action:-}" in
+	start|stop|restart|reload|boot|shutdown|prepared_start|prepared_restart)
+		csqtt_operation_enter || exit 1 ;;
+esac
 
 start_service() {
+	csqtt_operation_enter || return 1
 	/usr/libexec/csqtt/manage prepare || return 1
 	client_instance
 }
@@ -20,15 +32,17 @@ client_instance() {
 	procd_close_instance
 }
 stop_service() {
+	csqtt_operation_enter || return 1
 	# Stopping transport retains guards, unreachable routes and the DNS service.
 	CSQTT_TUN_DEVICE=csqtt0 /usr/libexec/csqtt/tun-hook down
 }
 reload_service() (
+	csqtt_operation_enter || return 1
 	# A policy edit must not tear down every live VPN allocation. Compare the
 	# effective transport config only after the guarded policy apply succeeds.
 	umask 077
 	old_client=
-	trap '[ -z "$old_client" ] || rm -f "$old_client"' EXIT
+	trap '[ -z "$old_client" ] || rm -f "$old_client"; csqtt_operation_cleanup' EXIT
 	trap 'exit 1' HUP INT TERM
 	if [ -s /var/run/csqtt/client.json ]; then
 		old_client=$(mktemp /var/run/csqtt/reload-client.XXXXXX) || return 1
@@ -48,6 +62,53 @@ reload_service() (
 	# Register through rc.common without running prepare a second time.
 	rc_procd client_instance
 )
+prepared_start() {
+	csqtt_operation_enter || return 1
+	local recovery_intent
+	if [ "${CSQTT_RECOVERY_ACTIVE:-0}" = 1 ]; then
+		recovery_intent=$(cat /var/run/csqtt/intent 2>/dev/null) || return 1
+		ucode /usr/share/csqtt/runtime.uc health-current >/dev/null 2>&1 || return 1
+	fi
+	csqtt_recovery_checkpoint || return 1
+	rc_procd client_instance
+}
+csqtt_recovery_checkpoint() {
+	[ "${CSQTT_RECOVERY_ACTIVE:-0}" = 1 ] || return 0
+	local now_ms current_config pending
+	case "${CSQTT_RECOVERY_DEADLINE_BOOTTIME_MS:-}" in ''|*[!0-9]*) return 1 ;; esac
+	[ -n "${recovery_intent:-}" ] && [ -n "${CSQTT_RECOVERY_CONFIG_EPOCH:-}" ] || return 1
+	now_ms=$(awk '{ printf "%.0f", $1 * 1000 }' /proc/uptime) || return 1
+	[ "$now_ms" -lt "$CSQTT_RECOVERY_DEADLINE_BOOTTIME_MS" ] || return 1
+	[ "$(cat /var/run/csqtt/intent 2>/dev/null)" = "$recovery_intent" ] || return 1
+	[ "$(uci -q get csqtt.main.enabled)" = 1 ] || return 1
+	[ ! -e /var/lock/csqtt-maintenance ] && [ ! -e /etc/csqtt/deactivated ] || return 1
+	# Edits can precede both their commit and the reload's published intent.
+	for pending in /tmp/.uci/csqtt /tmp/.uci/network /tmp/.uci/dhcp /tmp/.uci/firewall; do
+		[ ! -s "$pending" ] || return 1
+	done
+	current_config=$(sha256sum /etc/config/csqtt /etc/config/network | sha256sum | cut -d ' ' -f 1) || return 1
+	[ "$current_config" = "$CSQTT_RECOVERY_CONFIG_EPOCH" ]
+}
+prepared_restart() {
+	csqtt_operation_enter || return 1
+	local recovery_intent
+	if [ "${CSQTT_RECOVERY_ACTIVE:-0}" = 1 ]; then
+		# Capture before checking current status: a Stop arriving during either
+		# check must invalidate this exact snapshot, even while it waits for us.
+		recovery_intent=$(cat /var/run/csqtt/intent 2>/dev/null) || return 1
+		ucode /usr/share/csqtt/runtime.uc health-current >/dev/null 2>&1 || return 1
+		csqtt_recovery_checkpoint || return 1
+	fi
+	/usr/libexec/csqtt/manage transport-snapshot || return 1
+	stop || return 1
+	# procd stop is asynchronous. Do not register a second client while the old
+	# PID still exists, even if procd already removed the instance record.
+	/usr/libexec/csqtt/manage transport-stopped || return 1
+	# The old process may have taken most of the admission lease to exit.
+	# Never register after a queued Stop, edited config or expired lease.
+	csqtt_recovery_checkpoint || return 1
+	rc_procd client_instance
+}
 service_triggers() {
 	procd_add_reload_trigger csqtt
 }

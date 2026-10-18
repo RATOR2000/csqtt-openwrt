@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import { cursor } from 'uci';
 import { connect } from 'ubus';
 import { compile, hold } from '/usr/share/csqtt/policy.uc';
+import { health_initial, health_advance, health_reserve, health_complete, health_public } from '/usr/share/csqtt/health.uc';
 
 const ROOT = '/var/run/csqtt/';
 const STATE = '/etc/csqtt/';
@@ -15,6 +16,10 @@ function readjson(path, fallback) {
 function save(path, value) {
 	if (fs.writefile(path, value) == null) die('Cannot write ' + path);
 	fs.chmod(path, 0600);
+}
+function save_atomic(path, value) {
+	save(path + '.new', value);
+	if (!fs.rename(path + '.new', path)) die('Cannot replace private state');
 }
 function output(value) { printf('%J\n', value); }
 function call(object, method, args) {
@@ -155,6 +160,44 @@ function service_running(name, instance) {
 	let s = call('service', 'list', { name: name });
 	return !!(s && s[name] && s[name].instances && s[name].instances[instance] && s[name].instances[instance].running);
 }
+function transport_instance() {
+	let s = call('service', 'list', { name: 'csqtt' });
+	return s && s.csqtt && s.csqtt.instances ? s.csqtt.instances.client : null;
+}
+function boottime() {
+	let value = split(trim(fs.readfile('/proc/uptime') || ''), ' ')[0];
+	return match(value, /^[0-9]+(\.[0-9]+)?$/) ? +value : null;
+}
+function process_startticks(pid) {
+	if (!process_id(pid)) return null;
+	let line = fs.readfile('/proc/' + pid + '/stat') || '';
+	// comm may contain whitespace and ')'; split after its final closing ')'.
+	let end = -1;
+	for (let i = 0; i < length(line); i++) if (substr(line, i, 1) === ')') end = i;
+	if (end < 0) return null;
+	let fields = split(trim(substr(line, end + 1)), /\s+/), value = fields[19];
+	return match(value || '', /^[0-9]+$/) ? value : null;
+}
+function current_status() {
+	let stored = readjson(ROOT + 'status.json', {}), instance = transport_instance(), pid = instance && process_id(instance.pid);
+	let now = boottime(), boot = trim(fs.readfile('/proc/sys/kernel/random/boot_id') || ''), ticks = process_startticks(pid);
+	let running = !!(instance && instance.running), current = running && pid && ticks && boot && now != null &&
+		('' + stored.pid) === pid && ('' + stored.process_startticks) === ticks && stored.boot_id === boot &&
+		stored.updated_boottime_ms != null && stored.updated_boottime_ms <= now * 1000 &&
+		now * 1000 - stored.updated_boottime_ms <= 15000;
+	return { stored: stored, running: running, current: !!current, pid: pid, ticks: ticks, boot_id: boot, now: now };
+}
+function transport_snapshot() {
+	let live = current_status();
+	save(ROOT + 'transport.stop.json', sprintf('%J', { pid: live.pid, ticks: live.ticks }));
+}
+function transport_stopped() {
+	let old = readjson(ROOT + 'transport.stop.json', null);
+	if (!old) return false;
+	if (old.pid && (!old.ticks || process_startticks(old.pid) === old.ticks)) return false;
+	let instance = transport_instance();
+	return !(instance && instance.running);
+}
 function dns_instances() {
 	let s = call('service', 'list', { name: 'csqtt-dns' });
 	return s == null ? null : ((s['csqtt-dns'] && s['csqtt-dns'].instances) || {});
@@ -254,25 +297,163 @@ function dns_ready() {
 	return true;
 }
 function status() {
-	let stored = readjson(ROOT + 'status.json', {}), core = {}, running = service_running('csqtt', 'client');
+	let live = current_status(), stored = live.current ? live.stored : {}, core = {}, running = live.running;
 	// Explicit allowlist prevents upstream fields from exposing passwords or challenge answers.
-	let fields = ['state', 'tun_device', 'tunnel_ip', 'active_workers', 'bytes_up', 'bytes_down', 'uptime_secs'];
+	if (includes(['starting', 'connecting', 'connected', 'captcha_required', 'error', 'stopped'], stored.state)) core.state = stored.state;
+	if (stored.tun_device === 'csqtt0') core.tun_device = 'csqtt0';
+	if (match(stored.tunnel_ip || '', /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/)) core.tunnel_ip = stored.tunnel_ip;
+	let fields = ['active_workers', 'bytes_up', 'bytes_down', 'uptime_secs'];
 	for (let k = 0; k < length(fields); k++) {
 		let field = fields[k];
-		if (stored[field] != null) core[field] = stored[field];
+		if (stored[field] != null && match('' + stored[field], /^[0-9]+$/) && stored[field] <= 9007199254740991) core[field] = stored[field];
 	}
 	// These codes are emitted by the original client adapter, never error text.
 	let errors = ['runtime_failed', 'transport_failed', 'tun_configuration_failed',
 		'tun_down_hook_failed', 'control_socket_failed', 'tun_io_failed'];
 	if (includes(errors, stored.error_code)) core.error_code = stored.error_code;
-	if (stored.captcha) core.captcha = { id: stored.captcha.id, state: stored.captcha.state, expires_at: stored.captcha.expires_at };
+	if (stored.captcha && match(stored.captcha.id || '', /^[a-zA-Z0-9_-]{1,80}$/) &&
+		includes(['auto', 'manual', 'pending', 'manual_required', 'solving', 'human_active'], stored.captcha.state) &&
+		stored.captcha.expires_at > time())
+		core.captcha = { id: stored.captcha.id, state: stored.captcha.state, expires_at: stored.captcha.expires_at,
+			human_active: stored.captcha.human_active === true };
 	if (!running) core.state = 'stopped';
+	else if (!live.current) core.state = 'starting';
+	// A challenge on one allocation is a warning while useful workers remain.
+	if (core.state === 'captcha_required' && core.active_workers > 0) core.state = 'connected';
+	if (core.state === 'captcha_required' && !core.captcha) core.state = core.active_workers > 0 ? 'connected' : 'connecting';
 	let model = readjson(STATE + 'policy.json', { devices: [], groups: [] });
+	let ctx = health_context(false), public_health = health_public(readjson(ROOT + 'health-state.json', null), ctx);
 	return { core: core, running: running, enabled: c.get('csqtt', 'main', 'enabled') === '1',
+		health: public_health.health, recovery: public_health.recovery,
 		local_domain: local_domain(),
 		policies_active: length(model.devices || []) > 0 && !fs.stat(STATE + 'deactivated'),
-		policy_error: trim(fs.readfile(ROOT + 'policy.error') || ''),
+		policy_error: length(trim(fs.readfile(ROOT + 'policy.error') || '')) ? 'Policy operation failed; inspect root-only diagnostics' : '',
 		groups: length(model.groups || []), devices: length(model.devices || []) };
+}
+function network_epoch() {
+	let net = network(), paths = [];
+	for (let i = 0; i < length(net.interface || []); i++) {
+		let intf = net.interface[i], addresses = [], routes = [];
+		for (let j = 0; j < length(intf['ipv4-address'] || []); j++)
+			push(addresses, { address: intf['ipv4-address'][j].address, mask: intf['ipv4-address'][j].mask });
+		for (let j = 0; j < length(intf.route || []); j++) {
+			let r = intf.route[j];
+			push(routes, { target: r.target, mask: r.mask, nexthop: r.nexthop, table: r.table, metric: r.metric });
+		}
+		push(paths, { up: intf.up, device: intf.l3_device || intf.device, addresses: addresses, routes: routes });
+	}
+	return sprintf('%J', paths);
+}
+function health_context(ignore_operation) {
+	let live = current_status(), ctx = { boot_id: live.boot_id, now: live.now == null ? 0 : live.now,
+		config_epoch: trim(fs.readfile(ROOT + 'health-config.current') || ''), intent: trim(fs.readfile(ROOT + 'intent') || ''),
+		network_epoch: network_epoch(),
+		process_epoch: (live.pid || '') + ':' + (live.ticks || '') + ':' +
+			(live.current && live.stored.health ? ('' + (live.stored.health.human_epoch || 0)) : '0'),
+		automatic: c.get('csqtt', 'main', 'auto_recover') === '1',
+		process: live.running ? (live.current ? 'ok' : 'unknown') : 'fail', gate: null };
+	if (!ctx.boot_id || live.now == null || !match(ctx.config_epoch, /^[a-f0-9]{64}$/)) ctx.gate = 'probe_uncertain';
+	if (c.get('csqtt', 'main', 'enabled') !== '1' || fs.stat(STATE + 'deactivated')) ctx.gate = 'disabled';
+	else if (fs.stat('/var/lock/csqtt-maintenance')) ctx.gate = 'maintenance';
+	else if (fs.stat(ROOT + 'policy.error')) ctx.gate = 'policy_error';
+	else if (fs.stat(ROOT + 'health-guard.blocked')) ctx.gate = 'guard_missing';
+	else if (length(trim(fs.readfile('/tmp/.uci/csqtt') || '')) || length(trim(fs.readfile('/tmp/.uci/network') || '')) ||
+		length(trim(fs.readfile('/tmp/.uci/dhcp') || '')) || length(trim(fs.readfile('/tmp/.uci/firewall') || ''))) ctx.gate = 'pending_edits';
+	else if (!ignore_operation && fs.stat('/var/lock/csqtt-operation')) ctx.gate = 'operation_active';
+	else if (live.running && !live.current) ctx.gate = 'status_stale';
+	else if (!live.running && process_id(live.stored.pid) &&
+		process_startticks(live.stored.pid) === ('' + live.stored.process_startticks)) ctx.gate = 'status_stale';
+	else if (live.current && live.stored.captcha && live.stored.captcha.human_active === true &&
+		live.stored.captcha.expires_at > time()) ctx.gate = 'human_active';
+	return ctx;
+}
+function health_input() {
+	let ctx = health_context(false), model = readjson(STATE + 'policy.json', {}), net = network();
+	let source = null, metric = 2147483647;
+	for (let i = 0; i < length(net.interface || []); i++) {
+		let intf = net.interface[i];
+		if (intf.up === false || (intf.l3_device || intf.device) === 'csqtt0') continue;
+		let address = intf['ipv4-address'] && intf['ipv4-address'][0] && intf['ipv4-address'][0].address;
+		if (!match(address || '', /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/)) continue;
+		for (let j = 0; j < length(intf.route || []); j++) {
+			let route = intf.route[j], cost = +(route.metric || intf.metric || 0);
+			if (route.target === '0.0.0.0' && +route.mask === 0 &&
+				(route.table == null || +route.table === 254) && cost < metric) { source = address; metric = cost; }
+		}
+	}
+	if (!source && !ctx.gate) ctx.gate = 'probe_uncertain';
+	let ports = [];
+	for (let i = 0; i < length(model.groups || []); i++) {
+		let group = model.groups[i];
+		if (length(group.macs || []) && group.port >= 5400 && group.port <= 5415 && !includes(ports, group.port)) push(ports, group.port);
+	}
+	save(ROOT + 'health-context.json', sprintf('%J', ctx));
+	if (ctx.gate) exit(1);
+	save(ROOT + 'health-wan.input.json', sprintf('%J', { source_ipv4: source, dns_ipv4: model.wan_dns || '9.9.9.9', group_ports: [] }));
+	save(ROOT + 'health-vpn.input.json', sprintf('%J', { source_ipv4: '198.18.0.1', dns_ipv4: model.vpn_dns || '1.1.1.1', group_ports: ports }));
+}
+function health_update(owned) {
+	let previous = readjson(ROOT + 'health-state.json', null), sampled = readjson(ROOT + 'health-context.json', {}), ctx = health_context(owned);
+	if (sampled.config_epoch !== ctx.config_epoch || sampled.network_epoch !== ctx.network_epoch || sampled.intent !== ctx.intent || sampled.boot_id !== ctx.boot_id ||
+		sampled.now > ctx.now || ctx.now - sampled.now > 15) ctx.gate = 'configuration_changed';
+	else if (sampled.gate) ctx.gate = sampled.gate;
+	let next = health_advance(previous, ctx, readjson(ROOT + 'health-wan.json', null), readjson(ROOT + 'health-vpn.json', null));
+	save_atomic(ROOT + 'health-state.json', sprintf('%J', next));
+	if (previous && previous.state === 'healthy' && includes(['degraded', 'wan_down'], next.state))
+		health_incident('observation', next.reason);
+}
+function health_authorize(action) {
+	let ctx = health_context(true);
+	ctx.wan = readjson(ROOT + 'health-wan.json', null); ctx.vpn = readjson(ROOT + 'health-vpn.json', null);
+	let state = health_reserve(readjson(ROOT + 'health-state.json', null), ctx, action);
+	if (!state) exit(1);
+	save_atomic(ROOT + 'health-state.json', sprintf('%J', state));
+}
+function health_finish(action, success) {
+	let ctx = health_context(true), state = health_complete(readjson(ROOT + 'health-state.json', null), ctx, action, success);
+	save_atomic(ROOT + 'health-state.json', sprintf('%J', state));
+}
+function health_lease_valid() {
+	let lease = readjson(ROOT + 'recovery-lease.json', {}), live = current_status();
+	return live.current && lease.ok === true && lease.boot_id === live.boot_id &&
+		('' + lease.pid) === live.pid && ('' + lease.process_startticks) === live.ticks &&
+		lease.human_epoch === (live.stored.health ? (live.stored.health.human_epoch || 0) : 0) &&
+		match(lease.recovery_id || '', /^[a-zA-Z0-9_-]{1,80}$/) && lease.lease_secs === 90 &&
+		lease.updated_boottime_ms <= live.now * 1000 && live.now * 1000 - lease.updated_boottime_ms < 85000;
+}
+function health_incident(action, reason) {
+	if (!includes(['soft', 'transport', 'observation', 'manual'], action)) return;
+	if (!includes(['vpn_transport_failed', 'probe_uncertain', 'group_dns_failed', 'manual_reconnect'], reason)) reason = 'vpn_transport_failed';
+	// Construct a new allowlisted snapshot. Never copy probe bodies, config,
+	// logs, auth/group identities, URLs, runtime addresses or socket metadata.
+	let live = current_status(), ctx = health_context(true), public_state = health_public(readjson(ROOT + 'health-state.json', null), ctx);
+	let counts = { auth_attempts: 0, auth_successes: 0, auth_failures: 0, auth_cancelled: 0,
+		fresh_auth_retries: 0, liveness_probes: 0, liveness_replies: 0, liveness_misses: 0, liveness_timeouts: 0 };
+	let auth = live.current && live.stored.health ? live.stored.health : {};
+	for (let key in counts) if (match('' + auth[key], /^[0-9]+$/) && auth[key] <= 1000000000) counts[key] = auth[key];
+	if (includes(['idle', 'network', 'manual', 'captcha_wait', 'waiting'], auth.auth_phase)) counts.phase = auth.auth_phase;
+	for (let key in ['auth_progress_age_secs', 'peer_progress_age_secs'])
+		if (auth[key] != null && match('' + auth[key], /^[0-9]+$/) && auth[key] <= 86400) counts[key] = auth[key];
+	let model = readjson(STATE + 'policy.json', { groups: [] }), dns_count = 0;
+	for (let i = 0; i < length(model.groups || []); i++) if (length(model.groups[i].macs || [])) dns_count++;
+	let rows = readjson(ROOT + 'incidents.json', []), kept = [];
+	if (type(rows) === 'array') for (let i = 0; i < length(rows); i++) {
+		// Only retain snapshots generated in this boot, and re-redact old rows.
+		let row = rows[i];
+		if (row && row.version === 1 && row.boot_secs <= ctx.now && ctx.now - row.boot_secs <= 86400 &&
+			includes(['soft', 'transport', 'observation', 'manual'], row.action) &&
+			includes(['vpn_transport_failed', 'probe_uncertain', 'group_dns_failed', 'manual_reconnect'], row.reason) && length(kept) < 7)
+			push(kept, { version: 1, boot_secs: row.boot_secs, action: row.action, reason: row.reason,
+				workers: integer(row.workers, 0, 0, 126, 'snapshot workers'), dns_groups: integer(row.dns_groups, 0, 0, 16, 'snapshot DNS groups') });
+	}
+	push(kept, { version: 1, boot_secs: ctx.now, action: action, reason: reason,
+		workers: live.current ? integer(live.stored.active_workers, 0, 0, 126, 'snapshot workers') : 0,
+		dns_groups: dns_count, dns_ready: dns_ready(), auth: counts,
+		wan: public_state.health.wan, vpn: public_state.health.vpn });
+	let network_counts = readjson(ROOT + 'health-network.json', {}), newest = kept[length(kept) - 1];
+	newest.routes = { source_rule: network_counts.source_rule === true, fallback_rule: network_counts.fallback_rule === true, unreachable_route: network_counts.unreachable_route === true };
+	newest.guards = { output: network_counts.output_guard === true, forward: network_counts.forward_guard === true };
+	save_atomic(ROOT + 'incidents.json', sprintf('%J', kept));
 }
 function firewall_include(name, file, position, chain) {
 	if (c.get('firewall', name) && c.get('firewall', name, 'csqtt_owned') !== '1') die('Firewall section collision');
@@ -369,4 +550,30 @@ else if (mode === 'diagnostics') {
 } else if (mode === 'dns-snapshot') dns_snapshot();
 else if (mode === 'dns-stopped') {
 	if (!dns_stopped()) exit(1);
-} else die('Unknown runtime command');
+} else if (mode === 'transport-snapshot') transport_snapshot();
+else if (mode === 'transport-stopped') { if (!transport_stopped()) exit(1); }
+else if (mode === 'transport-active') { if (!current_status().running) exit(1); }
+else if (mode === 'health-input') health_input();
+else if (mode === 'health-update') health_update(ARGV[1] === 'owned');
+else if (mode === 'health-authorize') health_authorize(ARGV[1]);
+else if (mode === 'health-current') {
+	let ctx = health_context(true), state = readjson(ROOT + 'health-state.json', {});
+	if (ctx.gate || !ctx.automatic || state.boot_id !== ctx.boot_id || state.config_epoch !== ctx.config_epoch || state.network_epoch !== ctx.network_epoch ||
+		state.intent !== ctx.intent || state.process_epoch !== ctx.process_epoch) exit(1);
+}
+else if (mode === 'health-finish') health_finish(ARGV[1], ARGV[2] === 'ok');
+else if (mode === 'health-action') {
+	let state = readjson(ROOT + 'health-state.json', {});
+	if (includes(['soft', 'transport'], state.action)) printf('%s\n', state.action);
+} else if (mode === 'health-lease-valid') { if (!health_lease_valid()) exit(1); }
+else if (mode === 'health-deadline') {
+	if (!health_lease_valid()) exit(1);
+	let lease = readjson(ROOT + 'recovery-lease.json', {});
+	printf('%.0f\n', lease.updated_boottime_ms + 85000);
+}
+else if (mode === 'health-lease-end') {
+	let lease = readjson(ROOT + 'recovery-lease.json', {});
+	if (match(lease.recovery_id || '', /^[a-zA-Z0-9_-]{1,80}$/)) output({ command: 'recovery_end', id: lease.recovery_id });
+	else exit(1);
+} else if (mode === 'health-incident') health_incident(ARGV[1], ARGV[2]);
+else die('Unknown runtime command');

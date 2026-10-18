@@ -5,6 +5,7 @@ umask 077
 RUN=/var/run/csqtt
 STATE=/etc/csqtt
 RUNTIME=/usr/share/csqtt/runtime.uc
+. /usr/libexec/csqtt/lifecycle.sh
 mkdir -p "$RUN" "$STATE" /var/lock
 chmod 0700 "$RUN" "$STATE"
 
@@ -24,10 +25,75 @@ lock() {
 		mkdir /var/lock/csqtt-policy || error 'Policy operation already in progress'
 	fi
 	printf '%s\n' "$$" > /var/lock/csqtt-policy/pid
-	trap 'rm -f /var/lock/csqtt-policy/pid; rmdir /var/lock/csqtt-policy 2>/dev/null || true' EXIT
+	POLICY_LOCK_HELD=1
+	trap 'csqtt_extra_cleanup; csqtt_operation_release' EXIT
 	trap 'exit 1' HUP INT TERM
 }
+csqtt_extra_cleanup() {
+	if [ "${RECOVERY_LEASE_HELD:-0}" = 1 ]; then
+		runtime health-lease-end > "$RUN/recovery-end.request.json" 2>/dev/null &&
+			/usr/bin/csqtt-client --control-request < "$RUN/recovery-end.request.json" >/dev/null 2>&1 || true
+		rm -f "$RUN/recovery-lease.json" "$RUN/recovery-end.request.json"
+	fi
+	if [ "${POLICY_LOCK_HELD:-0}" = 1 ]; then
+		rm -f /var/lock/csqtt-policy/pid
+		rmdir /var/lock/csqtt-policy 2>/dev/null || true
+	fi
+}
 runtime() { ucode "$RUNTIME" "$@"; }
+fingerprint() {
+	local temporary
+	temporary=$(mktemp "$RUN/health-config.XXXXXX") || return 1
+	sha256sum /etc/config/csqtt /etc/config/network | sha256sum | cut -d ' ' -f 1 > "$temporary"
+	mv "$temporary" "$RUN/health-config.current"
+}
+recover() {
+	local action=${1:-}
+	case "$action" in soft|transport) ;; *) return 2 ;; esac
+	csqtt_operation_enter recovery || return 1
+	trap 'csqtt_extra_cleanup; csqtt_operation_release' EXIT
+	trap 'exit 1' HUP INT TERM
+	fingerprint || return 1
+	# Lease acquisition shares the daemon's atomic human-takeover mutex. The
+	# private response is never returned through RPC, stdout or the system log.
+	if runtime transport-active >/dev/null 2>&1; then
+		printf '{"command":"recovery_begin"}\n' |
+			/usr/bin/csqtt-client --control-request > "$RUN/recovery-lease.json" 2>/dev/null || return 1
+		RECOVERY_LEASE_HELD=1
+		runtime health-lease-valid >/dev/null 2>&1 || return 1
+	else
+		# Process exits are handled by procd. Never invent a human-admission
+		# lease when there is no current core to corroborate an old observation.
+		return 1
+	fi
+	# Revalidate and reserve the budget while holding the lifecycle lock, after
+	# acquiring the lease. Failed attempts consume the same rolling-hour budget.
+	runtime health-authorize "$action" >/dev/null 2>&1 || return 1
+	csqtt_network_evidence || true
+	runtime health-incident "$action" >/dev/null 2>&1 || {
+		runtime health-finish "$action" failed >/dev/null 2>&1 || true; return 1;
+	}
+	local result=0
+	CSQTT_RECOVERY_ACTIVE=1
+	CSQTT_RECOVERY_CONFIG_EPOCH=$(cat "$RUN/health-config.current")
+	CSQTT_RECOVERY_DEADLINE_BOOTTIME_MS=$(runtime health-deadline) || return 1
+	export CSQTT_RECOVERY_ACTIVE CSQTT_RECOVERY_CONFIG_EPOCH CSQTT_RECOVERY_DEADLINE_BOOTTIME_MS
+	if [ "$action" = soft ]; then
+		/usr/bin/csqtt-client --recovery-step soft || result=1
+	else
+		# Stop or Save & Apply may have published a new intent while we waited.
+		# Prepared restart reads the existing validated config and never prepare's
+		# under the policy lock a second time.
+		fingerprint || return 1
+		runtime health-current >/dev/null 2>&1 || return 1
+		if [ "${RECOVERY_LEASE_HELD:-0}" = 1 ]; then runtime health-lease-valid >/dev/null 2>&1 || return 1; fi
+		/usr/bin/csqtt-client --recovery-step transport || result=1
+	fi
+	fingerprint || return 1
+	if [ "$result" = 0 ]; then runtime health-finish "$action" ok >/dev/null 2>&1;
+	else runtime health-finish "$action" failed >/dev/null 2>&1; fi
+	return "$result"
+}
 owned_rule() {
 	pref=$1; expected=$2; shift 2
 	current=$(ip -4 rule show pref "$pref")
@@ -172,22 +238,45 @@ deactivate() {
 
 case "${1:-}" in
 	prepare)
+		csqtt_operation_enter || error 'Lifecycle operation already in progress'
 		# Explicit deactivation survives reboot. Save & Apply or Start reactivates.
 		if [ -f "$STATE/deactivated" ] && [ "$(uci -q get csqtt.main.enabled || true)" != 1 ]; then exit 0; fi
 		apply_policy ;;
-	apply) apply_policy; printf '{"ok":true}\n' ;;
+	apply) csqtt_operation_enter || error 'Lifecycle operation already in progress'; apply_policy; printf '{"ok":true}\n' ;;
 	start|restart)
+		csqtt_operation_enter || error 'Lifecycle operation already in progress'
+		if [ "$1" = restart ]; then runtime health-incident manual manual_reconnect >/dev/null 2>&1 || true; fi
 		uci set csqtt.main.enabled=1
 		uci commit csqtt
 		rm -f "$STATE/deactivated"
 		/etc/init.d/csqtt restart >/dev/null 2>&1 || error 'Cannot start client service'
 		printf '{"ok":true}\n' ;;
 	stop)
+		csqtt_operation_enter || error 'Lifecycle operation already in progress'
 		uci set csqtt.main.enabled=0
 		uci commit csqtt
 		/etc/init.d/csqtt stop >/dev/null 2>&1 || error 'Cannot stop client service'
 		printf '{"ok":true,"policies_retained":true}\n' ;;
-	deactivate) deactivate; printf '{"ok":true,"policies_active":false}\n' ;;
+	deactivate) csqtt_operation_enter || error 'Lifecycle operation already in progress'; deactivate; printf '{"ok":true,"policies_active":false}\n' ;;
+	recover) recover "${2:-}" ;;
+	recovery-step)
+		# Only an already admitted root recovery may enter this bounded worker.
+		csqtt_operation_owned || exit 1
+		runtime health-current >/dev/null 2>&1 || exit 1
+		runtime health-lease-valid >/dev/null 2>&1 || exit 1
+		case "${2:-}" in
+			soft) apply_policy ;;
+			transport) /etc/init.d/csqtt prepared_restart ;;
+			*) exit 2 ;;
+		esac ;;
+	transport-snapshot) runtime transport-snapshot ;;
+	transport-stopped)
+		stopped=0
+		for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+			if runtime transport-stopped >/dev/null 2>&1; then stopped=1; break; fi
+			sleep 1
+		done
+		[ "$stopped" = 1 ] ;;
 	status|devices|diagnostics) runtime "$1" ;;
 	*) printf 'Usage: manage start|stop|restart|apply|deactivate|status|diagnostics|devices\n' >&2; exit 2 ;;
 esac

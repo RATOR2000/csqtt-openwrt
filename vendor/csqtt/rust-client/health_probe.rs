@@ -45,6 +45,7 @@ struct Input {
 
 impl Input {
     fn valid(&self, mode: Mode) -> bool {
+        if mode == Mode::Vpn && !cfg!(target_os = "linux") { return false; }
         if self.mode.is_some_and(|value| value != mode)
             || !unicast(self.source_ipv4) || !unicast(self.dns_ipv4)
             || self.group_ports.len() > 16
@@ -228,7 +229,10 @@ async fn probe_endpoint(index: usize, source: Ipv4Addr, resolver: SocketAddr) ->
         }
     };
     let addresses: Vec<_> = addresses.into_iter().map(|ip| SocketAddr::from((ip, 443))).collect();
-    let client = match primp::Client::builder().local_address(IpAddr::V4(source))
+    let builder = primp::Client::builder().local_address(IpAddr::V4(source));
+    #[cfg(target_os = "linux")]
+    let builder = if source == VPN_SOURCE { builder.interface("csqtt0") } else { builder };
+    let client = match builder
         .resolve_to_addrs(host, &addresses).no_proxy().redirect(primp::redirect::Policy::none())
         .https_only(true).http1_only().no_gzip().no_brotli().no_zstd().no_deflate()
         .pool_max_idle_per_host(0).timeout(HTTPS_LIMIT).connect_timeout(Duration::from_secs(3)).build()
@@ -297,6 +301,8 @@ async fn dns_query(source: Ipv4Addr, server: SocketAddr, name: &str, tcp: bool) 
 async fn dns_exchange(source: Ipv4Addr, server: SocketAddr, packet: &[u8], tcp: bool) -> Result<Vec<u8>, Reason> {
     if tcp {
         let socket = TcpSocket::new_v4().map_err(|_| Reason::TransportError)?;
+        #[cfg(target_os = "linux")]
+        if source == VPN_SOURCE { bind_device(&socket, b"csqtt0\0")?; }
         socket.bind(SocketAddr::from((source, 0))).map_err(|_| Reason::TransportError)?;
         let mut stream = socket.connect(server).await.map_err(|_| Reason::TransportError)?;
         stream.write_all(&(packet.len() as u16).to_be_bytes()).await.map_err(|_| Reason::TransportError)?;
@@ -310,6 +316,8 @@ async fn dns_exchange(source: Ipv4Addr, server: SocketAddr, packet: &[u8], tcp: 
         Ok(reply)
     } else {
         let socket = UdpSocket::bind((source, 0)).await.map_err(|_| Reason::TransportError)?;
+        #[cfg(target_os = "linux")]
+        if source == VPN_SOURCE { bind_device(&socket, b"csqtt0\0")?; }
         socket.connect(server).await.map_err(|_| Reason::TransportError)?;
         let sent = socket.send(packet).await.map_err(|_| Reason::TransportError)?;
         if sent != packet.len() { return Err(Reason::TransportError); }
@@ -318,6 +326,15 @@ async fn dns_exchange(source: Ipv4Addr, server: SocketAddr, packet: &[u8], tcp: 
         if length > MAX_DNS { return Err(Reason::InvalidReply); }
         reply.truncate(length); Ok(reply)
     }
+}
+
+#[cfg(target_os = "linux")]
+fn bind_device(socket: &impl std::os::fd::AsRawFd, device: &[u8]) -> Result<(), Reason> {
+    // Source routing alone can disappear during explicit policy deactivation.
+    // A socket pinned to the TUN cannot migrate to WAN when guards are removed.
+    let result = unsafe { libc::setsockopt(socket.as_raw_fd(), libc::SOL_SOCKET,
+        libc::SO_BINDTODEVICE, device.as_ptr().cast(), device.len() as libc::socklen_t) };
+    if result == 0 { Ok(()) } else { Err(Reason::TransportError) }
 }
 
 fn read_u16(packet: &[u8], offset: usize) -> Result<u16, Reason> {
@@ -567,5 +584,14 @@ mod tests {
         value.aggregate(); assert_eq!(value.path, State::EndpointError);
         let json = serde_json::to_string(&value).unwrap();
         for hidden in ["198.18", "cloudflare", "dns.google", "example.com", "http://", "https://", "password", "identity"] { assert!(!json.contains(hidden)); }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn missing_bound_interface_fails_without_falling_back() {
+        let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+        assert_eq!(bind_device(&socket, b"cq-no-probe\0"), Err(Reason::TransportError));
+        let tcp = TcpSocket::new_v4().unwrap();
+        assert_eq!(bind_device(&tcp, b"cq-no-probe\0"), Err(Reason::TransportError));
     }
 }

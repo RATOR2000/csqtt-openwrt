@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const runtime = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/runtime.uc'), 'utf8')
   .replace(/^import .*;\r?\n/gm, '');
+const health = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/health.uc'), 'utf8').replaceAll('export function', 'function');
 const adapters = `
 let native_files = {};
 let native_sections = {};
@@ -29,6 +30,7 @@ let fs = {
     return null;
   },
   writefile: function(p,v) { if (!native_allow_write) die('Native runtime test attempted a file write'); native_files[p]=v; return length(v); },
+  rename: function(a,b) { if (!native_allow_write) die('Native runtime test attempted a rename'); native_files[b]=native_files[a]; native_files[a]=null; return true; },
   chmod: function() { if (!native_allow_write) die('Native runtime test attempted a permission change'); }
 };
 function cursor() {
@@ -83,7 +85,17 @@ native_files['/var/run/csqtt/status.json'] = sprintf('%J', {
 });
 let redacted = sprintf('%J', status());
 check(index(redacted, secret) < 0 && index(redacted, hash) < 0, 'Status exposed private fields');
-check(status().core.captcha.id === 'public-id', 'Status lost safe CAPTCHA metadata');
+check(status().core.captcha == null, 'Stopped status exposed an expired challenge');
+native_services={ csqtt:{ instances:{ client:{ running:true,pid:777 } } } };
+native_files['/proc/uptime']='100.00 0.00'; native_files['/proc/sys/kernel/random/boot_id']='fixture-boot';
+native_files['/proc/777/stat']='777 (csqtt test) S 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1234 0';
+native_files['/var/run/csqtt/status.json']=sprintf('%J',{state:'captcha_required',active_workers:4,pid:777,
+  process_startticks:1234,boot_id:'fixture-boot',updated_boottime_ms:99000,
+  captcha:{id:'public-id',state:'pending',expires_at:time()+100,human_active:false}});
+check(status().core.state === 'connected' && status().core.captcha.id === 'public-id', 'Current useful workers lost to a CAPTCHA warning');
+native_files['/proc/uptime']='116.00 0.00';
+check(status().core.state === 'starting' && status().core.captcha == null, 'Stale process status survived monotonic expiry');
+native_services={};
 native_files['/tmp/dhcp.leases'] = '0 02:00:00:00:00:01 192.0.2.10 desktop *\\n';
 native_files['/proc/net/arp'] = 'IP address HW type Flags HW address Mask Device\\n192.0.2.10 0x1 0x2 02:00:00:00:00:01 * br-lan\\n';
 let discovered = devices();
@@ -155,6 +167,6 @@ native_files['/proc/901/fd/4']=null; native_files['/proc/901/fd/5']=null;
 check(dns_stopped(), 'Native DNS stop did not recognize old process exit');
 print('Native ucode runtime parser, control validation, redaction and DNS lifecycle passed\\n');
 `;
-const source = adapters + runtime + assertions;
+const source = adapters + health + runtime + assertions;
 if (process.argv[2]) fs.writeFileSync(process.argv[2], source);
 else process.stdout.write(source);

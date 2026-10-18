@@ -99,15 +99,25 @@ test('status allowlist redacts new upstream fields and stale connected state', (
   const out = runtime('status', { packages: packages(), files: { '/var/run/csqtt/status.json': JSON.stringify({ state: 'connected', password: secret, unknown: secret, captcha: { id: 'public-id', state: 'pending', expires_at: 123, session_token: secret } }) } });
   assert.equal(out.output[0].core.state, 'stopped');
   assert.equal(JSON.stringify(out.output).includes(secret), false);
-  assert.equal(out.output[0].core.captcha.id, 'public-id');
+  assert.equal(out.output[0].core.captcha, undefined);
 });
 
-test('status exports only known daemon error codes, retaining safe failures after process exit', () => {
+function liveStatus(status, running = true) {
+  return { services: { csqtt: { instances: { client: { running, pid: 901 } } } }, files: {
+    '/proc/uptime': '100.00 0.00', '/proc/sys/kernel/random/boot_id': 'test-boot',
+    '/proc/901/stat': '901 (csqtt-client) S ' + Array(18).fill('0').join(' ') + ' 1234 0\n',
+    '/var/run/csqtt/status.json': JSON.stringify({ pid: 901, process_startticks: 1234,
+      boot_id: 'test-boot', updated_boottime_ms: 99000, ...status }),
+  } };
+}
+
+test('status exports only known current daemon error codes and clears failures after process exit', () => {
   for (const code of ['runtime_failed', 'transport_failed', 'tun_configuration_failed',
     'tun_down_hook_failed', 'control_socket_failed', 'tun_io_failed']) {
-    const out = runtime('status', { files: { '/var/run/csqtt/status.json': JSON.stringify({ state: 'error', error_code: code }) } });
+    const out = runtime('status', liveStatus({ state: 'error', error_code: code }));
     assert.equal(out.output[0].core.error_code, code);
-    assert.equal(out.output[0].core.state, 'stopped');
+    assert.equal(out.output[0].core.state, 'error');
+    assert.equal(runtime('status', liveStatus({ state: 'error', error_code: code }, false)).output[0].core.error_code, undefined);
   }
   const secret = randomBytes(24).toString('hex');
   for (const code of [secret, 'unknown_failure', { detail: secret }]) {
@@ -126,10 +136,10 @@ test('tunnel diagnostics require a running connected client without a reported f
     [true, 'connected', null, true, 'connected'],
     [true, 'connected', 'transport_failed', false, 'transport_failed'],
     [false, 'connected', null, false, 'stopped'],
-    [false, 'error', 'transport_failed', false, 'transport_failed'],
+    [false, 'error', 'transport_failed', false, 'stopped'],
   ]) {
-    const out = runtime('diagnostics', { services: { csqtt: { instances: { client: { running } } } },
-      files: { '/var/run/csqtt/status.json': JSON.stringify({ state, error_code: error }) } });
+    const out = runtime('diagnostics', liveStatus({ state, error_code: error,
+      ...(state === 'captcha_required' ? { captcha: { id: 'current', state: 'pending', expires_at: 1900000100 } } : {}) }, running));
     const tun = out.output[0].checks.find(check => check.name === 'tun');
     assert.equal(tun.ok, ok, `${running}/${state}/${error}`);
     assert.equal(tun.detail, detail);
@@ -269,6 +279,8 @@ chmod() { :; }
 uci() { printf '0\\n'; }
 dnsmasq() { printf 'nftset\\n'; }
 logger() { :; }
+csqtt_operation_enter() { :; }
+csqtt_operation_release() { :; }
 nft() { case "$1" in -c|list) return 1 ;; *) return 0 ;; esac; }
 ucode() {
   case "$2" in
@@ -285,6 +297,7 @@ ucode() {
       .replace('umask 077', 'umask 077\n' + stubs)
       .replace('RUN=/var/run/csqtt', `RUN='${dir}/run'`)
       .replace('STATE=/etc/csqtt', `STATE='${dir}/state'`)
+      .replace('. /usr/libexec/csqtt/lifecycle.sh', '')
       .replaceAll('/var/lock', `${dir}/lock`);
     const script = `${dir}/manage`; fs.writeFileSync(script, manage);
     const failed = spawnSync(shell, [script, 'apply'], { encoding: 'utf8' });

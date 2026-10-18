@@ -1459,7 +1459,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn recovery_lease_and_pairing_admission_are_mutually_exclusive_and_bounded() {
         let solver=CaptchaSolver::new("auto",CancellationToken::new());
-        let (id,_,_,_)=solver.begin_daemon_challenge(&daemon_fixture(),Duration::from_secs(180));
+        let (id,_,receive,_)=solver.begin_daemon_challenge(&daemon_fixture(),Duration::from_secs(180));
         solver.manual_available(&id);
         let (lease,_)=solver.daemon_recovery_begin(Some(&id)).unwrap();
         assert!(solver.recovery_in_progress());
@@ -1475,6 +1475,7 @@ mod tests {
         assert!(solver.daemon_takeover(&id));
         assert_eq!(solver.daemon_recovery_begin(None).unwrap_err(),"human_active");
         assert!(solver.daemon_answer(&id,Err("cancelled".into())));
+        assert_eq!(receive.await.unwrap().unwrap_err(), "cancelled");
         let (next,_)=solver.daemon_recovery_begin(None).unwrap();
         assert!(solver.daemon_recovery_end(&next));
     }

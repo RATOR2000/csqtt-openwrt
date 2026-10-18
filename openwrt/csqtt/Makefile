@@ -33,14 +33,18 @@ define Package/csqtt/install
 	$(INSTALL_DIR) $(1)/usr/bin $(1)/usr/libexec/csqtt $(1)/usr/share/csqtt $(1)/usr/share/licenses/csqtt $(1)/etc/config $(1)/etc/init.d $(1)/etc/csqtt $(1)/etc/hotplug.d/iface
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/csqtt-client $(1)/usr/bin/csqtt-client
 	$(INSTALL_BIN) ./files/manage $(1)/usr/libexec/csqtt/manage
+	$(INSTALL_DATA) ./files/lifecycle.sh $(1)/usr/libexec/csqtt/lifecycle.sh
+	$(INSTALL_BIN) ./files/monitor $(1)/usr/libexec/csqtt/monitor
 	$(INSTALL_BIN) ./files/tun-hook $(1)/usr/libexec/csqtt/tun-hook
 	$(INSTALL_DATA) ./files/policy.uc $(1)/usr/share/csqtt/policy.uc
 	$(INSTALL_DATA) ./files/runtime.uc $(1)/usr/share/csqtt/runtime.uc
+	$(INSTALL_DATA) ./files/health.uc $(1)/usr/share/csqtt/health.uc
 	$(INSTALL_DATA) ./files/LICENSE $(1)/usr/share/licenses/csqtt/LICENSE
 	$(INSTALL_CONF) ./files/csqtt.config $(1)/etc/config/csqtt
 	$(INSTALL_CONF) ./files/guard.nft $(1)/etc/csqtt/policy.nft
 	$(INSTALL_BIN) ./files/csqtt.init $(1)/etc/init.d/csqtt
 	$(INSTALL_BIN) ./files/csqtt-dns.init $(1)/etc/init.d/csqtt-dns
+	$(INSTALL_BIN) ./files/csqtt-health.init $(1)/etc/init.d/csqtt-health
 	$(INSTALL_BIN) ./files/90-csqtt $(1)/etc/hotplug.d/iface/90-csqtt
 endef
 
@@ -50,6 +54,7 @@ define Package/csqtt/postinst
 chmod 0700 /etc/csqtt
 chmod 0600 /etc/config/csqtt
 /etc/init.d/csqtt enable
+/etc/init.d/csqtt-health enable
 exit 0
 endef
 
@@ -57,6 +62,7 @@ define Package/csqtt/prerm
 #!/bin/sh
 [ -n "$$IPKG_INSTROOT" ] && exit 0
 /etc/init.d/csqtt stop
+/etc/init.d/csqtt-health stop
 # Retain the guard and configuration on package removal. Explicitly deactivate
 # policies first if direct connectivity is desired.
 exit 0

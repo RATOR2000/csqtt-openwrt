@@ -21,8 +21,14 @@ export function compiler() {
   return context.api;
 }
 export const fixture = JSON.parse(fs.readFileSync(path.join(root, 'tests/policy/fixture.json'), 'utf8'));
+export function health() {
+  const context = vm.createContext({ ...globals });
+  const code = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/health.uc'), 'utf8').replaceAll('export function', 'function');
+  vm.runInContext(code + '\nthis.api = {health_initial,health_assess,health_advance,health_reserve,health_complete,health_public};', context);
+  return context.api;
+}
 
-export function runtime(mode, { packages = {}, files = {}, services = {}, network = { interface: [] }, stage = '/var/run/csqtt/apply.42' } = {}) {
+export function runtime(mode, { packages = {}, files = {}, services = {}, network = { interface: [] }, stage = '/var/run/csqtt/apply.42', args = [], now = 1900000000 } = {}) {
   packages = structuredClone(packages); files = { ...files };
   const output = [], chmods = [];
   const cursor = {
@@ -33,14 +39,15 @@ export function runtime(mode, { packages = {}, files = {}, services = {}, networ
     delete(pkg, id, option) { if (option) delete packages[pkg]?.[id]?.[option]; else delete packages[pkg]?.[id]; },
     save() { return true; }, commit() { return true; },
   };
-  const context = vm.createContext({ ...globals, ...compiler(), ARGV: [mode, stage],
+  const context = vm.createContext({ ...globals, ...compiler(), ...health(), ARGV: [mode, ...(args.length ? args : [stage])],
     fs: { readfile: p => files[p] ?? null, readlink: p => files[p] ?? null,
       lsdir: p => { const entries = Object.keys(files).filter(f => f.startsWith(p + '/')).map(f => f.slice(p.length + 1).split('/')[0]); return entries.length || p in files ? [...new Set(entries)] : null; },
       writefile(p, v) { files[p] = v; return v.length; }, chmod: (p, mode) => chmods.push([p, mode]),
+      rename(a, b) { if (!(a in files)) return false; files[b] = files[a]; delete files[a]; return true; },
       stat: p => p in files || Object.keys(files).some(f => f.startsWith(p + '/')) ? {} : null },
     cursor: () => cursor,
     connect: () => ({ call: (object, method, args) => object === 'network.interface' ? network : { [args.name]: services[args.name] } }),
-    json: JSON.parse, sprintf: (_, v) => JSON.stringify(v),
+    json: JSON.parse, sprintf: (_, v) => JSON.stringify(v), time: () => now,
     printf: (_, v) => output.push(JSON.parse(JSON.stringify(v))),
     exit: code => { if (code) throw new Error(`Exit ${code}`); },
   });

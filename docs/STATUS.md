@@ -47,6 +47,43 @@ Auto VPN group switching remains cancelled; reliability recovery is separate.
   maintenance collision and first/repeat install cases passed. Rust source is
   not compiled yet (no local Rust toolchain); CI will establish compilation.
   No live change, fault, install or reboot has occurred during implementation.
+- Latest checked source checkpoint7b6d669360a4ff655889ee639e7bd3199bc1822b
+  (tree0ef5f81132263198da68826fd036b4bb5bb69ff0) is saved remotely/local.
+  Focused Rust39108663550/job117619879620 compiled:371passed/1failed/7ignored.
+  Failure was a new test dropping its oneshot receiver; root now retains it
+  and asserts the cancellation result. Corrected SHA still needs native tests.
+- Existing PR also triggered run39108667411: checks/native-policy/Android PASS;
+  ARM64 build/smoke succeeded, SDK payload verification failed because this
+  partial checkpoint deliberately lacked new lifecycle.sh packaging. Neither
+  run is release acceptance. Authenticated failed logs retained in
+  .work/reliability/job-117619879620.log and job-117620208861.log.
+- Installer7 tests PASS, including maintenance collision and rollback; release
+  Python4 PASS. Current policy/LuCI89 tests PASS before two additional health
+  regressions; focused recovery13 PASS afterward. No local Rust installation.
+- Root owns all producer files now (original producer agents gone). New
+  final_recovery_review owns only init/lifecycle lock-order fixes and real
+  two-lock tests. Native rc.common takes procd lock before hook invocation;
+  operation lock must precede that lock. Fix pending review/test completion.
+- Root added explicit csqtt0 binding to VPN probe DNS/HTTPS (source binding alone
+  is insufficient during deactivation), corrected fresh public health epoch/gate
+  checks, and reports group-DNS independently. Next: finish concurrency checks,
+  checkpoint ALL helper/package files, one complete r8 candidate CI build, then
+  signed provenance and staged live acceptance. No live mutation has occurred.
+- Complete current source: lifecycle/procd lock inversion fixed and confirmed
+  against the installed readonly rc.common (action8/init119/procd127). Separate
+  process tests cover queued Stop, expiry/config/maintenance/disabled/pending
+  UCI changes, positive registration and readonly init. Latest complete Node
+  policy/LuCI/release run PASS105; six shell syntax checks and diff-check PASS.
+  One earlier run captured a half-written fixture lacking Windows sha256sum;
+  corrected fixture supplies bounded Node fallbacks; no product failure inferred.
+- Recovery helper now bounds each fixed mutation step/owned descendants to70s
+  or the remaining lease, preserves unrelated processes, checks owner startticks,
+  and cleans descendants even when their leader exits. New Rust tests and the
+  csqtt0 device-binding change still await the next complete native/SDK CI run.
+  No source-only test is represented as executed Rust or real router proof.
+- Producer/review agents are finished; root owns all remaining integration.
+  Next: checkpoint complete candidate, build r8 once on a new full validation
+  ref, inspect failures if any, verify signed assets, then announce live work.
 
 ## Boot7 preparation in progress (2026-10-09)
 

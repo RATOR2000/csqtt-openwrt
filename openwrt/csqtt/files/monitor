@@ -1,0 +1,91 @@
+#!/bin/sh
+# Separate procd observer. Private probe data never reaches stdout or syslog.
+set -eu
+umask 077
+RUN=/var/run/csqtt
+RUNTIME=/usr/share/csqtt/runtime.uc
+. /usr/libexec/csqtt/lifecycle.sh
+mkdir -p "$RUN" /var/lock
+chmod 0700 "$RUN"
+
+# A PID/startticks check prevents two observers, including a manual invocation.
+# Reaping is serialized independently from lifecycle operations.
+if ! mkdir /var/lock/csqtt-observer 2>/dev/null; then
+	mkdir /var/lock/csqtt-observer-reaper 2>/dev/null || exit 1
+	old=$(cat /var/lock/csqtt-observer/pid 2>/dev/null || true)
+	ticks=$(cat /var/lock/csqtt-observer/ticks 2>/dev/null || true)
+	if [ -z "$old" ] || [ -z "$ticks" ] || [ "$(csqtt_startticks "$old" 2>/dev/null || true)" = "$ticks" ]; then
+		rmdir /var/lock/csqtt-observer-reaper; exit 1
+	fi
+	rm -f /var/lock/csqtt-observer/pid /var/lock/csqtt-observer/ticks
+	rmdir /var/lock/csqtt-observer 2>/dev/null || { rmdir /var/lock/csqtt-observer-reaper; exit 1; }
+	mkdir /var/lock/csqtt-observer || { rmdir /var/lock/csqtt-observer-reaper; exit 1; }
+	rmdir /var/lock/csqtt-observer-reaper
+fi
+printf '%s\n' "$$" > /var/lock/csqtt-observer/pid
+printf '%s\n' "$(csqtt_startticks "$$")" > /var/lock/csqtt-observer/ticks
+wan_pid= vpn_pid= timer_pid=
+stop_probe() {
+	local pid=$1 ticks=$2
+	[ -n "$pid" ] && [ -n "$ticks" ] || return 0
+	if [ "$(csqtt_startticks "$pid" 2>/dev/null || true)" = "$ticks" ]; then kill "$pid" 2>/dev/null || true; fi
+}
+cleanup() {
+	[ -z "$timer_pid" ] || kill "$timer_pid" 2>/dev/null || true
+	[ -z "$timer_pid" ] || wait "$timer_pid" 2>/dev/null || true
+	stop_probe "$wan_pid" "${wan_ticks:-}"
+	stop_probe "$vpn_pid" "${vpn_ticks:-}"
+	[ -z "$wan_pid" ] || wait "$wan_pid" 2>/dev/null || true
+	[ -z "$vpn_pid" ] || wait "$vpn_pid" 2>/dev/null || true
+	rm -f /var/lock/csqtt-observer/pid /var/lock/csqtt-observer/ticks
+	rmdir /var/lock/csqtt-observer 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 0' HUP INT TERM
+runtime() { ucode "$RUNTIME" "$@"; }
+fingerprint() {
+	local temporary
+	temporary=$(mktemp "$RUN/health-config.XXXXXX") || return 1
+	sha256sum /etc/config/csqtt /etc/config/network | sha256sum | cut -d ' ' -f 1 > "$temporary"
+	mv "$temporary" "$RUN/health-config.current"
+}
+while :; do
+	started=$(cut -d . -f 1 /proc/uptime)
+	# Remove previous samples first: a failed/unperformed request is unknown.
+	rm -f "$RUN/health-wan.json" "$RUN/health-vpn.json"
+	if csqtt_network_evidence; then rm -f "$RUN/health-guard.blocked";
+	else : > "$RUN/health-guard.blocked"; fi
+	if fingerprint && runtime health-input >/dev/null 2>&1; then
+		/usr/bin/csqtt-client --health-probe wan < "$RUN/health-wan.input.json" > "$RUN/health-wan.json" 2>/dev/null &
+		wan_pid=$!; wan_ticks=$(csqtt_startticks "$wan_pid" 2>/dev/null || true)
+		/usr/bin/csqtt-client --health-probe vpn < "$RUN/health-vpn.input.json" > "$RUN/health-vpn.json" 2>/dev/null &
+		vpn_pid=$!; vpn_ticks=$(csqtt_startticks "$vpn_pid" 2>/dev/null || true)
+		(
+			delay_pid=
+			trap '[ -z "$delay_pid" ] || { kill "$delay_pid" 2>/dev/null || true; wait "$delay_pid" 2>/dev/null || true; }; exit 0' HUP INT TERM
+			sleep 10 & delay_pid=$!
+			wait "$delay_pid" || exit 0
+			delay_pid=
+			stop_probe "$wan_pid" "$wan_ticks"
+			stop_probe "$vpn_pid" "$vpn_ticks"
+		) & timer_pid=$!
+		wait "$wan_pid" 2>/dev/null || true
+		wait "$vpn_pid" 2>/dev/null || true
+		kill "$timer_pid" 2>/dev/null || true
+		wait "$timer_pid" 2>/dev/null || true
+		wan_pid= vpn_pid= timer_pid=
+	fi
+	(
+		# The observer is the state writer, and internal recover may also be
+		# invoked by root. Serialize their read/modify/write budget transactions.
+		csqtt_operation_enter recovery || exit 1
+		fingerprint && runtime health-update owned >/dev/null 2>&1 || exit 1
+		action=$(runtime health-action 2>/dev/null || true)
+		case "$action" in soft|transport) /usr/libexec/csqtt/manage recover "$action" >/dev/null 2>&1 || true ;; esac
+	) || true
+	# One serial sample every 30 seconds, with no catch-up after a long apply.
+	finished=$(cut -d . -f 1 /proc/uptime)
+	delay=$((30 - (finished - started)))
+	[ "$delay" -gt 0 ] || delay=30
+	sleep "$delay"
+done
