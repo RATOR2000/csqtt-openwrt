@@ -113,6 +113,31 @@ Auto VPN group switching remains cancelled; reliability recovery is separate.
   decision gates are unchanged. Focused recovery14 PASS; adds one regression.
   Source2 packages are superseded before publication; next candidate needs
   fresh104 policy/UI+2release checks, native ucode and SDK packages. No live change.
+- Final display-fix candidate sourceb991f2e80cf2b37fd2be0ae94b3d664897144867,
+  build587bd1e47928fd920b5bca18a754cf2f8508a380,
+  treec53ea382d2b293879475d38c002d43bc05cbd534, branch
+  codex/reliability-full-20261018-3, run39134602447. Fresh native117696452389,
+  checks117696452528, core117696452529 and Android117696452557 PASS;
+  SDK117696770239 still building. Authenticated logs in .work/preview.8;
+  verification104+2+7+4/95 named PASS. Android artifact12139013660 ZIP
+  sha256:57807137725d5a271857341b43c829286348dbcdb3a4ced3677361d4e42a08a8
+  downloaded/size+hash verified, not staged/released/installed.
+  Root's ignored controlled-fault.sh affects only router-origin198.18.0.1 TCP443,
+  has450s independent cleanup and refuses changed intent/configuration; not run.
+  live-state.uc parsed readonly on r7: one configured client/72workers/no observer.
+  Browser tab2 has an UNSAVED release form targeting candidate3, no tag selected.
+  GitHub branch picker required reload to see the newly created ref. No release/tag
+  or live mutation occurred. Do not use the superseded candidate1/2 artifacts.
+- SDK source2 completed with failure in the existing ARM64 TUN fixture: its
+  exact status schema omitted the new private freshness/health fields. New
+  payload/mode/license checks and ARM64 smoke PASS before that refusal. Log
+  .work/preview.8/superseded-run2/sdk-failed.log retained. Source3 has the same
+  old fixture, so cannot become a release. Corrected test-arm64-tun.py keeps an
+  exact private status/19-field health contract, validates native PID/startticks/
+  boot ID/boottime, rejects90 corrupt variants, and retains original identity,
+  redaction, TUN and shutdown assertions. Local schema+py_compile PASS; actual
+  ARM64 test still awaits CI. SDK/cargo caches were saved on validation branch2;
+  next validation commit will advance that unpublished branch to reuse them.
 
 ## Boot7 preparation in progress (2026-10-09)
 
