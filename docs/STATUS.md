@@ -1,20 +1,70 @@
 # Development status — resume here
 
-Updated 2026-10-09. Read this first, then IMPLEMENTATION.md. Files, Git and CI
+Updated 2026-10-18. Read this first, then IMPLEMENTATION.md. Files, Git and CI
 are the source of truth. Preserve current owner configuration. Historical
 details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Prepare the remaining stable-release proof: actual boot after failed first
-activation. Use signed r7 and the current owner configuration. Read
-.work/preview.7/failed-activation-boot-plan.md and the boot/activation history
-below. First build readonly preflight and persistent rollback helpers; verify
-independent unassigned LAN management, protected probe source and boot ordering.
-The full safe fault/reboot design remains unfinished. Announce live
-operations. A namespace test or service restart is not an actual router boot.
-Real Android Helper/manual VK also remains pending; do not force CAPTCHA.
-Do not repeat completed normal boot/crash/routed IPv6 tests. Auto VPN is cancelled.
+Implement the owner's accepted reliability plan: truthful private/redacted health,
+unblocked authentication while CAPTCHA waits, bounded automatic recovery, LuCI,
+signed preview.8 and staged router acceptance followed by 72 hours observation.
+Owner reports several outages daily; Reconnect helps without solving CAPTCHA.
+The exact live outage cause is unproven. Preserve current r7 configuration.
+Current source/remote HEAD before this work is 26006fb. No live fault or reboot
+is authorized by the deferred boot7 proof; announce all reliability live changes.
+Actual failed-first-activation boot and real Android/VK acceptance remain deferred
+stable-release gates. Do not repeat completed normal boot/crash/routed IPv6 tests.
+Auto VPN group switching remains cancelled; reliability recovery is separate.
+
+## Reliability implementation (2026-10-18)
+
+- Planning audit confirmed local/remote development HEAD equal; uncommitted
+  boot7 helpers and existing STATUS additions are being preserved as an explicit
+  incomplete checkpoint. No product code or router configuration changed yet.
+- GitHub r7 run37927521094 has four successful jobs. Readonly SSH and LuCI:
+  GL-MT6000/OpenWrt25.12.5, all three packages0.1.0-r7, connected72, no CAPTCHA.
+- Audit found global credential pacing held across manual CAPTCHA wait and
+  global60s CAPTCHA lockout preceding normal VK Calls authentication. Restart
+  also reapplies DNS/policy, so these are candidates, not diagnosed live causes.
+- Runtime status accepts stale/different-PID status; manual CAPTCHA overrides
+  healthy workers. Existing simulation reproduces both defects; 29 runtime/reload
+  tests passed. Boot7 Go probe tests and four shell syntax checks passed.
+- Boot7 remains NOT runnable: staging omits controller/observer/tools; postboot
+  observer setup absent; recovery stale-lock handling and final preflight gates
+  incomplete. Preserve it without arming, faults or reboot.
+- Root owns integration, Git, STATUS, release and all live access. Recheck agent
+  liveness before assigning implementation ownership. Next: preserve checkpoint,
+  then implement auth, probes and guarded recovery with focused regressions.
+
+## Boot7 preparation in progress (2026-10-09)
+
+- Readonly signed-r7 postcheck passed again: eleven installed hashes, four
+  unchanged config files, connected72, empty maintenance chains, saved release,
+  primary/group DNS and distinct WAN/VPN HTTPS. LuCI also shows connected72.
+- Native readonly preflight passed. Actual SSH LAN socket/route, router ARP and
+  neighbor facts match the active physical Windows NIC; management has no active
+  assignment. Private facts were supplied only in memory, never printed/saved in
+  source. No pending edits. Firewall19 precedes DNS94/client95.
+- First preflight attempt exposed a helper-only POSIX regex mismatch; fixed the
+  route interface parser. Both initial refusal and corrected exit0 are retained
+  under ignored .work/boot7. No product source was changed.
+- Native ARM64 fw4 missing-full-files check passed inside a private mount
+  namespace: saved hold included, absent full includes skipped, nft-c accepted.
+  All four owner configs byte-matched afterward. This was print/check only,
+  not a ruleset load or reboot. Private fixture /tmp/boot7-mount-proof remains;
+  its mount namespace has exited. Evidence .work/boot7/fw4-missing.public.log.
+- Static probe/preflight/recovery/fw4-check helpers are being moved to
+  tests/router/boot7 so future sessions can resume from source alone. Bounded
+  UDP/TCP DNS parser fixtures and Windows/ARM64 crossbuilds passed; root reran
+  explicit-file Go tests (PASS). A blocked probe requires passive ingress proof.
+  Generated binaries/private evidence remain ignored.
+- No temporary device, changed startup, armed recovery, live policy fault or
+  reboot has occurred. Persistent recovery/native checks and real-host protected
+  client fixture are still unfinished; complete these before fault/reboot.
+- Root owns integration/live/Git/STATUS. boot7_fault_review is improving recovery
+  phase resume in recovery.sh; boot7_preflight is preparing passive observation
+  in observe.sh. Both are source-only; recheck liveness before reassigning.
 
 ## Signed preview.7 complete (2026-10-09)
 
