@@ -94,6 +94,19 @@ Auto VPN group switching remains cancelled; reliability recovery is separate.
   This created no router files or live mutations. Focused Node runtime/recovery
  36 PASS. Failed native log .work/reliability/native-full1.log retained.
   Corrected source needs a new candidate build; do not publish run39133207038.
+- Corrected source397c8122b5de11958ed475d4abb2187b148b32e3 is saved on
+  GitHub/local, treeaad7ef0cf384c9c7b0e74eab33bdf6c979dced6f. Validation
+  buildb9c027e2242f4b392c50f0d58d6f34298ee0da41, branch
+  codex/reliability-full-20261018-2, run39133559601: core117693429912,
+  native117693430077, Android117693430083, checks117693430084 PASS.
+  SDK117693811946 still building; do not publish until all five pass.
+  Authenticated four logs retained in .work/preview.8. Local log verification
+  confirms103 policy/UI+2release+7installer+4Python and94 named regressions.
+  Root prepared ignored r8 provenance/signature/payload/public/live helpers;
+  review corrected old installer-hash pin and binds both extracted artifact
+  trees to authenticated ZIP bytes. No live mutation occurred. All agents
+  finished; root owns publication/live. Next: complete SDK, verify signed r8,
+  announce/install observe-only, controlled recovery, then72h observation.
 
 ## Boot7 preparation in progress (2026-10-09)
 
@@ -702,3 +715,4 @@ manualAndroidCAPTCHA and remaining ACCEPTANCE scenarios. Real crash, normal earl
 boot and synthetic routedIPv6 TCP/UDP packet proof are now recorded above.
 One active originalv2.1.9 tunnel; VPN traffic cannot fall back to WAN; explicitWAN
 exceptions and LANmanagement retained. No project-wide stable readiness claim.
+
