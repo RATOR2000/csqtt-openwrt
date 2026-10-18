@@ -26,8 +26,7 @@ Never install r8 or call its native acceptance complete. Current live router is
 r8 plus a temporary source-only health.uc correction (six export terminators),
 connected72 before controlled acceptance, WAN/VPN/group DNS healthy, one client.
 Root enabled auto_recover=1 for the accepted bounded recovery test; no other
-configuration change was made. Source probe-only fault is currently running;
-its independent450s watchdog and controller420s limit remove only the test table.
+configuration change was made. Source probe-only fault PASSED and is removed.
 Four config files byte-match current backup
 /etc/csqtt/backups/preview8-upgrade-20261018-193101-17695; signed r7 rollback
 assets/native signatures and rollback solver simulation PASS there. No reboot.
@@ -50,15 +49,45 @@ Native ucode health module import and exported recovery API passed.
 Correction checkpoint65be52bcbfdd97d1c02cbdcabf0a129106e261a7 is pushed.
 Source9 treebc6315f1d3c04ec41951113f84c60fb1c86cd9e7,
 build3d2ade5ec6ea9ced4e1dc6b7889d5f1a9bdef5df on validation branch2;
-run39159616158 checks/core/native/Android PASS, SDK117770357959 in progress.
+run39159616158 checks/core/native/Android PASS, SDK117770357959 FAILED in the
+ARM64 Linux TUN fixture: daemon process ownership incorrect. No9 published,
+no OpenWrt artifact produced. Authenticated failed log .work/preview.9/sdk-failed.log;
+authenticated diagnostics12148612801 SHA256e9fa7eef3b12a3bd22ea98c1243fce4049408940a160467db0abec93d6b62e7f
+are decompressed in .work/preview.9/sdk-diagnostics. Root and active
+/root/final_recovery_review diagnosed the exact comparison: QEMU8.2.2 synthesizes
+/proc/self/stat AND /proc/<pid>/stat starttime from its later initialization
+clock; equality with host kernel startticks can pass by chance. Primary source:
+https://github.com/qemu/qemu/blob/v8.2.2/linux-user/syscall.c#L7632-L7720
+Correction uses /proc/<pid>/task/<pid>/stat, selecting the actual kernel TGID
+leader on native Linux and bypassing QEMU's fake-stat shortcut. Router readonly
+check confirms both native paths have identical leader ticks. Existing Rust
+ownership unit now also checks an independent kernel path and spawned thread;
+test count unchanged. Python exact PID/startticks/boot/freshness assertions remain
+strict; diagnostics contain only3 fixed booleans. Local90 invalid schema+3
+diagnostic regressions and py_compile PASS. Rust and ARM64 TUN await fresh CI.
+Both corrections (real health import and leader ticks) must pass before9 release.
 The new real module import passes both CI and the unchanged native router fixture.
 .work/preview.9 contains isolated verification scaffolding and four authenticated
 successful job logs; no old8 artifacts/provenance were reused. Full verification
-and publication remain pending SDK completion. Preserve current auto_recover=1.
+and publication remain blocked on the diagnosed SDK check. Preserve current auto_recover=1.
 Controlled source fault evidence: /tmp/csqtt-preview8-check/controlled.public.log
 and controlled.exit. At215s: one soft repair/one budget reservation, no transport
 restart yet, WAN/DNS ok, VPN fail,72workers, one configured client, guards checked
-every5s. Fault matches only router-origin198.18.0.1TCP443, no forwarded LAN packet.
+every5s. At276s: one transport restart, exactly one cycle charged, no duplicate
+client; controller removed test table and exited0. Subsequent fresh observation
+shows connected72, healthy WAN/VPN/DNS and one client/one observer. Public proof:
+.work/preview.9/source-controlled-acceptance.public.log. This is SOURCE acceptance
+on the temporary r8+health.uc router, not signed9 acceptance. Fault matched only
+router-origin198.18.0.1TCP443, no forwarded LAN packet.
+Native SOURCE management acceptance also PASS exit0: manualStop produced0clients,
+enabled0/guards/budget retained; observer restart produced a fresh disabled sample
+and did not restart the client throughout the stopped observation; Start restored
+oneclient; unchanged Reload preserved PID:startticks, effective config and guards.
+Four configs byte-match the baseline after enabled restored1. The one charged
+attempt/last_action survived observer/client restart. Public evidence
+.work/preview.9/source-management.public.log. First preflight refused before any
+mutation on transient status_stale; bounded waiting for a fresh healthy baseline
+then allowed the test. This is not signed9/real Helper/VK or LAN packet acceptance.
 The first launcher refused before fault because nohup is absent; setsid with
 readiness/liveness checks is used instead. Do not use nohup on this router.
 Next: finish controlled recovery and Stop/Reload/observer budget checks; verify

@@ -213,7 +213,13 @@ pub fn boottime_ms() -> u64 {
 }
 
 fn process_startticks() -> u64 {
-    std::fs::read_to_string("/proc/self/stat").ok()
+    // Select the kernel TGID leader even when called from a worker thread.
+    // QEMU 8.2.2 synthesizes both /proc/self/stat and /proc/<pid>/stat using
+    // TaskState::start_boottime; the explicit task path retains kernel ticks.
+    // https://github.com/qemu/qemu/blob/v8.2.2/linux-user/syscall.c#L7632-L7668
+    // https://github.com/qemu/qemu/blob/v8.2.2/linux-user/syscall.c#L7699-L7720
+    let pid = std::process::id();
+    std::fs::read_to_string(format!("/proc/{pid}/task/{pid}/stat")).ok()
         .and_then(|stat| stat.rsplit_once(')').map(|(_, fields)| fields.to_owned()))
         .and_then(|fields| fields.split_whitespace().nth(19).and_then(|field| field.parse().ok()))
         .unwrap_or(0)
@@ -837,7 +843,12 @@ mod tests {
     #[cfg(target_os="linux")]
     #[test]
     fn private_ownership_metadata_matches_kernel_process_instance() {
-        assert!(process_startticks()>0);
+        let pid=std::process::id();
+        let leader=std::fs::read_to_string(format!("/proc/{pid}/stat")).unwrap();
+        let expected:u64=leader.rsplit_once(')').unwrap().1.split_whitespace().nth(19).unwrap().parse().unwrap();
+        assert!(expected>0);
+        assert_eq!(process_startticks(),expected);
+        assert_eq!(std::thread::spawn(process_startticks).join().unwrap(),expected);
         let id=boot_id();
         assert_eq!(id.len(),36);
         assert!(id.bytes().all(|byte| byte.is_ascii_hexdigit() || byte==b'-'));

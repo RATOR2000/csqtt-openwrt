@@ -101,9 +101,13 @@ def check_status(value, pid, private_values, stopped=False, ownership=None, now_
             and value['tun_device'] == 'csqtt0', 'daemon status identity incorrect')
     ownership = process_ownership(pid) if ownership is None else ownership
     now_ms = boottime_ms() if now_ms is None else now_ms
-    require(unsigned(value['process_startticks']) and value['process_startticks'] > 0
-            and value['process_startticks'] == ownership['process_startticks']
-            and value['boot_id'] == ownership['boot_id'], 'daemon process ownership incorrect')
+    ticks_valid = unsigned(value['process_startticks']) and value['process_startticks'] > 0
+    ticks_match = value['process_startticks'] == ownership['process_startticks']
+    boot_match = value['boot_id'] == ownership['boot_id']
+    require(ticks_valid and ticks_match and boot_match,
+            'daemon process ownership incorrect: '
+            f'startticks_valid={str(ticks_valid).lower()} '
+            f'startticks_match={str(ticks_match).lower()} boot_id_match={str(boot_match).lower()}')
     updated = value['updated_boottime_ms']
     require(unsigned(updated) and ownership['started_boottime_ms'] <= updated <= now_ms
             and now_ms - updated <= 15_000, 'daemon status boot-clock freshness incorrect')
@@ -165,6 +169,17 @@ def check_schema_regressions():
         except CheckFailure:
             continue
         raise CheckFailure('private schema regression accepted invalid metadata or health')
+    for changed, suffix in [
+            ({'process_startticks': 0}, 'startticks_valid=false startticks_match=false boot_id_match=true'),
+            ({'process_startticks': 1235}, 'startticks_valid=true startticks_match=false boot_id_match=true'),
+            ({'boot_id': 'previous-boot'}, 'startticks_valid=true startticks_match=true boot_id_match=false')]:
+        try:
+            check(dict(sample, **changed))
+        except CheckFailure as error:
+            require(str(error) == 'daemon process ownership incorrect: ' + suffix,
+                    'ownership diagnostics must contain only fixed boolean labels')
+        else:
+            raise CheckFailure('ownership diagnostics regression accepted a mismatch')
 
 
 def main():
