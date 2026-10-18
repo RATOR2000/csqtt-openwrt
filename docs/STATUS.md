@@ -100,12 +100,15 @@ reuse settled evidence, use focused checks, compact outputs and this summary.
 
 ## Continuation — fresh preview9 candidate2 (2026-10-18 20:00UTC)
 
-CURRENT local/remote source20d405f272ec24fdd4cb02780e6a9068e3274351,
+Frozen product candidate source20d405f272ec24fdd4cb02780e6a9068e3274351,
 treef7ee0b0931e151f4c732bfe7e3949577d74ee893,
 build926a44f31caeb760df70d808eee53d6f715d0d8b on existing unpublished
 codex/reliability-full-20261018-2. Run39161176161 is in progress, not accepted.
 https://github.com/RATOR2000/csqtt-openwrt/actions/runs/39161176161
 It includes the real ucode import correction AND explicit kernel leader ticks.
+At20:01UTC new core117774641601, native117774641441 and checks117774641657
+PASS; Android117774641697 and SDK117774930559 are in progress. Successful
+job logs and signed artifacts still need the exact-head verification below.
 Current live readonly native leader-path equality PASS; management exit0, one
 client/observer,72workers, WAN/VPN/DNS healthy, enabled1/auto_recover1, one cycle.
 Keep this state while waiting. Review agent finished; no active producer remains.
