@@ -168,6 +168,10 @@ function boottime() {
 	let value = split(trim(fs.readfile('/proc/uptime') || ''), ' ')[0];
 	return match(value, /^[0-9]+(\.[0-9]+)?$/) ? +value : null;
 }
+function process_id(value) {
+	return match('' + (value || ''), /^[1-9][0-9]*$/) ? '' + value : null;
+}
+
 function process_startticks(pid) {
 	if (!process_id(pid)) return null;
 	let line = fs.readfile('/proc/' + pid + '/stat') || '';
@@ -201,9 +205,6 @@ function transport_stopped() {
 function dns_instances() {
 	let s = call('service', 'list', { name: 'csqtt-dns' });
 	return s == null ? null : ((s['csqtt-dns'] && s['csqtt-dns'].instances) || {});
-}
-function process_id(value) {
-	return match('' + (value || ''), /^[1-9][0-9]*$/) ? '' + value : null;
 }
 function dns_snapshot() {
 	let instances = dns_instances(), pids = [];
@@ -296,6 +297,45 @@ function dns_ready() {
 	}
 	return true;
 }
+function network_epoch() {
+	let net = network(), paths = [];
+	for (let i = 0; i < length(net.interface || []); i++) {
+		let intf = net.interface[i], addresses = [], routes = [];
+		for (let j = 0; j < length(intf['ipv4-address'] || []); j++)
+			push(addresses, { address: intf['ipv4-address'][j].address, mask: intf['ipv4-address'][j].mask });
+		for (let j = 0; j < length(intf.route || []); j++) {
+			let r = intf.route[j];
+			push(routes, { target: r.target, mask: r.mask, nexthop: r.nexthop, table: r.table, metric: r.metric });
+		}
+		push(paths, { up: intf.up, device: intf.l3_device || intf.device, addresses: addresses, routes: routes });
+	}
+	return sprintf('%J', paths);
+}
+
+function health_context(ignore_operation) {
+	let live = current_status(), ctx = { boot_id: live.boot_id, now: live.now == null ? 0 : live.now,
+		config_epoch: trim(fs.readfile(ROOT + 'health-config.current') || ''), intent: trim(fs.readfile(ROOT + 'intent') || ''),
+		network_epoch: network_epoch(),
+		process_epoch: (live.pid || '') + ':' + (live.ticks || '') + ':' +
+			(live.current && live.stored.health ? ('' + (live.stored.health.human_epoch || 0)) : '0'),
+		automatic: c.get('csqtt', 'main', 'auto_recover') === '1',
+		process: live.running ? (live.current ? 'ok' : 'unknown') : 'fail', gate: null };
+	if (!ctx.boot_id || live.now == null || !match(ctx.config_epoch, /^[a-f0-9]{64}$/)) ctx.gate = 'probe_uncertain';
+	if (c.get('csqtt', 'main', 'enabled') !== '1' || fs.stat(STATE + 'deactivated')) ctx.gate = 'disabled';
+	else if (fs.stat('/var/lock/csqtt-maintenance')) ctx.gate = 'maintenance';
+	else if (fs.stat(ROOT + 'policy.error')) ctx.gate = 'policy_error';
+	else if (fs.stat(ROOT + 'health-guard.blocked')) ctx.gate = 'guard_missing';
+	else if (length(trim(fs.readfile('/tmp/.uci/csqtt') || '')) || length(trim(fs.readfile('/tmp/.uci/network') || '')) ||
+		length(trim(fs.readfile('/tmp/.uci/dhcp') || '')) || length(trim(fs.readfile('/tmp/.uci/firewall') || ''))) ctx.gate = 'pending_edits';
+	else if (!ignore_operation && fs.stat('/var/lock/csqtt-operation')) ctx.gate = 'operation_active';
+	else if (live.running && !live.current) ctx.gate = 'status_stale';
+	else if (!live.running && process_id(live.stored.pid) &&
+		process_startticks(live.stored.pid) === ('' + live.stored.process_startticks)) ctx.gate = 'status_stale';
+	else if (live.current && live.stored.captcha && live.stored.captcha.human_active === true &&
+		live.stored.captcha.expires_at > time()) ctx.gate = 'human_active';
+	return ctx;
+}
+
 function status() {
 	let live = current_status(), stored = live.current ? live.stored : {}, core = {}, running = live.running;
 	// Explicit allowlist prevents upstream fields from exposing passwords or challenge answers.
@@ -330,43 +370,6 @@ function status() {
 		policy_error: length(trim(fs.readfile(ROOT + 'policy.error') || '')) ? 'Policy operation failed; inspect root-only diagnostics' : '',
 		groups: length(model.groups || []), devices: length(model.devices || []) };
 }
-function network_epoch() {
-	let net = network(), paths = [];
-	for (let i = 0; i < length(net.interface || []); i++) {
-		let intf = net.interface[i], addresses = [], routes = [];
-		for (let j = 0; j < length(intf['ipv4-address'] || []); j++)
-			push(addresses, { address: intf['ipv4-address'][j].address, mask: intf['ipv4-address'][j].mask });
-		for (let j = 0; j < length(intf.route || []); j++) {
-			let r = intf.route[j];
-			push(routes, { target: r.target, mask: r.mask, nexthop: r.nexthop, table: r.table, metric: r.metric });
-		}
-		push(paths, { up: intf.up, device: intf.l3_device || intf.device, addresses: addresses, routes: routes });
-	}
-	return sprintf('%J', paths);
-}
-function health_context(ignore_operation) {
-	let live = current_status(), ctx = { boot_id: live.boot_id, now: live.now == null ? 0 : live.now,
-		config_epoch: trim(fs.readfile(ROOT + 'health-config.current') || ''), intent: trim(fs.readfile(ROOT + 'intent') || ''),
-		network_epoch: network_epoch(),
-		process_epoch: (live.pid || '') + ':' + (live.ticks || '') + ':' +
-			(live.current && live.stored.health ? ('' + (live.stored.health.human_epoch || 0)) : '0'),
-		automatic: c.get('csqtt', 'main', 'auto_recover') === '1',
-		process: live.running ? (live.current ? 'ok' : 'unknown') : 'fail', gate: null };
-	if (!ctx.boot_id || live.now == null || !match(ctx.config_epoch, /^[a-f0-9]{64}$/)) ctx.gate = 'probe_uncertain';
-	if (c.get('csqtt', 'main', 'enabled') !== '1' || fs.stat(STATE + 'deactivated')) ctx.gate = 'disabled';
-	else if (fs.stat('/var/lock/csqtt-maintenance')) ctx.gate = 'maintenance';
-	else if (fs.stat(ROOT + 'policy.error')) ctx.gate = 'policy_error';
-	else if (fs.stat(ROOT + 'health-guard.blocked')) ctx.gate = 'guard_missing';
-	else if (length(trim(fs.readfile('/tmp/.uci/csqtt') || '')) || length(trim(fs.readfile('/tmp/.uci/network') || '')) ||
-		length(trim(fs.readfile('/tmp/.uci/dhcp') || '')) || length(trim(fs.readfile('/tmp/.uci/firewall') || ''))) ctx.gate = 'pending_edits';
-	else if (!ignore_operation && fs.stat('/var/lock/csqtt-operation')) ctx.gate = 'operation_active';
-	else if (live.running && !live.current) ctx.gate = 'status_stale';
-	else if (!live.running && process_id(live.stored.pid) &&
-		process_startticks(live.stored.pid) === ('' + live.stored.process_startticks)) ctx.gate = 'status_stale';
-	else if (live.current && live.stored.captcha && live.stored.captcha.human_active === true &&
-		live.stored.captcha.expires_at > time()) ctx.gate = 'human_active';
-	return ctx;
-}
 function health_input() {
 	let ctx = health_context(false), model = readjson(STATE + 'policy.json', {}), net = network();
 	let source = null, metric = 2147483647;
@@ -391,35 +394,6 @@ function health_input() {
 	if (ctx.gate) exit(1);
 	save(ROOT + 'health-wan.input.json', sprintf('%J', { source_ipv4: source, dns_ipv4: model.wan_dns || '9.9.9.9', group_ports: [] }));
 	save(ROOT + 'health-vpn.input.json', sprintf('%J', { source_ipv4: '198.18.0.1', dns_ipv4: model.vpn_dns || '1.1.1.1', group_ports: ports }));
-}
-function health_update(owned) {
-	let previous = readjson(ROOT + 'health-state.json', null), sampled = readjson(ROOT + 'health-context.json', {}), ctx = health_context(owned);
-	if (sampled.config_epoch !== ctx.config_epoch || sampled.network_epoch !== ctx.network_epoch || sampled.intent !== ctx.intent || sampled.boot_id !== ctx.boot_id ||
-		sampled.now > ctx.now || ctx.now - sampled.now > 15) ctx.gate = 'configuration_changed';
-	else if (sampled.gate) ctx.gate = sampled.gate;
-	let next = health_advance(previous, ctx, readjson(ROOT + 'health-wan.json', null), readjson(ROOT + 'health-vpn.json', null));
-	save_atomic(ROOT + 'health-state.json', sprintf('%J', next));
-	if (previous && previous.state === 'healthy' && includes(['degraded', 'wan_down'], next.state))
-		health_incident('observation', next.reason);
-}
-function health_authorize(action) {
-	let ctx = health_context(true);
-	ctx.wan = readjson(ROOT + 'health-wan.json', null); ctx.vpn = readjson(ROOT + 'health-vpn.json', null);
-	let state = health_reserve(readjson(ROOT + 'health-state.json', null), ctx, action);
-	if (!state) exit(1);
-	save_atomic(ROOT + 'health-state.json', sprintf('%J', state));
-}
-function health_finish(action, success) {
-	let ctx = health_context(true), state = health_complete(readjson(ROOT + 'health-state.json', null), ctx, action, success);
-	save_atomic(ROOT + 'health-state.json', sprintf('%J', state));
-}
-function health_lease_valid() {
-	let lease = readjson(ROOT + 'recovery-lease.json', {}), live = current_status();
-	return live.current && lease.ok === true && lease.boot_id === live.boot_id &&
-		('' + lease.pid) === live.pid && ('' + lease.process_startticks) === live.ticks &&
-		lease.human_epoch === (live.stored.health ? (live.stored.health.human_epoch || 0) : 0) &&
-		match(lease.recovery_id || '', /^[a-zA-Z0-9_-]{1,80}$/) && lease.lease_secs === 90 &&
-		lease.updated_boottime_ms <= live.now * 1000 && live.now * 1000 - lease.updated_boottime_ms < 85000;
 }
 function health_incident(action, reason) {
 	if (!includes(['soft', 'transport', 'observation', 'manual'], action)) return;
@@ -454,6 +428,36 @@ function health_incident(action, reason) {
 	newest.routes = { source_rule: network_counts.source_rule === true, fallback_rule: network_counts.fallback_rule === true, unreachable_route: network_counts.unreachable_route === true };
 	newest.guards = { output: network_counts.output_guard === true, forward: network_counts.forward_guard === true };
 	save_atomic(ROOT + 'incidents.json', sprintf('%J', kept));
+}
+
+function health_update(owned) {
+	let previous = readjson(ROOT + 'health-state.json', null), sampled = readjson(ROOT + 'health-context.json', {}), ctx = health_context(owned);
+	if (sampled.config_epoch !== ctx.config_epoch || sampled.network_epoch !== ctx.network_epoch || sampled.intent !== ctx.intent || sampled.boot_id !== ctx.boot_id ||
+		sampled.now > ctx.now || ctx.now - sampled.now > 15) ctx.gate = 'configuration_changed';
+	else if (sampled.gate) ctx.gate = sampled.gate;
+	let next = health_advance(previous, ctx, readjson(ROOT + 'health-wan.json', null), readjson(ROOT + 'health-vpn.json', null));
+	save_atomic(ROOT + 'health-state.json', sprintf('%J', next));
+	if (previous && previous.state === 'healthy' && includes(['degraded', 'wan_down'], next.state))
+		health_incident('observation', next.reason);
+}
+function health_authorize(action) {
+	let ctx = health_context(true);
+	ctx.wan = readjson(ROOT + 'health-wan.json', null); ctx.vpn = readjson(ROOT + 'health-vpn.json', null);
+	let state = health_reserve(readjson(ROOT + 'health-state.json', null), ctx, action);
+	if (!state) exit(1);
+	save_atomic(ROOT + 'health-state.json', sprintf('%J', state));
+}
+function health_finish(action, success) {
+	let ctx = health_context(true), state = health_complete(readjson(ROOT + 'health-state.json', null), ctx, action, success);
+	save_atomic(ROOT + 'health-state.json', sprintf('%J', state));
+}
+function health_lease_valid() {
+	let lease = readjson(ROOT + 'recovery-lease.json', {}), live = current_status();
+	return live.current && lease.ok === true && lease.boot_id === live.boot_id &&
+		('' + lease.pid) === live.pid && ('' + lease.process_startticks) === live.ticks &&
+		lease.human_epoch === (live.stored.health ? (live.stored.health.human_epoch || 0) : 0) &&
+		match(lease.recovery_id || '', /^[a-zA-Z0-9_-]{1,80}$/) && lease.lease_secs === 90 &&
+		lease.updated_boottime_ms <= live.now * 1000 && live.now * 1000 - lease.updated_boottime_ms < 85000;
 }
 function firewall_include(name, file, position, chain) {
 	if (c.get('firewall', name) && c.get('firewall', name, 'csqtt_owned') !== '1') die('Firewall section collision');

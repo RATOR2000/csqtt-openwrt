@@ -84,6 +84,16 @@ Auto VPN group switching remains cancelled; reliability recovery is separate.
 - Producer/review agents are finished; root owns all remaining integration.
   Next: checkpoint complete candidate, build r8 once on a new full validation
   ref, inspect failures if any, verify signed assets, then announce live work.
+- Complete candidate sourcea510d28d93713db40515fd354400d9af1073baf3;
+  build0cf9075b9a96ac87a53760c0590a4c6e7b0f9cf7/treeef7294d9860e22ccf71045dbc301a6c51e36c8b0,
+  ref codex/reliability-full-20261018-1, run39133207038. Checks/core/Android PASS;
+  native117692412340 failed on ucode lexical forward-reference to process_id.
+  Root reordered process_id, network/context, and incident declarations.
+  Installed-router ucode with fully in-memory fs/UCI/ubus adapters now PASS,
+  including actual native recovery180s/reserve/soft30s/transport and Stop guards.
+  This created no router files or live mutations. Focused Node runtime/recovery
+ 36 PASS. Failed native log .work/reliability/native-full1.log retained.
+  Corrected source needs a new candidate build; do not publish run39133207038.
 
 ## Boot7 preparation in progress (2026-10-09)
 

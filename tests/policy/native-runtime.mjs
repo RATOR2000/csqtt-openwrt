@@ -47,6 +47,29 @@ function hold() { die('Unexpected native runtime hold call'); }
 `;
 const assertions = `
 function check(ok, message) { if (!ok) die(message); }
+let recovery_ctx = { boot_id: 'fixture-boot', config_epoch: 'fixture-config', network_epoch: 'fixture-network',
+  process_epoch: 'fixture-process', intent: 'fixture-intent', automatic: true, process: 'ok', now: 0, gate: null };
+let wan_fixture = { schema_version: 1, config_valid: true, completed: true, endpoints: [
+  { index: 0, dns: 'ok', https: 'ok', reachable: true }, { index: 1, dns: 'ok', https: 'ok', reachable: true } ] };
+let vpn_fixture = { schema_version: 1, config_valid: true, completed: true, endpoints: [
+  { index: 0, dns: 'ok', https: 'fail', reachable: false }, { index: 1, dns: 'ok', https: 'fail', reachable: false } ] };
+let recovery_fixture = null;
+for (let elapsed = 0; elapsed <= 180; elapsed += 30) {
+  recovery_ctx.now = elapsed;
+  recovery_fixture = health_advance(recovery_fixture, recovery_ctx, wan_fixture, vpn_fixture);
+  if (elapsed < 180) check(!recovery_fixture.action, 'Native recovery ignored confirmation interval');
+}
+check(recovery_fixture.action === 'soft', 'Native confirmed failure did not request soft repair');
+recovery_ctx.wan = wan_fixture; recovery_ctx.vpn = vpn_fixture;
+recovery_fixture = health_reserve(recovery_fixture, recovery_ctx, 'soft');
+check(recovery_fixture && length(recovery_fixture.attempts) === 1, 'Native recovery did not reserve budget');
+recovery_fixture = health_complete(recovery_fixture, recovery_ctx, 'soft', true);
+recovery_ctx.now = 210;
+recovery_fixture = health_advance(recovery_fixture, recovery_ctx, wan_fixture, vpn_fixture);
+check(recovery_fixture.action === 'transport', 'Native soft repair did not require a fresh later sample');
+recovery_ctx.gate = 'disabled';
+let stopped_public = health_public(recovery_fixture, recovery_ctx);
+check(stopped_public.health.state === 'disabled' && stopped_public.recovery.state === 'paused', 'Native Stop did not invalidate old public health');
 function rejects(main, expected) {
   let message = null;
   try { client(main); } catch (e) { message = e.message; }
