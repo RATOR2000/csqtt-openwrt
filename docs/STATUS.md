@@ -6,138 +6,109 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Implement the owner's accepted reliability plan: truthful private/redacted health,
-unblocked authentication while CAPTCHA waits, bounded automatic recovery, LuCI,
-signed preview.8 and staged router acceptance followed by 72 hours observation.
+Publish verified signed preview.8, then staged router
+acceptance followed by72hours observation. Reliability source is implemented;
+exact candidate, checks and next action are in the current checkpoint below.
 Owner reports several outages daily; Reconnect helps without solving CAPTCHA.
 The exact live outage cause is unproven. Preserve current r7 configuration.
-Current source/remote HEAD before this work is 26006fb. No live fault or reboot
-is authorized by the deferred boot7 proof; announce all reliability live changes.
+The deferred boot7 proof authorizes no live fault or reboot; announce all
+reliability live changes within the accepted reliability plan.
 Actual failed-first-activation boot and real Android/VK acceptance remain deferred
 stable-release gates. Do not repeat completed normal boot/crash/routed IPv6 tests.
 Auto VPN group switching remains cancelled; reliability recovery is separate.
 
-## Reliability implementation (2026-10-18)
+## Reliability implementation — current checkpoint (2026-10-18)
 
-- Planning audit confirmed local/remote development HEAD equal; uncommitted
-  boot7 helpers and existing STATUS additions are being preserved as an explicit
-  incomplete checkpoint. No product code or router configuration changed yet.
-- GitHub r7 run37927521094 has four successful jobs. Readonly SSH and LuCI:
-  GL-MT6000/OpenWrt25.12.5, all three packages0.1.0-r7, connected72, no CAPTCHA.
-- Audit found global credential pacing held across manual CAPTCHA wait and
-  global60s CAPTCHA lockout preceding normal VK Calls authentication. Restart
-  also reapplies DNS/policy, so these are candidates, not diagnosed live causes.
-- Runtime status accepts stale/different-PID status; manual CAPTCHA overrides
-  healthy workers. Existing simulation reproduces both defects; 29 runtime/reload
-  tests passed. Boot7 Go probe tests and four shell syntax checks passed.
-- Boot7 remains NOT runnable: staging omits controller/observer/tools; postboot
-  observer setup absent; recovery stale-lock handling and final preflight gates
-  incomplete. Preserve it without arming, faults or reboot.
-- Root owns integration, Git, STATUS, release and all live access. Recheck agent
-  liveness before assigning implementation ownership. Next: preserve checkpoint,
-  then implement auth, probes and guarded recovery with focused regressions.
-- Boot7/source-scope checkpoint ee557fd5dbf66c20466916ca76c9f30402aa7a90
-  saved on GitHub via the connected GitHub API; local tree verified identical.
-  A local Git push requested GCM OAuth; no new authorization was needed or used.
-- Current implementation ownership: acceptance_audit Rust auth/CAPTCHA/status;
-  boot_plan_audit Rust health probe then independent auth review;
-  recovery_impl OpenWrt monitor/lifecycle/runtime/tests; root UI/installer/main/
-  CI/docs/integration. No implementation agent has live-router scope.
-- Root LuCI25 tests and Python4 release tests PASS. Installer suite in progress;
-  maintenance collision and first/repeat install cases passed. Rust source is
-  not compiled yet (no local Rust toolchain); CI will establish compilation.
-  No live change, fault, install or reboot has occurred during implementation.
-- Latest checked source checkpoint7b6d669360a4ff655889ee639e7bd3199bc1822b
-  (tree0ef5f81132263198da68826fd036b4bb5bb69ff0) is saved remotely/local.
-  Focused Rust39108663550/job117619879620 compiled:371passed/1failed/7ignored.
-  Failure was a new test dropping its oneshot receiver; root now retains it
-  and asserts the cancellation result. Corrected SHA still needs native tests.
-- Existing PR also triggered run39108667411: checks/native-policy/Android PASS;
-  ARM64 build/smoke succeeded, SDK payload verification failed because this
-  partial checkpoint deliberately lacked new lifecycle.sh packaging. Neither
-  run is release acceptance. Authenticated failed logs retained in
-  .work/reliability/job-117619879620.log and job-117620208861.log.
-- Installer7 tests PASS, including maintenance collision and rollback; release
-  Python4 PASS. Current policy/LuCI89 tests PASS before two additional health
-  regressions; focused recovery13 PASS afterward. No local Rust installation.
-- Root owns all producer files now (original producer agents gone). New
-  final_recovery_review owns only init/lifecycle lock-order fixes and real
-  two-lock tests. Native rc.common takes procd lock before hook invocation;
-  operation lock must precede that lock. Fix pending review/test completion.
-- Root added explicit csqtt0 binding to VPN probe DNS/HTTPS (source binding alone
-  is insufficient during deactivation), corrected fresh public health epoch/gate
-  checks, and reports group-DNS independently. Next: finish concurrency checks,
-  checkpoint ALL helper/package files, one complete r8 candidate CI build, then
-  signed provenance and staged live acceptance. No live mutation has occurred.
-- Complete current source: lifecycle/procd lock inversion fixed and confirmed
-  against the installed readonly rc.common (action8/init119/procd127). Separate
-  process tests cover queued Stop, expiry/config/maintenance/disabled/pending
-  UCI changes, positive registration and readonly init. Latest complete Node
-  policy/LuCI/release run PASS105; six shell syntax checks and diff-check PASS.
-  One earlier run captured a half-written fixture lacking Windows sha256sum;
-  corrected fixture supplies bounded Node fallbacks; no product failure inferred.
-- Recovery helper now bounds each fixed mutation step/owned descendants to70s
-  or the remaining lease, preserves unrelated processes, checks owner startticks,
-  and cleans descendants even when their leader exits. New Rust tests and the
-  csqtt0 device-binding change still await the next complete native/SDK CI run.
-  No source-only test is represented as executed Rust or real router proof.
-- Producer/review agents are finished; root owns all remaining integration.
-  Next: checkpoint complete candidate, build r8 once on a new full validation
-  ref, inspect failures if any, verify signed assets, then announce live work.
-- Complete candidate sourcea510d28d93713db40515fd354400d9af1073baf3;
-  build0cf9075b9a96ac87a53760c0590a4c6e7b0f9cf7/treeef7294d9860e22ccf71045dbc301a6c51e36c8b0,
-  ref codex/reliability-full-20261018-1, run39133207038. Checks/core/Android PASS;
-  native117692412340 failed on ucode lexical forward-reference to process_id.
-  Root reordered process_id, network/context, and incident declarations.
-  Installed-router ucode with fully in-memory fs/UCI/ubus adapters now PASS,
-  including actual native recovery180s/reserve/soft30s/transport and Stop guards.
-  This created no router files or live mutations. Focused Node runtime/recovery
- 36 PASS. Failed native log .work/reliability/native-full1.log retained.
-  Corrected source needs a new candidate build; do not publish run39133207038.
-- Corrected source397c8122b5de11958ed475d4abb2187b148b32e3 is saved on
-  GitHub/local, treeaad7ef0cf384c9c7b0e74eab33bdf6c979dced6f. Validation
-  buildb9c027e2242f4b392c50f0d58d6f34298ee0da41, branch
-  codex/reliability-full-20261018-2, run39133559601: core117693429912,
-  native117693430077, Android117693430083, checks117693430084 PASS.
-  SDK117693811946 still building; do not publish until all five pass.
-  Authenticated four logs retained in .work/preview.8. Local log verification
-  confirms103 policy/UI+2release+7installer+4Python and94 named regressions.
-  Root prepared ignored r8 provenance/signature/payload/public/live helpers;
-  review corrected old installer-hash pin and binds both extracted artifact
-  trees to authenticated ZIP bytes. No live mutation occurred. All agents
-  finished; root owns publication/live. Next: complete SDK, verify signed r8,
-  announce/install observe-only, controlled recovery, then72h observation.
-- Pre-release review found the lifecycle operation gate hid the admitted
-  recovery's UI state. Corrected display-only handling requires a fresh matching
-  running action/current process and retains Stop/other gate/epoch invalidation;
-  decision gates are unchanged. Focused recovery14 PASS; adds one regression.
-  Source2 packages are superseded before publication; next candidate needs
-  fresh104 policy/UI+2release checks, native ucode and SDK packages. No live change.
-- Final display-fix candidate sourceb991f2e80cf2b37fd2be0ae94b3d664897144867,
-  build587bd1e47928fd920b5bca18a754cf2f8508a380,
-  treec53ea382d2b293879475d38c002d43bc05cbd534, branch
-  codex/reliability-full-20261018-3, run39134602447. Fresh native117696452389,
-  checks117696452528, core117696452529 and Android117696452557 PASS;
-  SDK117696770239 still building. Authenticated logs in .work/preview.8;
-  verification104+2+7+4/95 named PASS. Android artifact12139013660 ZIP
-  sha256:57807137725d5a271857341b43c829286348dbcdb3a4ced3677361d4e42a08a8
-  downloaded/size+hash verified, not staged/released/installed.
-  Root's ignored controlled-fault.sh affects only router-origin198.18.0.1 TCP443,
-  has450s independent cleanup and refuses changed intent/configuration; not run.
-  live-state.uc parsed readonly on r7: one configured client/72workers/no observer.
-  Browser tab2 has an UNSAVED release form targeting candidate3, no tag selected.
-  GitHub branch picker required reload to see the newly created ref. No release/tag
-  or live mutation occurred. Do not use the superseded candidate1/2 artifacts.
-- SDK source2 completed with failure in the existing ARM64 TUN fixture: its
-  exact status schema omitted the new private freshness/health fields. New
-  payload/mode/license checks and ARM64 smoke PASS before that refusal. Log
-  .work/preview.8/superseded-run2/sdk-failed.log retained. Source3 has the same
-  old fixture, so cannot become a release. Corrected test-arm64-tun.py keeps an
-  exact private status/19-field health contract, validates native PID/startticks/
-  boot ID/boottime, rejects90 corrupt variants, and retains original identity,
-  redaction, TUN and shutdown assertions. Local schema+py_compile PASS; actual
-  ARM64 test still awaits CI. SDK/cargo caches were saved on validation branch2;
-  next validation commit will advance that unpublished branch to reuse them.
+Root owns Git/integration/publication/live access. All producer/review agents
+finished; recheck liveness before delegation. Owner requests low token usage:
+reuse settled evidence, use focused checks, compact outputs and this summary.
+
+Current source/local/remote dc1b4fe050ca82fabcc73bc95ff544c500c78ba6.
+Final candidate4 build31d3e1e2fbbe7c489b50b4ee2b469866dc5ea248,
+tree46515ac303c4438d5427f7cd53b6f3e85012778b.
+Validation branch codex/reliability-full-20261018-2 was advanced (unpublished)
+with a second parent preserving fast-forward history, to reuse its saved caches.
+Run39135663354: checks117699541242, core117699541532,
+native117699541634, Android117699541487 and SDK117699919391 PASS.
+All five authenticated logs, exact build tree and signed staging verified.
+
+Implemented in source: auth network permit released during CAPTCHA wait;
+cohort single-flight, unclaimed60s retry, explicit Helper takeover, stale-answer
+rejection, atomic90s recovery lease. Original READY liveness/protocol retained.
+Private PID/startticks/boot-clock status, redacted counters/incidents;
+root-only early --health-probe/--control-request/--recovery-step before identity.
+VPN DNS/HTTPS binds198.18.0.1 AND csqtt0. Fixed two TLS targets, bounded replies,
+no proxy/redirect/system DNS. Independent30s procd observer; confirmed180s failure
+then guarded soft repair, fresh30s failure before transport restart; cycles300s
+apart/max3 rollinghour survive observer/client respawn this boot. Lifecycle lock
+precedes procd lock; queued Stop/config/maintenance/Helper cancel admission.
+Prepared start avoids duplicate policy preparation; bounded70s/remaining-lease
+workers reap descendants. LuCI health/recovery and auto_recover default0.
+A missing/stale core cannot fabricate admission; process exits remain procd's job.
+
+Completed checks:
+- Local policy/LuCI/release105 before last display regression; focused recovery14
+  after it. CI candidate3 confirms104policy/UI+2release+7installer+4Python,
+  95named regressions. Candidate4 authenticated logs confirm all those checks,
+  Rust376pass/0fail/7existing ignored, focusedTURN1, native ucode/DNS/IPv4/IPv6
+  and Android PASS. Five logs and full metadata are in .work/preview.8.
+- Lifecycle/reload18 real separate-process checks PASS; six shell syntax checks,
+  diff-check PASS. Installed router's readonly rc.common confirms lock order.
+- Native ucode runtime with fully in-memory fs/UCI/ubus adapters PASS on router
+  (no files/policy/services changed), including180s/reserve/soft30s/transport.
+- SDK fixture now validates exact private status/19-field health, kernel
+  PID/startticks/bootID/boottime. Embedded90 invalid/2valid schema cases and
+  py_compile PASS locally; updated native ARM64/TUN fixture PASS in candidate4.
+- Current readonly live router: signed r7, one configured process, connected72,
+  no CAPTCHA, no observer. No reliability install/fault/reboot/config change yet.
+
+Prior failed candidates are superseded, not releases:
+- Boot7 materials saved in checkpoint ee557fd5dbf66c20466916ca76c9f30402aa7a90.
+  Auth/probe partial Rust39108663550:371pass/1failed/7ignored; fixed dropped test
+  receiver. SDK39108667411 lacked lifecycle payload in the partial checkpoint.
+  Logs .work/reliability/job-117619879620.log and job-117620208861.log.
+- Run39133207038 native failed ucode forward function binding; declaration
+  ordering fixed/native checked. Log .work/reliability/native-full1.log.
+- Run39133559601 SDK117693811946 reached payload/signature metadata + ARM64
+  smoke, then old exact status fixture rejected new private fields. Log
+  .work/preview.8/superseded-run2/sdk-failed.log. SDK/cargo caches saved.
+- Candidate3 sourceb991f2e/build587bd1e/run39134602447 has the same old ARM64
+  fixture and cannot release. Its four authenticated successful logs and
+  verified Android ZIP are in .work/preview.8/superseded-run3.
+- Display-only recovery gate bug fixed: a fresh matching admitted running stage
+  may show recovering while owning lifecycle lock. Other gates/epochs/Stop and
+  decision admission remain unchanged; recovery14 includes regression.
+
+Release staging is ignored .work/preview.8, candidate.json identifies candidate4.
+Helpers bind source/build tree, five authenticated logs, pinned public key,
+three APK+manifest signatures, exact extracted ZIP bytes,15 installed payloads,
+25packaged UI/6reload tests and eight assets PASS; provenance verified=true,
+published=false. OpenWrt artifact12140106370 ZIP
+sha256:6799f48895fe8471ccf8728b5b99b7860ced0494d79e2593f16c031ea73dbdc2;
+Android12139906067 ZIP
+sha256:6cf3507e45a6ec17b71b23d0edee6ed42a88b63bfaeaa8d32b891f9451f983d7.
+Initial local compiled-string check failed because optimized CLI comparisons
+contain no contiguous flag strings; replaced by native ARM64 execution of all
+three early modes against invalid input, no identity/client mutation. One helper
+used an old identity filename and one PowerShell pipe appended CR after success;
+corrected device-id path and exact Python byte transport then exit0. Evidence
+arm64-early-modes.json; previous extracted attempt preserved in staging-attempt1.
+Browser tab2: UNSAVED release form targets codex/reliability-full-20261018-2,
+no tag selected; final tag must resolve candidate4 exact buildSHA above.
+Controlled-fault.sh is root-reviewed but NOT RUN: only router-origin198.18.0.1
+TCP443 (no forwarded LAN match), independent450s cleanup, config/intent refusal.
+live-state.uc parsed readonly on r7. All private evidence/URLs stay ignored.
+Six signed/public-verified r7 rollback files rehashed/staged in rollback7/;
+upgrade helper will save/verify them privately and simulate a rollback after r8.
+collect72.sh is prepared (not started): fixed redacted states/counts,10s sampling,
+event/10min heartbeat writes,72h/2MiB bounds; no raw config/identity or log copying.
+
+Next concrete action: publish eight verified assets as prerelease at exact build
+commit and verify all public downloads. Then announce live
+upgrade, preserve four configs/private device_id and r7 rollback, install r8
+observe-only; confirm15 hashes/status/DNS/distinct exits/observer. Controlled
+probe failure, bounded single cycle/Stop/limit persistence/guards, then enable
+owner auto recovery and start72h observation. Do not claim72h or stable release.
 
 ## Boot7 preparation in progress (2026-10-09)
 
