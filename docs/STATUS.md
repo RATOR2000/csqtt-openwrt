@@ -24,7 +24,10 @@ an untested ucode module export grammar error. All eight asset names now start
 withdrawn- (old installer/manifest URLs disabled); tag/build bytes are preserved.
 Never install r8 or call its native acceptance complete. Current live router is
 r8 plus a temporary source-only health.uc correction (six export terminators),
-connected72, WAN/VPN/group DNS healthy, one client, observer in observe-only mode.
+connected72 before controlled acceptance, WAN/VPN/group DNS healthy, one client.
+Root enabled auto_recover=1 for the accepted bounded recovery test; no other
+configuration change was made. Source probe-only fault is currently running;
+its independent450s watchdog and controller420s limit remove only the test table.
 Four config files byte-match current backup
 /etc/csqtt/backups/preview8-upgrade-20261018-193101-17695; signed r7 rollback
 assets/native signatures and rollback solver simulation PASS there. No reboot.
@@ -44,16 +47,29 @@ reliability-build package_release9. Focused Node runtime/recovery37, native
 fixture generation/sh-n PASS. The unchanged real import fixture was also copied
 to a private temporary router directory and ran successfully with all six exports:
 Native ucode health module import and exported recovery API passed.
-Next: checkpoint/push correction and validate9 on existing unpublished validation
-branch2 (cached). In parallel perform bounded source recovery acceptance while
-VPN is healthy; then verify signed9, install with current settings, verify all15
-signed payloads and preserved limits, then start72h collection/low-token followup.
+Correction checkpoint65be52bcbfdd97d1c02cbdcabf0a129106e261a7 is pushed.
+Source9 treebc6315f1d3c04ec41951113f84c60fb1c86cd9e7,
+build3d2ade5ec6ea9ced4e1dc6b7889d5f1a9bdef5df on validation branch2;
+run39159616158 checks/core/native/Android PASS, SDK117770357959 in progress.
+The new real module import passes both CI and the unchanged native router fixture.
+.work/preview.9 contains isolated verification scaffolding and four authenticated
+successful job logs; no old8 artifacts/provenance were reused. Full verification
+and publication remain pending SDK completion. Preserve current auto_recover=1.
+Controlled source fault evidence: /tmp/csqtt-preview8-check/controlled.public.log
+and controlled.exit. At215s: one soft repair/one budget reservation, no transport
+restart yet, WAN/DNS ok, VPN fail,72workers, one configured client, guards checked
+every5s. Fault matches only router-origin198.18.0.1TCP443, no forwarded LAN packet.
+The first launcher refused before fault because nohup is absent; setsid with
+readiness/liveness checks is used instead. Do not use nohup on this router.
+Next: finish controlled recovery and Stop/Reload/observer budget checks; verify
+signed9, install with current settings, all15 payload hashes/rollback/native status;
+start router-local72h collection and infrequent followup (not started/completed).
 
 Root owns Git/integration/publication/live access. All producer/review agents
 finished; recheck liveness before delegation. Owner requests low token usage:
 reuse settled evidence, use focused checks, compact outputs and this summary.
 
-Current source/local/remote dc1b4fe050ca82fabcc73bc95ff544c500c78ba6.
+Historical withdrawn8 source dc1b4fe050ca82fabcc73bc95ff544c500c78ba6.
 Final candidate4 build31d3e1e2fbbe7c489b50b4ee2b469866dc5ea248,
 tree46515ac303c4438d5427f7cd53b6f3e85012778b.
 Validation branch codex/reliability-full-20261018-2 was advanced (unpublished)
