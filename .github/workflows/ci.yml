@@ -45,7 +45,7 @@ jobs:
           bash -n scripts/build-sdk.sh
           sh -n scripts/test-native-apk.sh
           sh -n install.sh
-          find openwrt -type f \( -name '*.init' -o -name manage -o -name tun-hook -o -name '9*-csqtt*' \) -exec sh -n {} \;
+          find openwrt -type f \( -name '*.init' -o -name manage -o -name monitor -o -name lifecycle.sh -o -name tun-hook -o -name '9*-csqtt*' \) -exec sh -n {} \;
   core:
     concurrency:
       group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}-core

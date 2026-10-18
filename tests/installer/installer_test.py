@@ -38,9 +38,12 @@ class InstallerTest(unittest.TestCase):
             base = pathlib.Path(directory)
             root = base / 'router'
             bindir = base / 'bin'
-            for relative in ['etc/config', 'etc/apk/keys', 'lib/apk/db', 'tmp/sysinfo', 'overlay', 'release']:
+            for relative in ['etc/config', 'etc/apk/keys', 'lib/apk/db', 'tmp/sysinfo', 'var/lock', 'overlay', 'release']:
                 (root / relative).mkdir(parents=True, exist_ok=True)
             bindir.mkdir()
+            if scenario == 'maintenance_busy':
+                (root / 'var/lock/csqtt-maintenance').mkdir()
+                (root / 'var/lock/csqtt-maintenance/pid').write_text('other-installer\n')
             (root / '.installer-fixture').touch()
             release = "DISTRIB_RELEASE='25.12.5'\nDISTRIB_TARGET='mediatek/filogic'\n"
             if scenario != 'missing_release_architecture':
@@ -87,17 +90,17 @@ class InstallerTest(unittest.TestCase):
                 executable.chmod(0o755)
             # Keep PATH fully controlled, including on Linux hosts which have
             # system OpenSSL installed. Core file operations remain real.
-            for command in ['cat', 'awk', 'wc', 'mktemp', 'mkdir', 'cp', 'date', 'rm']:
+            for command in ['cat', 'awk', 'wc', 'mktemp', 'mkdir', 'rmdir', 'cp', 'date', 'rm']:
                 executable = bindir / command
                 executable.write_text('#!/bin/sh\nexec /usr/bin/' + command + ' "$@"\n', newline='\n')
                 executable.chmod(0o755)
-            for service in ['dnsmasq', 'rpcd', 'csqtt', 'csqtt-captcha']:
+            for service in ['dnsmasq', 'rpcd', 'csqtt', 'csqtt-captcha', 'csqtt-health']:
                 executable = root / 'etc/init.d' / service
                 executable.parent.mkdir(parents=True, exist_ok=True)
                 executable.write_text(wrapper.replace('$FAKE_COMMAND', 'service:' + service), newline='\n')
                 executable.chmod(0o755)
             source = (REPO / 'install.sh').read_text()
-            for prefix in ['/etc/', '/lib/apk/', '/tmp/', '/overlay']:
+            for prefix in ['/etc/', '/lib/apk/', '/tmp/', '/var/', '/overlay']:
                 source = re.sub(r'(?<![A-Za-z0-9_])' + re.escape(prefix), posix(root) + prefix, source)
             source = source.replace('-C / etc/config', '-C "' + posix(root) + '" etc/config')
             script = base / 'install.sh'
@@ -107,6 +110,10 @@ class InstallerTest(unittest.TestCase):
             # MSYS adjusts PATH on startup; set the isolated path inside sh.
             result = subprocess.run([SH, '-c', 'PATH="$CSQTT_WRAPPER_PATH"; export PATH; exec /usr/bin/sh "$CSQTT_WRAPPER_SCRIPT"'], env={**env, 'CSQTT_WRAPPER_PATH': posix(bindir), 'CSQTT_WRAPPER_SCRIPT': posix(script)}, text=True, capture_output=True, timeout=40)
             self.assertTrue((root / 'commands.jsonl').exists(), result.stdout + result.stderr)
+            if scenario == 'maintenance_busy':
+                self.assertEqual((root / 'var/lock/csqtt-maintenance/pid').read_text(), 'other-installer\n')
+            else:
+                self.assertFalse((root / 'var/lock/csqtt-maintenance').exists(), 'Installer must release its own maintenance marker on success and failure')
             calls = [json.loads(line) for line in (root / 'commands.jsonl').read_text().splitlines()]
             installed = json.loads((root / 'lib/apk/db/installed').read_text())
             backups = list((root / 'etc/csqtt/backups').glob('*/config.tar.gz')) if (root / 'etc/csqtt/backups').exists() else []
@@ -126,6 +133,7 @@ class InstallerTest(unittest.TestCase):
                 self.assertEqual(len(live_deletes), 0 if repeat else 1)
                 self.assertEqual(any(call['command'] == 'service:csqtt' and call['args'] == ['restart'] for call in calls), repeat)
                 self.assertTrue(any(call['command'] == 'service:csqtt-captcha' and call['args'] == ['restart'] for call in calls))
+                self.assertTrue(any(call['command'] == 'service:csqtt-health' and call['args'] == ['restart'] for call in calls))
                 if not repeat:
                     restore = next(i for i, call in enumerate(calls) if call['command'] == 'apk' and 'add' in call['args'] and 'dnsmasq=2.91-r2' in call['args'])
                     mutation = next(i for i, call in enumerate(calls) if call in live_deletes)
@@ -145,6 +153,15 @@ class InstallerTest(unittest.TestCase):
                 self.assertEqual(world, original_world)
                 self.assertFalse(backups)
                 self.assertFalse(any(call['command'] == 'apk' and ('del' in call['args'] or 'add' in call['args']) and '--root' not in call['args'] for call in calls))
+
+    def test_existing_maintenance_excludes_live_install(self):
+        result, calls, installed, backups, _, world, original_world = self.run_installer('maintenance_busy')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('maintenance is already active', result.stderr)
+        self.assertEqual(installed.get('dnsmasq'), '2.91-r2')
+        self.assertEqual(world, original_world)
+        self.assertFalse(backups)
+        self.assertFalse(any(call['command'] == 'apk' and ('del' in call['args'] or 'add' in call['args']) and '--root' not in call['args'] for call in calls))
 
     def test_extra_manifest_entry_and_missing_offline_cache(self):
         for scenario in ['extra_entry', 'offline_cache']:

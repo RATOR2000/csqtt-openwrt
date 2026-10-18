@@ -5,6 +5,7 @@
 
 mod auth;
 mod captcha;
+mod health_probe;
 mod captcha_slider;
 mod client_perf;
 mod cpu_task;
@@ -127,6 +128,15 @@ struct Arguments {
 }
 
 fn main() {
+    // Health observations do not reserve the VPN identity or start a transport.
+    let early: Vec<String> = std::env::args().collect();
+    if early.get(1).map(String::as_str) == Some("--health-probe") {
+        let code = if early.len() == 3 { health_probe::run_cli(&early[2]) } else { 2 };
+        std::process::exit(code);
+    }
+    if early.get(1).map(String::as_str) == Some("--control-request") {
+        std::process::exit(if early.len() == 2 { daemon::run_control_cli() } else { 2 });
+    }
     std::panic::set_hook(Box::new(|_| {
         #[cfg(unix)]
         unsafe {

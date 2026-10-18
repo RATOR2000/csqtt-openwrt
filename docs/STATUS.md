@@ -36,6 +36,17 @@ Auto VPN group switching remains cancelled; reliability recovery is separate.
 - Root owns integration, Git, STATUS, release and all live access. Recheck agent
   liveness before assigning implementation ownership. Next: preserve checkpoint,
   then implement auth, probes and guarded recovery with focused regressions.
+- Boot7/source-scope checkpoint ee557fd5dbf66c20466916ca76c9f30402aa7a90
+  saved on GitHub via the connected GitHub API; local tree verified identical.
+  A local Git push requested GCM OAuth; no new authorization was needed or used.
+- Current implementation ownership: acceptance_audit Rust auth/CAPTCHA/status;
+  boot_plan_audit Rust health probe then independent auth review;
+  recovery_impl OpenWrt monitor/lifecycle/runtime/tests; root UI/installer/main/
+  CI/docs/integration. No implementation agent has live-router scope.
+- Root LuCI25 tests and Python4 release tests PASS. Installer suite in progress;
+  maintenance collision and first/repeat install cases passed. Rust source is
+  not compiled yet (no local Rust toolchain); CI will establish compilation.
+  No live change, fault, install or reboot has occurred during implementation.
 
 ## Boot7 preparation in progress (2026-10-09)
 

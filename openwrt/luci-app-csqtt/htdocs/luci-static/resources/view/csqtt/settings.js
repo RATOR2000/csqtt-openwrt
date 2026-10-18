@@ -16,6 +16,8 @@ return view.extend({
 		s.tab('advanced', 'Дополнительно');
 		var o = s.taboption('connection', form.Flag, 'enabled', 'Запускать автоматически', 'Поднимать VPN после загрузки роутера.');
 		o.rmempty = false;
+		o = s.taboption('connection', form.Flag, 'auto_recover', 'Восстанавливать подключение автоматически', 'Проверять доступность и восстанавливать VPN при подтверждённом сбое. Ручная остановка сохраняется.');
+		o.default = '0'; o.rmempty = false;
 		o = s.taboption('connection', form.Value, 'peer', 'Адрес сервера', 'Адрес и порт, например vpn.example:46000 или 203.0.113.7:46000.');
 		o.rmempty = false; o.placeholder = 'vpn.example:46000';
 		o.validate = function(id, value) { return model.validPeer(value) || 'Укажите адрес и порт от 1 до 65535.'; };

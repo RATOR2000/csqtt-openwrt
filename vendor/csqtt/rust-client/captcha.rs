@@ -23,6 +23,8 @@ use uuid::Uuid;
 const API_VERSION: &str = "5.131";
 const SCRIPT_VERSION: &str = "1.1.1370";
 pub const MAX_CAPTCHA_TOKEN_BYTES: usize = 16_384;
+const FRESH_AUTH_INTERVAL: Duration = Duration::from_secs(60);
+const RECOVERY_LEASE: Duration = Duration::from_secs(90);
 const DEVICE_INFO: &str = r#"{"screenWidth":1920,"screenHeight":1080,"screenAvailWidth":1920,"screenAvailHeight":1040,"innerWidth":1920,"innerHeight":970,"devicePixelRatio":1,"language":"ru-RU","languages":["ru-RU","ru","en-US","en"],"webdriver":false,"hardwareConcurrency":8,"notificationsPermission":"default"}"#;
 static POW_INPUT: LazyLock<Option<Regex>> =
     LazyLock::new(|| Regex::new(r#"const\s+powInput\s*=\s*["']([^"']+)["']"#).ok());
@@ -137,6 +139,15 @@ impl fmt::Display for RateLimit {
 impl std::error::Error for RateLimit {}
 
 #[derive(Debug)]
+pub(crate) struct FreshAuthRequired;
+impl fmt::Display for FreshAuthRequired {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("fresh normal authentication required")
+    }
+}
+impl std::error::Error for FreshAuthRequired {}
+
+#[derive(Debug)]
 struct BotChallenge;
 
 impl fmt::Display for BotChallenge {
@@ -165,13 +176,17 @@ pub struct CaptchaSolver {
     cancel: CancellationToken,
     daemon_serial: Mutex<()>,
     daemon_pending: std::sync::Mutex<Option<DaemonChallenge>>,
+    recovery: std::sync::Mutex<Option<RecoveryLease>>,
 }
+
+struct RecoveryLease { id: String, expires_at: u64, deadline: tokio::time::Instant }
 
 /// Credentials live only in this process and the private Unix control socket.
 /// The public status projection deliberately has no URL or session token.
 struct DaemonChallenge {
     id: String,
     state: &'static str,
+    human_active: bool,
     redirect_uri: String,
     session_token: String,
     expires_at: u64,
@@ -182,10 +197,12 @@ struct DaemonChallenge {
 
 impl DaemonChallenge {
     fn public_status(&self) -> Value {
-        serde_json::json!({"id": self.id, "state": self.state, "expires_at": self.expires_at})
+        serde_json::json!({"id": self.id, "state": self.state, "expires_at": self.expires_at,
+            "human_active": self.human_active})
     }
     fn private_status(&self) -> Value {
         serde_json::json!({"id": self.id, "state": self.state, "expires_at": self.expires_at,
+            "human_active": self.human_active,
             "redirect_uri": self.redirect_uri, "session_token": self.session_token})
     }
     fn live(&self) -> bool {
@@ -214,6 +231,7 @@ impl CaptchaSolver {
             cancel,
             daemon_serial: Mutex::new(()),
             daemon_pending: std::sync::Mutex::new(None),
+            recovery: std::sync::Mutex::new(None),
         })
     }
 
@@ -235,20 +253,91 @@ impl CaptchaSolver {
     }
 
     pub fn daemon_takeover(&self, id: &str) -> bool {
+        // Recovery and explicit human takeover share this admission lock. A
+        // status read followed by a restart would otherwise race broker pairing.
+        let mut recovery = self.recovery.lock().unwrap_or_else(|e| e.into_inner());
+        Self::expire_recovery(&mut recovery);
+        if recovery.is_some() { return false; }
         let mut pending = self.daemon_pending.lock().unwrap_or_else(|e| e.into_inner());
         self.expire_challenge(&mut pending);
         let Some(challenge) = pending.as_mut().filter(|c| c.id == id) else { return false; };
         challenge.state = "manual";
+        challenge.human_active = true;
         challenge.auto_cancel.cancel();
         crate::daemon::captcha_status(Some(challenge.public_status()));
+        crate::daemon::auth_event("human_started");
         true
+    }
+
+    fn expire_recovery(recovery: &mut Option<RecoveryLease>) {
+        // The Unix timestamp is informational for the private caller. An NTP
+        // jump must not reopen human admission while a monotonic lease is held.
+        if recovery.as_ref().is_some_and(|lease| tokio::time::Instant::now() >= lease.deadline) {
+            *recovery = None;
+        }
+    }
+
+    pub(crate) fn daemon_recovery_begin(&self, expected: Option<&str>)
+        -> std::result::Result<(String, u64), &'static str>
+    {
+        let mut recovery = self.recovery.lock().unwrap_or_else(|e| e.into_inner());
+        Self::expire_recovery(&mut recovery);
+        if self.cancel.is_cancelled() { return Err("stopping"); }
+        if recovery.is_some() { return Err("recovery_in_progress"); }
+        let mut pending = self.daemon_pending.lock().unwrap_or_else(|e| e.into_inner());
+        self.expire_challenge(&mut pending);
+        if pending.as_ref().is_some_and(|challenge| challenge.human_active) { return Err("human_active"); }
+        if expected.is_some_and(|id| pending.as_ref().is_none_or(|challenge| challenge.id != id)) {
+            return Err("stale_challenge");
+        }
+        let id = Uuid::new_v4().to_string();
+        let expires_at = crate::daemon::now().saturating_add(RECOVERY_LEASE.as_secs());
+        *recovery = Some(RecoveryLease { id: id.clone(), expires_at,
+            deadline: tokio::time::Instant::now() + RECOVERY_LEASE });
+        Ok((id, recovery.as_ref().map_or(expires_at, |lease| lease.expires_at)))
+    }
+
+    pub(crate) fn daemon_recovery_end(&self, id: &str) -> bool {
+        let mut recovery = self.recovery.lock().unwrap_or_else(|e| e.into_inner());
+        Self::expire_recovery(&mut recovery);
+        if recovery.as_ref().is_none_or(|lease| lease.id != id) { return false; }
+        *recovery = None;
+        true
+    }
+
+    pub(crate) fn recovery_in_progress(&self) -> bool {
+        let mut recovery = self.recovery.lock().unwrap_or_else(|e| e.into_inner());
+        Self::expire_recovery(&mut recovery);
+        recovery.is_some()
+    }
+
+    fn manual_available(&self, id: &str) {
+        let mut pending = self.daemon_pending.lock().unwrap_or_else(|e| e.into_inner());
+        self.expire_challenge(&mut pending);
+        if let Some(challenge) = pending.as_mut().filter(|c| c.id == id) {
+            challenge.state = "manual";
+            challenge.auto_cancel.cancel();
+            crate::daemon::captcha_status(Some(challenge.public_status()));
+        }
+    }
+
+    fn retry_unclaimed(&self, id: &str) -> bool {
+        let mut pending = self.daemon_pending.lock().unwrap_or_else(|e| e.into_inner());
+        self.expire_challenge(&mut pending);
+        if pending.as_ref().is_some_and(|c| c.id == id && !c.human_active) {
+            if let Some(challenge) = pending.take() { challenge.auto_cancel.cancel(); }
+            crate::daemon::captcha_status(None);
+            crate::daemon::auth_event("fresh_retry");
+            return true;
+        }
+        false
     }
 
     pub fn daemon_answer(&self, id: &str, answer: std::result::Result<String, String>) -> bool {
         let mut pending = self.daemon_pending.lock().unwrap_or_else(|e| e.into_inner());
         self.expire_challenge(&mut pending);
         let Some(challenge) = pending.as_ref() else { return false; };
-        if challenge.id != id || (answer.is_ok() && challenge.state != "manual") { return false; }
+        if challenge.id != id || (answer.is_ok() && !challenge.human_active) { return false; }
         if let Ok(token) = &answer {
             if token.trim().is_empty() || token.len() > MAX_CAPTCHA_TOKEN_BYTES || token.chars().any(char::is_control) {
                 return false;
@@ -276,7 +365,7 @@ impl CaptchaSolver {
         let deadline = tokio::time::Instant::now() + timeout;
         let (answer, receive) = oneshot::channel();
         let challenge = DaemonChallenge {
-            id: id.clone(), state: "auto", redirect_uri: captcha.redirect_uri.clone(),
+            id: id.clone(), state: "auto", human_active: false, redirect_uri: captcha.redirect_uri.clone(),
             session_token: captcha.session_token.clone(),
             expires_at: crate::daemon::now().saturating_add(timeout.as_secs()), deadline,
             auto_cancel: auto_cancel.clone(), answer,
@@ -297,12 +386,18 @@ impl CaptchaSolver {
     }
 
     async fn solve_daemon(&self, client: &Client, profile: &Profile,
-        saved_profile: Option<&SavedProfile>, captcha: &VkCaptchaError) -> Result<String>
+        saved_profile: Option<&SavedProfile>, captcha: &VkCaptchaError,
+        network: &mut crate::auth::AuthNetworkPermit) -> Result<String>
     {
+        // Another request may already be waiting for a human. It must not
+        // monopolize the network permit while we queue for the challenge slot.
+        network.suspend();
         let _serial = tokio::select! {
             _ = self.cancel.cancelled() => bail!("captcha cancelled"),
-            lock = self.daemon_serial.lock() => lock,
+            lock = tokio::time::timeout(FRESH_AUTH_INTERVAL, self.daemon_serial.lock()) =>
+                match lock { Ok(lock) => lock, Err(_) => return Err(FreshAuthRequired.into()) },
         };
+        network.acquire().await?;
         if captcha.redirect_uri.is_empty() || captcha.session_token.is_empty() {
             bail!("captcha data is incomplete");
         }
@@ -310,40 +405,62 @@ impl CaptchaSolver {
             .map_or(180, |runtime| runtime.config.captcha_timeout_secs));
         let (id, auto_cancel, receive, deadline) = self.begin_daemon_challenge(captcha, timeout);
         let _guard = ChallengeGuard { solver: self, id: id.clone() };
+        let retry_at = tokio::time::Instant::now() + FRESH_AUTH_INTERVAL;
         let automatic = tokio::select! {
             biased;
             _ = self.cancel.cancelled() => bail!("captcha cancelled"),
             _ = tokio::time::sleep_until(deadline) => bail!("captcha expired"),
+            _ = tokio::time::sleep_until(retry_at) => None,
             _ = auto_cancel.cancelled() => None,
             result = self.solve_attempts_with_cancel(client, profile, saved_profile, captcha, 3, &auto_cancel) => Some(result),
         };
         match automatic {
             Some(Ok(token)) if self.finish_daemon_auto(&id) => return Ok(token),
-            Some(Err(_)) => { self.daemon_takeover(&id); }
+            Some(Err(_)) => { self.manual_available(&id); }
             _ => {},
         }
+        network.suspend();
+        let result = self.wait_daemon_answer(&id, receive, deadline, retry_at).await;
+        // No HTTP continuation runs concurrently with another automatic auth.
+        if result.is_ok() { network.acquire().await?; }
+        result
+    }
+
+    async fn wait_daemon_answer(&self, id: &str,
+        receive: oneshot::Receiver<std::result::Result<String, String>>,
+        deadline: tokio::time::Instant, retry_at: tokio::time::Instant) -> Result<String>
+    {
+        tokio::pin!(receive);
+        let mut retry_pending = true;
+        loop {
         tokio::select! {
             biased;
             _ = self.cancel.cancelled() => bail!("captcha cancelled"),
             _ = tokio::time::sleep_until(deadline) => bail!("captcha expired"),
-            result = receive => match result {
+            _ = tokio::time::sleep_until(retry_at), if retry_pending => {
+                if self.retry_unclaimed(id) { return Err(FreshAuthRequired.into()); }
+                retry_pending = false;
+            }
+            result = &mut receive => return match result {
                 Ok(Ok(token)) => Ok(token),
                 Ok(Err(_)) => bail!("captcha cancelled"),
                 Err(_) => bail!("captcha no longer available"),
             },
         }
+        }
     }
 
-    pub async fn solve(
+    pub(crate) async fn solve(
         &self,
         client: &Client,
         profile: &Profile,
         saved_profile: Option<&SavedProfile>,
         stream_id: usize,
         captcha: &VkCaptchaError,
+        network: &mut crate::auth::AuthNetworkPermit,
     ) -> Result<String> {
         if crate::daemon::enabled() {
-            return self.solve_daemon(client, profile, saved_profile, captcha).await;
+            return self.solve_daemon(client, profile, saved_profile, captcha, network).await;
         }
         match self.mode.as_ref() {
             "wv" => {
@@ -1300,6 +1417,79 @@ mod tests {
         assert!(!solver.daemon_answer(&id,Ok("late".into())));
         assert!(solver.daemon_challenge().is_none());
         assert!(receive.await.is_err());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn unclaimed_manual_fallback_is_revoked_for_fresh_auth_after_one_minute() {
+        let solver=CaptchaSolver::new("auto",CancellationToken::new());
+        let (id,auto_cancel,receive,deadline)=solver.begin_daemon_challenge(&daemon_fixture(),Duration::from_secs(180));
+        solver.manual_available(&id);
+        assert_eq!(solver.daemon_challenge().unwrap()["human_active"],false);
+        assert!(!solver.daemon_answer(&id,Ok("unclaimed-token".into())));
+        let started=tokio::time::Instant::now();
+        let wait=solver.wait_daemon_answer(&id,receive,deadline,started+FRESH_AUTH_INTERVAL);
+        let result=wait.await.unwrap_err();
+        assert!(result.downcast_ref::<FreshAuthRequired>().is_some());
+        assert_eq!(started.elapsed(),FRESH_AUTH_INTERVAL);
+        assert!(auto_cancel.is_cancelled());
+        assert!(solver.daemon_challenge().is_none());
+        assert!(!solver.daemon_takeover(&id));
+        assert!(!solver.daemon_answer(&id,Ok("late-token".into())));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn explicit_human_takeover_protects_existing_expiry_across_soft_retry() {
+        let solver=CaptchaSolver::new("auto",CancellationToken::new());
+        let (id,_,receive,deadline)=solver.begin_daemon_challenge(&daemon_fixture(),Duration::from_secs(180));
+        solver.manual_available(&id);
+        assert!(solver.daemon_takeover(&id));
+        assert_eq!(solver.daemon_challenge().unwrap()["human_active"],true);
+        let waiting=solver.clone(); let request=id.clone();
+        let task=tokio::spawn(async move {
+            waiting.wait_daemon_answer(&request,receive,deadline,tokio::time::Instant::now()+FRESH_AUTH_INTERVAL).await
+        });
+        tokio::task::yield_now().await;
+        tokio::time::advance(Duration::from_secs(61)).await;
+        tokio::task::yield_now().await;
+        assert!(!task.is_finished());
+        assert!(solver.daemon_answer(&id,Ok("human-token".into())));
+        assert_eq!(task.await.unwrap().unwrap(),"human-token");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn recovery_lease_and_pairing_admission_are_mutually_exclusive_and_bounded() {
+        let solver=CaptchaSolver::new("auto",CancellationToken::new());
+        let (id,_,_,_)=solver.begin_daemon_challenge(&daemon_fixture(),Duration::from_secs(180));
+        solver.manual_available(&id);
+        let (lease,_)=solver.daemon_recovery_begin(Some(&id)).unwrap();
+        assert!(solver.recovery_in_progress());
+        assert!(!solver.daemon_takeover(&id));
+        assert_eq!(solver.daemon_recovery_begin(None).unwrap_err(),"recovery_in_progress");
+        assert!(!solver.daemon_recovery_end("other-lease"));
+        solver.recovery.lock().unwrap().as_mut().unwrap().expires_at = 0;
+        assert!(solver.recovery_in_progress());
+        assert!(!solver.daemon_takeover(&id));
+        tokio::time::advance(Duration::from_secs(90)).await;
+        assert!(!solver.recovery_in_progress());
+        assert!(!solver.daemon_recovery_end(&lease));
+        assert!(solver.daemon_takeover(&id));
+        assert_eq!(solver.daemon_recovery_begin(None).unwrap_err(),"human_active");
+        assert!(solver.daemon_answer(&id,Err("cancelled".into())));
+        let (next,_)=solver.daemon_recovery_begin(None).unwrap();
+        assert!(solver.daemon_recovery_end(&next));
+    }
+
+    #[tokio::test]
+    async fn concurrent_recovery_and_human_takeover_have_exactly_one_winner() {
+        let solver=CaptchaSolver::new("auto",CancellationToken::new());
+        let (id,_,_,_)=solver.begin_daemon_challenge(&daemon_fixture(),Duration::from_secs(180));
+        let barrier=Arc::new(tokio::sync::Barrier::new(3));
+        let human_solver=solver.clone(); let human_barrier=barrier.clone();
+        let human=tokio::spawn(async move { human_barrier.wait().await; human_solver.daemon_takeover(&id) });
+        let recovery_solver=solver.clone(); let recovery_barrier=barrier.clone();
+        let recovery=tokio::spawn(async move { recovery_barrier.wait().await; recovery_solver.daemon_recovery_begin(None).is_ok() });
+        barrier.wait().await;
+        assert_ne!(human.await.unwrap(),recovery.await.unwrap());
     }
 
     #[test]

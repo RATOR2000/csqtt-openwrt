@@ -15,9 +15,9 @@ for binary in (core, broker):
     assert header[:6] == b'\x7fELF\x02\x01' and struct.unpack('<H', header[18:20])[0] == 183, 'Expected ARM64 ELF'
 
 
-def run(binary, *args):
+def run(binary, *args, input=None):
     return subprocess.run(['qemu-aarch64', '-cpu', 'cortex-a53', str(binary), *args],
-                          capture_output=True, text=True, timeout=15)
+                          input=input, capture_output=True, text=True, timeout=15)
 
 
 with tempfile.TemporaryDirectory(prefix='csqtt-arm64-') as directory:
@@ -32,5 +32,11 @@ with tempfile.TemporaryDirectory(prefix='csqtt-arm64-') as directory:
         assert 'CONFIG_VALUE_MUST_STAY_PRIVATE' not in result.stdout + result.stderr, 'Config value leaked'
     result = run(broker, 'status', '--socket', str(root / 'absent.sock'))
     assert result.returncode == 0 and json.loads(result.stdout) == {'ok': False, 'error': 'broker_unavailable'}, 'ARM64 broker CLI failed'
+    result = run(core, '--health-probe', 'vpn', input='{"source_ipv4":"PRIVATE_INVALID_SOURCE","dns_ipv4":"1.1.1.1"}')
+    assert result.returncode == 2, 'ARM64 health input rejection failed'
+    assert 'PRIVATE_INVALID_SOURCE' not in result.stdout + result.stderr, 'Health input value leaked'
+    assert not result.stderr, 'Health mode must emit only its bounded JSON result'
+    result = run(core, '--health-probe', 'invalid', input='{}')
+    assert result.returncode == 2 and not result.stderr, 'ARM64 early probe mode failed'
     assert {p.name for p in root.iterdir()} == {'client.json'}, 'Rejected config created runtime state'
 print('ARM64 Cortex-A53 smoke passed: private config rejection and broker control CLI; no router/VK execution')

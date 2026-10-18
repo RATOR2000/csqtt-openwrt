@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
 use crate::{
-    auth::{CallUnavailable, TurnCredentials, VkAuth},
+    auth::{AuthNetworkPermit, CallUnavailable, TurnCredentials, VkAuth},
     dispatcher::Dispatcher,
     events::Events,
     obfs::ObfsMode,
@@ -466,11 +466,8 @@ impl GroupCredentials {
             return Some(lease);
         }
         let credential_stream_id = credential_stream_id(self.credential_id);
-        let _guard = tokio::select! {
-            _ = self.context.cancel.cancelled() => return None,
-            _ = self.availability.cancel.cancelled() => return None,
-            guard = self.context.credential_pacer.lock() => guard,
-        };
+        let mut network = AuthNetworkPermit::new(self.context.credential_pacer.clone(),
+            self.availability.cancel.clone());
         if self.is_unavailable() {
             return None;
         }
@@ -482,8 +479,10 @@ impl GroupCredentials {
         let fetched = tokio::select! {
             _ = self.context.cancel.cancelled() => return None,
             _ = self.availability.cancel.cancelled() => return None,
-            result = self.context.auth.get_credentials(&self.hash, credential_stream_id) => result,
+            result = self.context.auth.get_credentials(&self.hash, credential_stream_id, &mut network) => result,
         };
+        // Retain only the per-cohort state mutex during backoff/post-delay.
+        network.suspend();
         match fetched {
             Ok(creds) => {
                 let server_addresses = creds.server_addresses.clone();

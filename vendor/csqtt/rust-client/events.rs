@@ -108,6 +108,7 @@ impl Events {
     }
 
     pub fn network_timeout(&self) {
+        self.emit("NETWORK_TIMEOUT", &serde_json::json!({}));
         let now = Instant::now();
         let mut window = self
             .network_timeout_window_started
@@ -147,7 +148,9 @@ impl Events {
         if should_emit {
             self.emit(
                 "CALL_UNAVAILABLE",
-                &serde_json::json!({"hash": hash, "code": code}),
+                // Deduplication remains private; outward events expose counts
+                // and numeric API errors, never the user's VK call links.
+                &serde_json::json!({"code": code}),
             );
         }
     }

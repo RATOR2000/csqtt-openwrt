@@ -52,6 +52,38 @@ does not disable these probes. This preserves the upstream wire protocol and
 requires no public ICMP endpoint. Authentication and configuration errors retain
 their existing handling. Internet access beyond the server is a separate check.
 
+## Reliability recovery (implementation candidate)
+
+Manual CAPTCHA availability and explicit human takeover are distinct. Waiting
+for a human releases the shared authentication network permit; each credential
+cohort remains single-flight. An unclaimed challenge can be revoked after60s
+to retry normal VK Calls authorization; explicit takeover retains the original
+deadline. CAPTCHA cooldown does not suppress the unrelated normal Calls path.
+Recovery and human takeover use atomic private, bounded admission leases.
+
+Private core status includes process startticks/boot ID/boot-clock freshness;
+public RPC exposes only allowlisted state/ages/counters. A monitor samples WAN
+and guarded VPN DNS/HTTPS every30s without reserving a VPN runtime identity.
+Public `health` and `recovery` are additive. Router-origin probes do not prove
+the classification of every LAN device. Missing/old observations are unknown.
+
+Automatic recovery is initially observe-only (`auto_recover=0`). Both fixed
+VPN HTTPS targets must fail after successful bound DNS, with both matching WAN
+controls reachable, continuously for180s. HTTP errors with verified TLS prove
+reachability and do not cause a restart. Unknown, WAN failure, VPN success,
+configuration/intent changes or active human takeover cancel the window.
+One cycle first reapplies guarded routes/DNS without restarting transport,
+then requires a new failed sample at least30s later before one transport restart.
+Reserve a cycle before mutation, including failed attempts: at most3/rollinghour
+and at least300s between starts, retained across monitor/client respawn this boot.
+An internal recover never enables a manually stopped service. Serialize lifecycle
+changes and exclude installation; prepared restarts must not recursively prepare
+under the policy lock. Every failed operation retains fail-closed guards.
+
+Candidate code, CI, signed package, live controlled checks and72h observation
+are separate gates. These paragraphs describe intended candidate behavior,
+not completed live acceptance. No router reboot or automatic WAN fallback.
+
 ## Routing invariants
 
 Preserve router/LAN access. For managed internet traffic, ordered group rules

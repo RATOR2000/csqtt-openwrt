@@ -216,6 +216,45 @@ function formStub() {
 	return { Map, GridSection: Section, NamedSection: Section, Value: Option, Flag: Option, ListValue: Option, DynamicList: Option };
 }
 
+test('availability and recovery replace misleading connected labels without exposing raw reasons', () => {
+	const cases = [
+		[{ core: { state: 'connected', active_workers: 72 }, health: { state: 'wan_down' } }, 'Нет связи через WAN'],
+		[{ core: { state: 'connected', active_workers: 72 }, health: { state: 'unknown' } }, 'Нет данных'],
+		[{ core: { state: 'connected' }, health: { state: 'healthy' }, recovery: { state: 'recovering', reason: 'RAW_SECRET' } }, 'Восстанавливаем подключение'],
+		[{ enabled: false, health: { state: 'healthy' }, recovery: { state: 'recovering' } }, 'Остановлено'],
+		[{ core: { state: 'captcha_required', active_workers: 54 }, health: { state: 'healthy' } }, 'Подключено']
+	];
+	for (const [status, label] of cases) {
+		const view = load('view/csqtt/overview.js', { view: extend, E, L, ui: uiStub(), api: {}, model, window: {}, poll: { add() {} } });
+		const page = view.render(status);
+		assert.equal(walk(page).find(n => n.attrs.role === 'status').children[0], label);
+		assert.doesNotMatch(text(page), /RAW_SECRET/);
+	}
+});
+
+test('a partial CAPTCHA remains advisory and human takeover is described separately', () => {
+	for (const human_active of [false, true]) {
+		const status = { core: { state: 'connected', active_workers: 54, captcha: { id: 'challenge-1', state: 'manual', human_active, expires_at: pairing().expires_at } } };
+		const view = load('view/csqtt/overview.js', { view: extend, E, L, ui: uiStub(), api: {}, model, window: {}, poll: { add() {} } });
+		const page = view.render(status);
+		assert.match(text(page), human_active ? /Ожидаем подтверждение VK/ : /Остальные потоки работают/);
+		assert.equal(walk(page).find(n => n.attrs.role === 'status').children[0], 'Подключено');
+	}
+});
+
+test('automatic recovery can be selected without changing connection settings', async () => {
+	const view = load('view/csqtt/settings.js', { view: extend, E, L, ui: uiStub(), form: formStub(), uci: {}, model });
+	await view.render();
+	const option = view.map.sections[0].options.find(o => o.key === 'auto_recover');
+	assert.ok(option);
+	assert.equal(option.default, '0', 'the unaccepted candidate starts in observation mode');
+	assert.equal(option.rmempty, false);
+	for (const value of ['0', '1']) {
+		option.getUIElement('main').setValue(value);
+		assert.equal(option.formvalue('main'), value);
+	}
+});
+
 test('rendered TURN choices compile into supported native client transport values', async () => {
 	const { runtime } = await import('../policy/harness.mjs');
 	const view = load('view/csqtt/settings.js', { view: extend, E, L, ui: uiStub(), form: formStub(), uci: {}, model });

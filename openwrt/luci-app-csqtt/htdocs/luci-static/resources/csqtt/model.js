@@ -149,8 +149,27 @@ return baseclass.extend({
 	normalizeHash: normalizeHash,
 	validDestination: validDestination,
 	workerLimit: function(count) { return Number.isInteger(count) && count > 0 && count <= 6 ? Math.min(126, count * 27) : 0; },
+	connectionState: function(status) {
+		if (!status || status.unavailable) return 'unknown';
+		if (status.enabled === false) return 'stopped';
+		var health = status.health || {}, recovery = status.recovery || {};
+		if (recovery.state === 'recovering' || health.state === 'recovering') return 'recovering';
+		var states = { healthy: 'connected', degraded: 'degraded', wan_down: 'wan_down', unknown: 'unknown', disabled: 'stopped', captcha_required: 'captcha_required' };
+		if (Object.prototype.hasOwnProperty.call(states, health.state)) return states[health.state];
+		return status.state || (status.core || status.transport || status).state || (status.running ? 'connecting' : 'stopped');
+	},
+	recoveryDetail: function(recovery) {
+		if (!recovery) return '';
+		if (recovery.state === 'limited') return 'Лимит восстановления достигнут. Проверки продолжаются; следующая попытка будет после паузы.';
+		if (recovery.state === 'recovering') return 'Клиент восстанавливает подключение. Защита VPN-трафика сохраняется.';
+		if (recovery.state === 'observing') return 'Проверки доступности включены. Автоматическое восстановление пока выключено.';
+		if (recovery.state === 'paused') return 'Восстановление приостановлено на время управления подключением.';
+		if (recovery.state === 'cooldown') return 'После попытки восстановления действует пауза. Проверки продолжаются.';
+		if (recovery.state === 'waiting') return 'Проверяем доступность перед восстановлением подключения.';
+		return recovery.automatic === true ? 'Автоматическое восстановление включено.' : '';
+	},
 	stateLabel: function(state) {
-		var labels = { stopped: 'Остановлено', starting: 'Запуск', connecting: 'Подключение', connected: 'Подключено', captcha_required: 'Нужна CAPTCHA', error: 'Ошибка', disabled: 'Выключено' };
+		var labels = { stopped: 'Остановлено', starting: 'Запуск', connecting: 'Подключение', connected: 'Подключено', captcha_required: 'Требуется подтверждение VK', recovering: 'Восстанавливаем подключение', wan_down: 'Нет связи через WAN', degraded: 'Соединение требует внимания', error: 'Ошибка', disabled: 'Выключено' };
 		return Object.prototype.hasOwnProperty.call(labels, state) ? labels[state] : 'Нет данных';
 	},
 	bytes: function(value) {

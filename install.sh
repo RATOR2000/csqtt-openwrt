@@ -28,6 +28,7 @@ case "$AVAILABLE" in ''|*[!0-9]*) die 'Cannot determine free overlay space.' ;; 
 TMP=$(mktemp -d /tmp/csqtt-install.XXXXXX)
 DNS_REMOVED=0
 BACKUP=
+MAINTENANCE_OWNED=0
 cleanup() {
     status=$?
     trap - EXIT HUP INT TERM
@@ -48,6 +49,10 @@ cleanup() {
         else
             echo "Automatic DNS restore failed. Original DNS cache and signed indexes: $TMP/rollback-cache" >&2
         fi
+    fi
+    if [ "$MAINTENANCE_OWNED" = 1 ]; then
+        rm -f /var/lock/csqtt-maintenance/pid
+        rmdir /var/lock/csqtt-maintenance 2>/dev/null || true
     fi
     if [ "$status" -eq 0 ]; then rm -rf "$TMP"; else echo "Installation diagnostics retained in $TMP" >&2; fi
     exit "$status"
@@ -219,6 +224,17 @@ stage_apk --no-network add --simulate "$TMP/packages/$CORE" "$TMP/packages/$CAPT
 AVAILABLE=$(df -Pk /overlay | awk 'NR==2 { print $4 }')
 case "$AVAILABLE" in ''|*[!0-9]*) die 'Cannot determine free overlay space.' ;; esac
 [ "$AVAILABLE" -ge 65536 ] || die 'Overlay space changed; at least 64 MiB is required.'
+# Exclude automatic recovery throughout live replacement and service restarts.
+# Refuse an existing marker rather than deleting another installer's state.
+mkdir -p /var/lock
+mkdir /var/lock/csqtt-maintenance 2>/dev/null || die 'CSQTT maintenance is already active.'
+MAINTENANCE_OWNED=1
+printf '%s\n' "$$" > /var/lock/csqtt-maintenance/pid
+# Wait for an already admitted operation; do not hold its lock across APK
+# package scripts or init actions. The marker excludes new recovery admissions.
+if [ -r /usr/libexec/csqtt/lifecycle.sh ]; then
+    ( . /usr/libexec/csqtt/lifecycle.sh; csqtt_operation_enter ) || die 'Cannot wait for the current CSQTT operation.'
+fi
 # Private backup contains UCI credentials and must remain on this router.
 BACKUP="/etc/csqtt/backups/$(date +%Y%m%d-%H%M%S)-$$"
 mkdir -p "$BACKUP"
@@ -239,6 +255,8 @@ if [ "$UPGRADE" = 1 ]; then
 fi
 /etc/init.d/csqtt-captcha enable || die 'CAPTCHA service enable failed.'
 /etc/init.d/csqtt-captcha restart || die 'CAPTCHA service restart failed.'
+/etc/init.d/csqtt-health enable || die 'Health monitor enable failed.'
+/etc/init.d/csqtt-health restart || die 'Health monitor restart failed.'
 # Persist the public key for future package operations only after success.
 mkdir -p /etc/apk/keys
 cp "$TMP/release-keys/csqtt-public.pem" /etc/apk/keys/csqtt-public.pem

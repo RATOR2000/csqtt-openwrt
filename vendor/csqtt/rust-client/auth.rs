@@ -19,6 +19,57 @@ use std::{
     time::Duration,
 };
 use uuid::Uuid;
+use tokio::sync::{Mutex, OwnedMutexGuard};
+use tokio_util::sync::CancellationToken;
+
+/// One automatic network authentication is in flight globally. A manual wait
+/// suspends this permit; the cohort's cache mutex still provides single flight.
+pub(crate) struct AuthNetworkPermit {
+    gate: Arc<Mutex<()>>,
+    held: Option<OwnedMutexGuard<()>>,
+    cancel: CancellationToken,
+}
+
+impl AuthNetworkPermit {
+    pub(crate) fn new(gate: Arc<Mutex<()>>, cancel: CancellationToken) -> Self {
+        Self { gate, held: None, cancel }
+    }
+
+    pub(crate) async fn acquire(&mut self) -> Result<()> {
+        if self.held.is_none() {
+            let guard = tokio::select! {
+                biased;
+                _ = self.cancel.cancelled() => bail!("authentication cancelled"),
+                guard = self.gate.clone().lock_owned() => guard,
+            };
+            // Retain upstream's global request spacing even though a manual
+            // wait and the cohort's longer retry backoff no longer hold it.
+            tokio::select! {
+                biased;
+                _ = self.cancel.cancelled() => bail!("authentication cancelled"),
+                _ = tokio::time::sleep(Duration::from_millis(100)) => {},
+            }
+            self.held = Some(guard);
+            crate::daemon::auth_event("network_acquired");
+        }
+        Ok(())
+    }
+
+    pub(crate) fn suspend(&mut self) {
+        if let Some(guard) = self.held.take() {
+            crate::daemon::auth_event("network_released");
+            drop(guard);
+        }
+    }
+}
+impl Drop for AuthNetworkPermit { fn drop(&mut self) { self.suspend(); } }
+
+struct AuthAttemptGuard { finished: bool }
+impl Drop for AuthAttemptGuard {
+    fn drop(&mut self) {
+        if !self.finished { crate::daemon::auth_event("cancelled"); }
+    }
+}
 
 const VK_CONNECT_CLIENT_ID: &str = "8093730";
 const VK_CALLS_API_HOST: &str = "api.vk.me";
@@ -84,6 +135,7 @@ struct LegacyAttempt<'a> {
     captcha_client: &'a Client,
     profile: Profile,
     saved_profile: Option<&'a crate::profiles::SavedProfile>,
+    network: &'a mut AuthNetworkPermit,
 }
 
 impl VkAuth {
@@ -119,7 +171,21 @@ impl VkAuth {
             .join(", ")
     }
 
-    pub async fn get_credentials(&self, link: &str, stream_id: usize) -> Result<TurnCredentials> {
+    pub(crate) async fn get_credentials(&self, link: &str, stream_id: usize,
+        network: &mut AuthNetworkPermit) -> Result<TurnCredentials>
+    {
+        network.acquire().await?;
+        crate::daemon::auth_event("started");
+        let mut telemetry = AuthAttemptGuard { finished: false };
+        let result = self.get_credentials_inner(link, stream_id, network).await;
+        crate::daemon::auth_event(if result.is_ok() { "succeeded" } else { "failed" });
+        telemetry.finished = true;
+        result
+    }
+
+    async fn get_credentials_inner(&self, link: &str, stream_id: usize,
+        network: &mut AuthNetworkPermit) -> Result<TurnCredentials>
+    {
         if self.mode.as_ref() == "auto_js" {
             let credential_id = stream_id / 100;
             let auto_js_result = match self.auto_js.as_ref() {
@@ -149,7 +215,9 @@ impl VkAuth {
                 }
             };
         }
-        if unix_seconds() < self.captcha_lockout_until.load(Ordering::Acquire) {
+        // The legacy Android client retains its old cooldown. In daemon mode
+        // a CAPTCHA on one fallback must never suppress normal VK Calls auth.
+        if !crate::daemon::enabled() && unix_seconds() < self.captcha_lockout_until.load(Ordering::Acquire) {
             bail!("CAPTCHA_WAIT_REQUIRED: global lockout active");
         }
         if self.mode.as_ref() == "vkcalls" {
@@ -195,6 +263,7 @@ impl VkAuth {
                         captcha_client: &captcha_client,
                         profile,
                         saved_profile: saved_profile.as_ref(),
+                        network: &mut *network,
                     },
                 )
                 .await
@@ -210,13 +279,17 @@ impl VkAuth {
                     return Err(error);
                 }
                 Err(error) => {
+                    if error.downcast_ref::<crate::captcha::FreshAuthRequired>().is_some() {
+                        return Err(error);
+                    }
                     crate::log_error!(
                         "[STREAM {stream_id}] [VK Auth] Failed with client_id={}: {error}",
                         credential.client_id
                     );
                     if error.to_string().contains("CAPTCHA_WAIT_REQUIRED") {
-                        self.captcha_lockout_until
-                            .store(unix_seconds() + 60, Ordering::Release);
+                        if !crate::daemon::enabled() {
+                            self.captcha_lockout_until.store(unix_seconds() + 60, Ordering::Release);
+                        }
                         return Err(error);
                     }
                     last_error = Some(error);
@@ -342,6 +415,7 @@ impl VkAuth {
             captcha_client,
             profile,
             saved_profile,
+            network,
         } = attempt;
         let name = generate_name();
         let escaped_name = query_escape(&name);
@@ -401,9 +475,9 @@ impl VkAuth {
                 captcha_attempts += 1;
                 let success = self
                     .captcha
-                    .solve(captcha_client, &profile, saved_profile, stream_id, &captcha)
+                    .solve(captcha_client, &profile, saved_profile, stream_id, &captcha, network)
                     .await
-                    .map_err(|error| anyhow::anyhow!("CAPTCHA_WAIT_REQUIRED: {error}"))?;
+                    .context("CAPTCHA_WAIT_REQUIRED")?;
                 let attempt =
                     if captcha.captcha_attempt.is_empty() || captcha.captcha_attempt == "0" {
                         "1"
@@ -909,6 +983,41 @@ fn load_credentials(client_ids: &[String]) -> Vec<VkCredentials> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn manual_wait_releases_global_auth_without_losing_cohort_single_flight() {
+        let gate=Arc::new(Mutex::new(()));
+        let cohort=Arc::new(Mutex::new(()));
+        let cancel=CancellationToken::new();
+        let cohort_request=cohort.lock().await;
+        let mut first=AuthNetworkPermit::new(gate.clone(),cancel.clone());
+        first.acquire().await.unwrap();
+        assert!(gate.try_lock().is_err());
+        first.suspend();
+        assert!(cohort.try_lock().is_err());
+        let mut other=AuthNetworkPermit::new(gate.clone(),cancel);
+        other.acquire().await.unwrap();
+        assert!(gate.try_lock().is_err());
+        other.suspend();
+        first.acquire().await.unwrap();
+        drop(first);
+        assert!(gate.try_lock().is_ok());
+        drop(cohort_request);
+        assert!(cohort.try_lock().is_ok());
+    }
+
+    #[tokio::test]
+    async fn cancelled_auth_waiter_does_not_reserve_or_leak_network_permit() {
+        let gate=Arc::new(Mutex::new(()));
+        let held=gate.lock().await;
+        let cancel=CancellationToken::new();
+        let mut waiter=AuthNetworkPermit::new(gate.clone(),cancel.clone());
+        cancel.cancel();
+        assert!(waiter.acquire().await.is_err());
+        assert!(waiter.held.is_none());
+        drop(held);
+        assert!(gate.try_lock().is_ok());
+    }
 
     #[test]
     fn query_escape_matches_go() {

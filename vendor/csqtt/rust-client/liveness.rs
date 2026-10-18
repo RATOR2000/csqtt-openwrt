@@ -45,6 +45,7 @@ impl PeerLiveness {
                 .compare_exchange(PENDING, ACKNOWLEDGED, Ordering::AcqRel, Ordering::Acquire)
                 .is_ok()
         {
+            crate::daemon::liveness_event("reply");
             self.changed.notify_one();
         }
     }
@@ -114,6 +115,7 @@ where
         }
         // Arm before handing the request to the writer, including an immediate reply.
         let _pending = PendingProbe::begin(&state)?;
+        crate::daemon::liveness_event("probe");
         let attempt = async {
             send(REQUEST).await?;
             state.acknowledged().await;
@@ -133,8 +135,10 @@ where
         if answered {
             missed = 0;
         } else {
+            crate::daemon::liveness_event("miss");
             missed += 1;
             if missed == MAX_MISSED_RESPONSES {
+                crate::daemon::liveness_event("timeout");
                 return Err(PeerLivenessTimeout.into());
             }
         }

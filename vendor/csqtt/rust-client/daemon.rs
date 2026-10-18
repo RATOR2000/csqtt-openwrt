@@ -141,6 +141,11 @@ pub struct Status {
     schema_version: u8,
     state: String,
     pid: u32,
+    // Private ownership metadata. Public RPC must keep its explicit allowlist.
+    process_startticks: u64,
+    boot_id: String,
+    updated_boottime_ms: u64,
+    uptime_secs: u64,
     tun_device: String,
     tunnel_ip: Option<Ipv4Addr>,
     dns: Vec<Ipv4Addr>,
@@ -150,6 +155,34 @@ pub struct Status {
     captcha: Option<Value>,
     error_code: Option<String>,
     updated_at: u64,
+    health: Health,
+}
+
+#[derive(Clone, Default, Serialize)]
+struct Health {
+    auth_phase: &'static str,
+    auth_inflight: u64,
+    auth_network_inflight: u64,
+    auth_attempts: u64,
+    auth_successes: u64,
+    auth_failures: u64,
+    auth_cancelled: u64,
+    fresh_auth_retries: u64,
+    human_epoch: u64,
+    auth_progress_age_secs: Option<u64>,
+    peer_progress_age_secs: Option<u64>,
+    liveness_probes: u64,
+    liveness_replies: u64,
+    liveness_misses: u64,
+    liveness_timeouts: u64,
+    network_timeout_events: u64,
+    unavailable_calls: u64,
+    session_errors: u64,
+    last_session_error: Option<&'static str>,
+    #[serde(skip)]
+    last_auth_progress_ms: Option<u64>,
+    #[serde(skip)]
+    last_peer_progress_ms: Option<u64>,
 }
 
 pub struct Runtime {
@@ -161,11 +194,34 @@ pub struct Runtime {
     hook_lock: tokio::sync::Mutex<()>,
     control_owned: AtomicBool,
     tun_owned: AtomicBool,
+    started: std::time::Instant,
 }
 
 pub fn current() -> Option<&'static Arc<Runtime>> { RUNTIME.get() }
 pub fn enabled() -> bool { current().is_some() }
 pub fn now() -> u64 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() }
+
+pub fn boottime_ms() -> u64 {
+    #[cfg(target_os = "linux")] {
+        let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+        if unsafe { libc::clock_gettime(libc::CLOCK_BOOTTIME, &mut time) } == 0 {
+            return (time.tv_sec as u64).saturating_mul(1_000)
+                .saturating_add(time.tv_nsec as u64 / 1_000_000);
+        }
+    }
+    0
+}
+
+fn process_startticks() -> u64 {
+    std::fs::read_to_string("/proc/self/stat").ok()
+        .and_then(|stat| stat.rsplit_once(')').map(|(_, fields)| fields.to_owned()))
+        .and_then(|fields| fields.split_whitespace().nth(19).and_then(|field| field.parse().ok()))
+        .unwrap_or(0)
+}
+
+fn boot_id() -> String {
+    std::fs::read_to_string("/proc/sys/kernel/random/boot_id").unwrap_or_default().trim().to_owned()
+}
 
 fn secure_open(path: &Path) -> Result<File> {
     let mut options = OpenOptions::new();
@@ -299,11 +355,14 @@ pub fn prepare(arguments: &mut crate::Arguments) -> Result<()> {
     let runtime = Arc::new(Runtime {
         status: Mutex::new(Status {
             schema_version: 1, state: "starting".into(), pid: std::process::id(),
+            process_startticks: process_startticks(), boot_id: boot_id(), updated_boottime_ms: boottime_ms(), uptime_secs: 0,
             tun_device: config.tun_device.clone(), tunnel_ip: None, dns: Vec::new(),
             active_workers: 0, bytes_up: 0, bytes_down: 0, captcha: None,
             error_code: None, updated_at: now(),
+            health: Health { auth_phase: "idle", ..Health::default() },
         }), config, _identity_lock: lock, hook_lock: tokio::sync::Mutex::new(()),
         control_owned: AtomicBool::new(false), tun_owned: AtomicBool::new(false),
+        started: std::time::Instant::now(),
     });
     runtime.persist()?;
     RUNTIME.set(runtime).map_err(|_| anyhow::anyhow!("daemon initialized twice"))?;
@@ -319,13 +378,23 @@ impl Runtime {
         let mut status = self.status.lock().unwrap_or_else(|e| e.into_inner());
         apply(&mut status);
         status.updated_at = now();
+        status.updated_boottime_ms = boottime_ms();
+        self.refresh_clocks(&mut status);
         if write_private(&self.config.status_file, &*status).is_err() {
             // Never print config, challenge or server strings on persistence errors.
             crate::log_error!("[DAEMON] status_write_failed");
         }
     }
     pub fn snapshot(&self) -> Value {
-        serde_json::to_value(&*self.status.lock().unwrap_or_else(|e| e.into_inner())).unwrap_or(Value::Null)
+        let mut status = self.status.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        self.refresh_clocks(&mut status);
+        serde_json::to_value(&status).unwrap_or(Value::Null)
+    }
+    fn refresh_clocks(&self, status: &mut Status) {
+        status.uptime_secs = self.started.elapsed().as_secs();
+        let current = boottime_ms();
+        status.health.auth_progress_age_secs = status.health.last_auth_progress_ms.map(|last| current.saturating_sub(last) / 1_000);
+        status.health.peer_progress_age_secs = status.health.last_peer_progress_ms.map(|last| current.saturating_sub(last) / 1_000);
     }
     async fn hook(&self, action: &str, ip: Option<Ipv4Addr>, dns: &[Ipv4Addr]) -> Result<()> {
         let _lock = self.hook_lock.lock().await;
@@ -342,37 +411,64 @@ impl Runtime {
 }
 
 fn refresh_state(status: &mut Status) {
+    refresh_auth_phase(status);
     if status.error_code.is_some() || status.state == "stopped" { return; }
-    status.state = if status.captcha.as_ref().and_then(|c| c.get("state")).and_then(Value::as_str) == Some("manual") {
+    status.state = if status.tunnel_ip.is_some() && status.active_workers > 0 { "connected" }
+    else if status.captcha.as_ref().and_then(|c| c.get("state")).and_then(Value::as_str) == Some("manual") {
         "captcha_required"
-    } else if status.tunnel_ip.is_some() && status.active_workers > 0 { "connected" }
+    }
     else { "connecting" }.into();
+}
+
+fn refresh_auth_phase(status: &mut Status) {
+    status.health.auth_phase = if status.health.auth_network_inflight > 0 { "network" }
+        else if status.captcha.as_ref().is_some_and(|challenge| challenge["human_active"].as_bool() == Some(true)) { "manual" }
+        else if status.captcha.is_some() { "captcha_wait" }
+        else if status.health.auth_inflight > 0 { "waiting" }
+        else { "idle" };
 }
 
 pub fn record_event(kind: &str, payload: &Value) {
     let Some(runtime) = current() else { return; };
-    if !matches!(kind, "PROCESS" | "READY" | "STATS" | "ACTIVE_ZERO" | "STOPPED" | "ERROR") { return; }
-    runtime.update(|status| {
+    if !matches!(kind, "PROCESS" | "READY" | "STATS" | "ACTIVE_ZERO" | "STOPPED" | "ERROR" | "CALL_UNAVAILABLE" | "NETWORK_TIMEOUT" | "PROGRESS") { return; }
+    runtime.update(|status| apply_event(status, kind, payload));
+}
+
+fn apply_event(status: &mut Status, kind: &str, payload: &Value) {
         match kind {
             "STATS" => {
                 status.active_workers = payload["active"].as_i64().unwrap_or(0).max(0);
                 status.bytes_up = payload["bytes_up"].as_i64().unwrap_or(0).max(0);
                 status.bytes_down = payload["bytes_down"].as_i64().unwrap_or(0).max(0);
             }
-            "READY" => { status.active_workers = status.active_workers.max(1); }
+            "READY" => {
+                status.active_workers = status.active_workers.max(1);
+                status.health.last_peer_progress_ms = Some(boottime_ms());
+            }
             "ACTIVE_ZERO" => { status.active_workers = 0; }
+            "CALL_UNAVAILABLE" => { status.health.unavailable_calls = status.health.unavailable_calls.saturating_add(1); }
+            "NETWORK_TIMEOUT" => { status.health.network_timeout_events = status.health.network_timeout_events.saturating_add(1); }
+            "PROGRESS" if payload["kind"].as_str() == Some("credentials") => {
+                status.health.last_auth_progress_ms = Some(boottime_ms());
+            }
             "STOPPED" => {
                 if status.error_code.is_none() { status.state = "stopped".into(); }
                 status.active_workers = 0; status.captcha = None;
                 status.tunnel_ip = None; status.dns.clear();
             }
-            "ERROR" if payload["fatal"].as_bool() == Some(true) => {
-                status.state = "error".into(); status.error_code = Some("transport_failed".into());
+            "ERROR" => {
+                // These are session-local failures; the worker supervisor
+                // retries them. Actual daemon failure is set only by fail().
+                status.health.session_errors = status.health.session_errors.saturating_add(1);
+                status.health.last_session_error = match payload["code"].as_str() {
+                    Some("handshake_timeout") => Some("handshake_timeout"),
+                    Some("handshake_rejected") => Some("handshake_rejected"),
+                    _ => Some("session_failed"),
+                };
             }
             _ => {}
         }
         refresh_state(status);
-    });
 }
 
 pub fn fail(code: &str) {
@@ -386,8 +482,48 @@ pub fn fail(code: &str) {
 
 pub fn captcha_status(value: Option<Value>) {
     if let Some(runtime) = current() {
-        let redacted = value.map(|c| json!({"id": c["id"], "state": c["state"], "expires_at": c["expires_at"]}));
+        let redacted = value.map(|c| json!({"id": c["id"], "state": c["state"], "expires_at": c["expires_at"],
+            "human_active": c["human_active"].as_bool().unwrap_or(false)}));
         runtime.update(|status| { status.captcha = redacted; refresh_state(status); });
+    }
+}
+
+pub(crate) fn auth_event(kind: &'static str) {
+    if let Some(runtime) = current() {
+        runtime.update(|status| {
+            let health = &mut status.health;
+            match kind {
+                "network_acquired" => { health.auth_network_inflight = health.auth_network_inflight.saturating_add(1); }
+                "network_released" => { health.auth_network_inflight = health.auth_network_inflight.saturating_sub(1); }
+                "started" => { health.auth_attempts = health.auth_attempts.saturating_add(1); health.auth_inflight = health.auth_inflight.saturating_add(1); }
+                "succeeded" => {
+                    health.auth_inflight = health.auth_inflight.saturating_sub(1);
+                    health.auth_successes = health.auth_successes.saturating_add(1);
+                    health.last_auth_progress_ms = Some(boottime_ms());
+                }
+                "failed" => { health.auth_inflight = health.auth_inflight.saturating_sub(1); health.auth_failures = health.auth_failures.saturating_add(1); }
+                "cancelled" => { health.auth_inflight = health.auth_inflight.saturating_sub(1); health.auth_cancelled = health.auth_cancelled.saturating_add(1); }
+                "fresh_retry" => { health.fresh_auth_retries = health.fresh_auth_retries.saturating_add(1); }
+                "human_started" => { health.human_epoch = health.human_epoch.saturating_add(1); }
+                _ => return,
+            }
+            refresh_auth_phase(status);
+        });
+    }
+}
+
+pub(crate) fn liveness_event(kind: &'static str) {
+    if let Some(runtime) = current() {
+        runtime.update(|status| {
+            let health = &mut status.health;
+            match kind {
+                "probe" => health.liveness_probes = health.liveness_probes.saturating_add(1),
+                "reply" => { health.liveness_replies = health.liveness_replies.saturating_add(1); health.last_peer_progress_ms = Some(boottime_ms()); }
+                "miss" => health.liveness_misses = health.liveness_misses.saturating_add(1),
+                "timeout" => health.liveness_timeouts = health.liveness_timeouts.saturating_add(1),
+                _ => {},
+            }
+        });
     }
 }
 
@@ -471,6 +607,19 @@ fn dispatch_control(request: ControlRequest, captcha: &crate::captcha::CaptchaSo
     match request.command.as_str() {
         "status" => json!({"ok":true,"status":current().map(|r| r.snapshot())}),
         "captcha_get" => json!({"ok":true,"captcha":captcha.daemon_challenge()}),
+        "recovery_begin" => match captcha.daemon_recovery_begin(request.id.as_deref()) {
+            Ok((id, expires)) => {
+                let human_epoch = current().and_then(|runtime| runtime.snapshot()["health"]["human_epoch"].as_u64()).unwrap_or(0);
+                json!({"ok":true,"recovery_id":id,"recovery_expires_at":expires,
+                    "lease_secs":90,"pid":std::process::id(),"process_startticks":process_startticks(),
+                    "boot_id":boot_id(),"updated_boottime_ms":boottime_ms(),"human_epoch":human_epoch})
+            },
+            Err(error) => json!({"ok":false,"error":error}),
+        },
+        "recovery_end" => match request.id {
+            Some(id) if captcha.daemon_recovery_end(&id) => json!({"ok":true}),
+            _ => json!({"ok":false,"error":"stale_recovery"}),
+        },
         "captcha_manual" | "captcha_cancel" | "captcha_result" => {
             let Some(id) = request.id else { return json!({"ok":false,"error":"missing_id"}); };
             let result = match request.command.as_str() {
@@ -483,11 +632,69 @@ fn dispatch_control(request: ControlRequest, captcha: &crate::captcha::CaptchaSo
                 },
             };
             if result { json!({"ok":true,"captcha":captcha.daemon_challenge()}) }
-            else { json!({"ok":false,"error":"stale_or_unavailable_challenge"}) }
+            else if request.command == "captcha_manual" && captcha.recovery_in_progress() {
+                json!({"ok":false,"error":"recovery_in_progress"})
+            } else { json!({"ok":false,"error":"stale_or_unavailable_challenge"}) }
         }
         "stop" => { cancel.cancel(); json!({"ok":true}) }
         _ => json!({"ok":false,"error":"unknown_command"}),
     }
+}
+
+/// Root-only machine interface. Its stdout is a PRIVATE control response and
+/// may contain challenge credentials. Callers must never copy it into logs/RPC.
+/// The endpoint is fixed so this cannot become an arbitrary Unix socket proxy.
+pub fn run_control_cli() -> i32 {
+    #[cfg(unix)] {
+        let result = (|| -> Result<Value> {
+            use std::os::unix::fs::{FileTypeExt, MetadataExt};
+            let started = std::time::Instant::now();
+            if unsafe { libc::geteuid() } != 0 { bail!("root required"); }
+            let path = Path::new("/var/run/csqtt/control.sock");
+            let metadata = std::fs::symlink_metadata(path)?;
+            if !metadata.file_type().is_socket() || metadata.uid() != 0 || metadata.mode() & 0o077 != 0 {
+                bail!("unsafe control socket");
+            }
+            let (send, receive) = std::sync::mpsc::sync_channel(1);
+            std::thread::Builder::new().name("control-input".into()).spawn(move || {
+                let mut input = Vec::new();
+                let read = std::io::stdin().take(MAX_CONTROL + 1).read_to_end(&mut input);
+                let _ = send.send(read.map(|_| input));
+            })?;
+            let mut input = receive.recv_timeout(Duration::from_secs(1)).context("input deadline")??;
+            if input.len() as u64 >= MAX_CONTROL { bail!("invalid request"); }
+            let _: ControlRequest = serde_json::from_slice(&input)?;
+            if input.last() != Some(&b'\n') { input.push(b'\n'); }
+            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+            let remaining = Duration::from_secs(3).saturating_sub(started.elapsed());
+            runtime.block_on(async {
+                tokio::time::timeout(remaining, control_exchange(path, &input))
+                    .await.context("control deadline")?
+            })
+        })();
+        match result {
+            Ok(response) => {
+                if serde_json::to_writer(std::io::stdout().lock(), &response).is_err() { return 1; }
+                println!();
+                return 0;
+            }
+            Err(_) => { eprintln!("[DAEMON] control_request_failed"); return 1; }
+        }
+    }
+    #[cfg(not(unix))] { eprintln!("[DAEMON] control_request_unavailable"); 1 }
+}
+
+#[cfg(unix)]
+async fn control_exchange(path: &Path, input: &[u8]) -> Result<Value> {
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+    let stream = tokio::net::UnixStream::connect(path).await?;
+    if stream.peer_cred()?.uid() != 0 { bail!("untrusted control peer"); }
+    let (read, mut write) = stream.into_split();
+    write.write_all(input).await?;
+    let mut line = Vec::new();
+    BufReader::new(read.take(MAX_CONTROL + 1)).read_until(b'\n', &mut line).await?;
+    if line.len() as u64 > MAX_CONTROL || line.last() != Some(&b'\n') { bail!("invalid control response"); }
+    Ok(serde_json::from_slice(&line)?)
 }
 
 #[cfg(unix)]
@@ -592,12 +799,49 @@ mod tests {
     }
     #[test]
     fn status_does_not_publish_challenge_credentials() {
-        let mut status=Status { schema_version:1,state:"connecting".into(),pid:1,tun_device:"csqtt0".into(),tunnel_ip:Some(Ipv4Addr::new(10,66,67,2)),dns:vec![],active_workers:0,bytes_up:0,bytes_down:0,captcha:None,error_code:None,updated_at:0 };
+        let mut status=Status { schema_version:1,state:"connecting".into(),pid:1,process_startticks:0,boot_id:String::new(),updated_boottime_ms:0,uptime_secs:0,tun_device:"csqtt0".into(),tunnel_ip:Some(Ipv4Addr::new(10,66,67,2)),dns:vec![],active_workers:0,bytes_up:0,bytes_down:0,captcha:None,error_code:None,updated_at:0,health:Health::default() };
         refresh_state(&mut status); assert_eq!(status.state,"connecting");
         status.active_workers=1; refresh_state(&mut status); assert_eq!(status.state,"connected");
         status.captcha=Some(json!({"id":"request","state":"manual","expires_at":1}));
+        refresh_state(&mut status); assert_eq!(status.state,"connected");
+        status.active_workers=0;
         refresh_state(&mut status); assert_eq!(status.state,"captcha_required");
         let value=serde_json::to_string(&status).unwrap(); assert!(!value.contains("token")); assert!(!value.contains("redirect_uri"));
+        status.captcha=None;
+        apply_event(&mut status,"ERROR",&json!({"code":"handshake_timeout","fatal":true,"message":"private-upstream-error"}));
+        assert!(status.error_code.is_none());
+        assert_eq!(status.health.session_errors,1);
+        apply_event(&mut status,"STATS",&json!({"active":3,"bytes_up":1,"bytes_down":1}));
+        assert_eq!(status.state,"connected");
+        assert!(!serde_json::to_string(&status).unwrap().contains("private-upstream-error"));
+    }
+
+    #[tokio::test]
+    async fn recovery_control_returns_private_bounded_admission_and_requires_its_token() {
+        let cancel=CancellationToken::new();
+        let captcha=crate::captcha::CaptchaSolver::new("auto",cancel.clone());
+        let request=|command: &str,id:Option<String>| ControlRequest { command:command.into(),id,token:None };
+        let begin=dispatch_control(request("recovery_begin",None),&captcha,&cancel);
+        assert_eq!(begin["ok"],true);
+        assert_eq!(begin["lease_secs"],90);
+        assert!(begin["pid"].as_u64().is_some());
+        assert!(begin["human_epoch"].as_u64().is_some());
+        assert!(begin.get("password").is_none());
+        assert!(begin.get("session_token").is_none());
+        let second=dispatch_control(request("recovery_begin",None),&captcha,&cancel);
+        assert_eq!(second["error"],"recovery_in_progress");
+        assert_eq!(dispatch_control(request("recovery_end",Some("wrong".into())),&captcha,&cancel)["ok"],false);
+        assert_eq!(dispatch_control(request("recovery_end",begin["recovery_id"].as_str().map(str::to_owned)),&captcha,&cancel)["ok"],true);
+    }
+
+    #[cfg(target_os="linux")]
+    #[test]
+    fn private_ownership_metadata_matches_kernel_process_instance() {
+        assert!(process_startticks()>0);
+        let id=boot_id();
+        assert_eq!(id.len(),36);
+        assert!(id.bytes().all(|byte| byte.is_ascii_hexdigit() || byte==b'-'));
+        assert!(boottime_ms()>0);
     }
     #[test]
     fn persistent_identity_survives_restart_and_locks_parallel_instances() {

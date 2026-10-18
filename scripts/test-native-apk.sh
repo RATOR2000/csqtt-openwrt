@@ -79,6 +79,8 @@ packages = {
     }, {
         'usr/bin/csqtt-client': 0o755,
         'usr/libexec/csqtt/manage': 0o755, 'usr/libexec/csqtt/tun-hook': 0o755,
+        'usr/libexec/csqtt/lifecycle.sh': 0o644, 'usr/libexec/csqtt/monitor': 0o755,
+        'etc/init.d/csqtt-health': 0o755, 'usr/share/csqtt/health.uc': 0o644,
         'etc/init.d/csqtt': 0o755, 'etc/init.d/csqtt-dns': 0o755,
         'etc/hotplug.d/iface/90-csqtt': 0o755,
         'etc/config/csqtt': 0o600, 'etc/csqtt/policy.nft': 0o600,

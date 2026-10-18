@@ -59,7 +59,7 @@ return view.extend({
 		}
 		function update(status) {
 			var tunnel = status.tunnel || {}, core = status.core || status.transport || status;
-			var state = status.unavailable ? 'unknown' : status.state || core.state || (status.running ? 'connecting' : 'stopped');
+			var state = model.connectionState(status);
 			statusNode.replaceChildren(E('div', { 'class': 'csqtt-hero' }, [
 				E('p', { 'class': 'csqtt-eyebrow' }, 'CSQTT · OpenWrt'),
 				E('h2', {}, 'Ваше соединение'),
@@ -73,6 +73,8 @@ return view.extend({
 			]), E('div', { 'class': 'csqtt-note' }, status.policies_active ?
 				'Защита политик включена. Если VPN остановится, предназначенный ему трафик будет заблокирован; прямые исключения продолжат работать.' :
 				'Создайте группу устройств и назначьте ей VPN на странице «Устройства и политики». Не назначенные группе устройства используют обычное подключение.'));
+			var recoveryDetail = model.recoveryDetail(status.recovery);
+			if (recoveryDetail) statusNode.appendChild(E('p', { 'class': 'csqtt-note' }, [recoveryDetail]));
 			if (status.error || core.error_code) statusNode.appendChild(E('p', { 'class': 'csqtt-note csqtt-warning' }, 'Не удалось установить соединение. Проверьте настройки и откройте диагностику.'));
 			var challenge = status.captcha || core.captcha;
 			if (challenge && (!challenge.id || Number(challenge.expires_at) <= Date.now() / 1000)) challenge = null;
@@ -80,7 +82,11 @@ return view.extend({
 			if (pairing && (!challenge || challenge.id !== pairing.id || pairing.expires_at <= Date.now() / 1000)) closePairing();
 			captchaNode.replaceChildren();
 			if (!challenge) return;
-			var content = [E('h3', {}, 'Подтверждение ВКонтакте'), E('p', {}, challenge.state === 'auto' ? 'Клиент пытается решить CAPTCHA автоматически.' : 'Для продолжения соединения решите CAPTCHA на Android, подключённом к этой локальной сети.')];
+			var challengeText = challenge.human_active ? 'Ожидаем подтверждение VK в CSQTT Helper. Текущий запрос сохраняется до указанного срока.' :
+				challenge.state === 'auto' ? 'Клиент пытается решить CAPTCHA автоматически.' :
+				Number(core.active_workers) > 0 ? 'VK запросил подтверждение для части соединений. Остальные потоки работают; клиент продолжает восстановление.' :
+				'Клиент повторяет подключение автоматически. Если VK продолжает требовать подтверждение, его можно пройти в CSQTT Helper на Android.';
+			var content = [E('h3', {}, 'Подтверждение ВКонтакте'), E('p', {}, [challengeText])];
 			content.push(E('button', { 'class': 'cbi-button cbi-button-action', click: ui.createHandlerFn(self, function() {
 				return api.call('captcha_begin').then(function(result) {
 					showPairing(result);
