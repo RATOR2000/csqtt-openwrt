@@ -6,7 +6,7 @@ details are recoverable from Git; do not restart completed work.
 
 ## First unfinished action
 
-Build/publish/install corrected signed preview.9, then staged router
+Await corrected CI run39161176161, then build/publish/install signed preview.9 and
 acceptance followed by72hours observation. Reliability source is implemented;
 exact candidate, checks and next action are in the current checkpoint below.
 Owner reports several outages daily; Reconnect helps without solving CAPTCHA.
@@ -97,6 +97,80 @@ start router-local72h collection and infrequent followup (not started/completed)
 Root owns Git/integration/publication/live access. All producer/review agents
 finished; recheck liveness before delegation. Owner requests low token usage:
 reuse settled evidence, use focused checks, compact outputs and this summary.
+
+## Continuation — fresh preview9 candidate2 (2026-10-18 20:00UTC)
+
+CURRENT local/remote source20d405f272ec24fdd4cb02780e6a9068e3274351,
+treef7ee0b0931e151f4c732bfe7e3949577d74ee893,
+build926a44f31caeb760df70d808eee53d6f715d0d8b on existing unpublished
+codex/reliability-full-20261018-2. Run39161176161 is in progress, not accepted.
+https://github.com/RATOR2000/csqtt-openwrt/actions/runs/39161176161
+It includes the real ucode import correction AND explicit kernel leader ticks.
+Current live readonly native leader-path equality PASS; management exit0, one
+client/observer,72workers, WAN/VPN/DNS healthy, enabled1/auto_recover1, one cycle.
+Keep this state while waiting. Review agent finished; no active producer remains.
+
+Heartbeat csqtt-preview9-72 is ACTIVE in this same chat, every20minutes while CI
+is pending; created to avoid token-heavy repeated waiting. It must continue the
+accepted plan without asking again. After signed9 acceptance and actual collector
+start, update THIS automation to24hour cadence. Notify only meaningful changes,
+failure, required action or completion; stop after full acceptance. A running
+desktop/PC is needed for local heartbeat work; router collector itself runs there.
+72H COLLECTION IS NOT STARTED. Never infer it from source/native tests alone.
+
+.work/preview.9/candidate.json pins the NEW candidate. Old logs, candidate and
+authenticated failed SDK diagnostics moved to failed-candidate1/; old paths above
+are historical. No new successful job logs/artifacts/config/provenance yet.
+Scaffolding candidate2 references updated in notes, early-modes.sh and finalize-ci.
+Do not reuse any failed-run or withdrawn8 log, APK or provenance for new proof.
+Pinned public PEM SHA25639259baf94d83602c784b103506445cd7e26ec9c3635cc277b90ff31fe4d4bac.
+
+Concrete continuation (all authorized):
+1. One compact GitHub jobs query for39161176161. If still pending, no raw logs or
+   repeated audits. On failure diagnose exact cause, retain logs/checkpoint. On5
+   successes fetch authenticated logs to checks/core/native/sdk/android-success.log;
+   save ci.json normalized names checks/core/native-policy/openwrt/android and exact
+   run/head. finalize-ci.py binds log IDs/digests. Native log must show the real
+   filesystem health module import success; SDK must show exact ownership/TUN PASS.
+2. Get fresh OpenWrt+Android artifact metadata/id/digest/size/head, write frozen
+   release-config.json; obtain ephemeral download URLs via connector (never print)
+   and downloads.json, run fetch-artifacts.py. Run verify-build-tree.py. To obtain
+   native early-mode proof BEFORE prepare-release requires extracted core, run
+   extract-smoke-core.cjs (pinned signed manifest +wholeAPK hashes first); copy its
+   candidate-client to private /tmp/csqtt-preview9-check, run early-modes.sh with
+   exactELFsha; save fixed public JSON to arm64-early-modes.json. It verifies no
+   device-id or live client PID change. Then prepare-release.py on empty staging
+   validates all signatures/frozen payloads/104source+25packedUI+6reload/376Rust.
+   Do not rerun preparation over partial extracted/signatures/assets; preserve
+   failed directories within verified workspace path first if repair needed.
+3. Publish verified8assets/newtag9 targeting exact build926a44f; public verify
+   all8 downloads, API sizes/digests/tag/title/body via verify-public-release.py.
+   Browser tab2 has an UNSAVED new9 form (tag9, branch2, pre-release, title only);
+   it is not a release. Recheck target current commit before publication. Tab3
+   still shows the superseded failed SDK. User tab1preview1 must be preserved.
+4. create-router-manifest.py; stage-router.py copies reviewed helpers/public r7
+   rollback, root must copy router-payloads too. run-router.py upgrade requires
+   verified published provenance and runs only verified public9installer. It backs
+   up current4configs and budget, persists signed7rollback+publickeys, checks3r9
+   versions,4unchanged configs, preserved rolling limits and3native simulated
+   r9-to-r7 downgrades. Then post-check all15payloads/status/groupDNS/guards and
+   distinct WAN/VPN HTTPS exits. Keep native actual import proof. Auto1 stays1.
+5. Only after signed9 passes, create private
+   /etc/csqtt/backups/preview9-acceptance-<timestamp>, copy reviewed collect72.sh and
+   live-state.uc there. Launch with setsid (NO nohup), verify collector.ready,
+   collector.pid/cmdline and liveness/exit; do not reset an existing window. Save
+   .work/preview.9/acceptance.json {remote_directory:<exactpath>} and run readonly
+   check-acceptance.py: bounded redacted evidence, sameboot, livecollector or
+   finished72h marker. Update STATUS exact start/deadline and heartbeat cadence.
+   Real72h/complete evidence review remains required. Source defaultauto remains0
+   until acceptance; live ownerflag1 is intentional. Boot7/AndroidVK gates deferred.
+
+SSH scripts must use LF bytes through Python subprocess input; PowerShell raw
+pipeline addsCR; router has setsid, no nohup. BundledPython absolute path is
+C:/Users/Alexander/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe.
+Git push via connector tree/commit/ref and export-github-tree.py, credential-free
+fetch+tree equality+update-ref; no ordinary push/GCM. Keep dev commits skipci;
+validation commit parentdev+previousvalidation parent keeps branch cache history.
 
 Historical withdrawn8 source dc1b4fe050ca82fabcc73bc95ff544c500c78ba6.
 Final candidate4 build31d3e1e2fbbe7c489b50b4ee2b469866dc5ea248,
