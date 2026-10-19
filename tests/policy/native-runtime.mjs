@@ -118,6 +118,63 @@ native_files['/var/run/csqtt/status.json']=sprintf('%J',{state:'captcha_required
 check(status().core.state === 'connected' && status().core.captcha.id === 'public-id', 'Current useful workers lost to a CAPTCHA warning');
 native_files['/proc/uptime']='116.00 0.00';
 check(status().core.state === 'starting' && status().core.captcha == null, 'Stale process status survived monotonic expiry');
+let clock_status=json(native_files['/var/run/csqtt/status.json']);
+clock_status.health={human_epoch:7};
+for (let clock in [{text:'100.00',lower:100000},{text:'100.01',lower:100010},{text:'100.08',lower:100080},
+  {text:'100.09',lower:100090},{text:'100.12',lower:100120},{text:'1048.57',lower:1048570},{text:'1234567.89',lower:1234567890}]) {
+  native_files['/proc/uptime']=clock.text+' 0.00';
+  check(boottime_ms() === clock.lower, 'Native uptime milliseconds lost precision');
+  for (let sample in [{offset:0,current:true},{offset:1,current:true},{offset:9,current:true},
+    {offset:10,current:false},{offset:-14990,current:true},{offset:-14991,current:false},{offset:-15000,current:false}]) {
+    clock_status.updated_boottime_ms=clock.lower+sample.offset;
+    native_files['/var/run/csqtt/status.json']=sprintf('%J',clock_status);
+    check(current_status().current === sample.current, 'Native status interval or conservative expiry failed');
+  }
+}
+native_files['/proc/uptime']='100.00 0.00';
+clock_status.updated_boottime_ms=100009;
+native_files['/var/run/csqtt/status.json']=sprintf('%J',clock_status);
+for (let owner in [{key:'pid',value:778},{key:'process_startticks',value:1235},{key:'boot_id',value:'old-boot'}]) {
+  let previous=clock_status[owner.key]; clock_status[owner.key]=owner.value;
+  native_files['/var/run/csqtt/status.json']=sprintf('%J',clock_status);
+  check(!current_status().current, 'Native status interval bypassed process ownership');
+  clock_status[owner.key]=previous;
+}
+native_files['/var/run/csqtt/status.json']=sprintf('%J',clock_status);
+let clock_lease={ok:true,pid:777,process_startticks:1234,boot_id:'fixture-boot',human_epoch:7,
+  recovery_id:'fixture-recovery',lease_secs:90,updated_boottime_ms:99000};
+for (let sample in [{stamp:100000,valid:true},{stamp:100001,valid:true},{stamp:100009,valid:true},
+  {stamp:100010,valid:false},{stamp:15011,valid:true},{stamp:15010,valid:false},{stamp:15000,valid:false}]) {
+  clock_lease.updated_boottime_ms=sample.stamp;
+  native_files['/var/run/csqtt/recovery-lease.json']=sprintf('%J',clock_lease);
+  check(health_lease_valid() === sample.valid, 'Native lease interval or strict expiry failed');
+}
+clock_lease.updated_boottime_ms=100009;
+for (let owner in [{key:'pid',value:778},{key:'process_startticks',value:1235},{key:'boot_id',value:'old-boot'},
+  {key:'human_epoch',value:8},{key:'lease_secs',value:91},{key:'recovery_id',value:'invalid id'},{key:'ok',value:false}]) {
+  let previous=clock_lease[owner.key]; clock_lease[owner.key]=owner.value;
+  native_files['/var/run/csqtt/recovery-lease.json']=sprintf('%J',clock_lease);
+  check(!health_lease_valid(), 'Native lease interval bypassed ownership or admission');
+  clock_lease[owner.key]=previous;
+}
+native_files['/var/run/csqtt/recovery-lease.json']=sprintf('%J',clock_lease);
+for (let invalid in [null,true,false,'100001',[],{},-1,100000.5,9007199254740992]) {
+  clock_status.updated_boottime_ms=invalid;
+  native_files['/var/run/csqtt/status.json']=sprintf('%J',clock_status);
+  check(!current_status().current && !health_lease_valid(), 'Native malformed status time passed freshness');
+  clock_status.updated_boottime_ms=100009;
+  native_files['/var/run/csqtt/status.json']=sprintf('%J',clock_status);
+  clock_lease.updated_boottime_ms=invalid;
+  native_files['/var/run/csqtt/recovery-lease.json']=sprintf('%J',clock_lease);
+  check(!health_lease_valid(), 'Native malformed lease time passed freshness');
+}
+clock_lease.updated_boottime_ms=100009;
+native_files['/var/run/csqtt/recovery-lease.json']=sprintf('%J',clock_lease);
+for (let invalid in ['', '100', '100.0', '100.000', '-100.00', '1e2.00', '100.00x', '9007199254740.00']) {
+  native_files['/proc/uptime']=invalid;
+  check(!current_status().current && !health_lease_valid(), 'Native malformed uptime passed freshness');
+}
+native_files['/proc/uptime']='100.00 0.00';
 native_services={};
 native_files['/tmp/dhcp.leases'] = '0 02:00:00:00:00:01 192.0.2.10 desktop *\\n';
 native_files['/proc/net/arp'] = 'IP address HW type Flags HW address Mask Device\\n192.0.2.10 0x1 0x2 02:00:00:00:00:01 * br-lan\\n';
@@ -188,6 +245,7 @@ native_services={};
 check(!dns_stopped(), 'Native DNS stop ignored a surviving captured PID');
 native_files['/proc/901/fd/4']=null; native_files['/proc/901/fd/5']=null;
 check(dns_stopped(), 'Native DNS stop did not recognize old process exit');
+print('Native ucode boot-clock freshness interval and conservative expiry passed\\n');
 print('Native ucode runtime parser, control validation, redaction and DNS lifecycle passed\\n');
 `;
 const source = adapters + health + runtime + assertions;

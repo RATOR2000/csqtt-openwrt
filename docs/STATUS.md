@@ -1,6 +1,6 @@
 # Development status — resume here
 
-Updated 2026-10-18 20:32UTC. Read this first, then IMPLEMENTATION.md.
+Updated 2026-10-19. Read this first, then IMPLEMENTATION.md.
 Files, Git and current router evidence are authoritative. Preserve owner settings.
 Older detailed history is retained in Git at c509a1d1ad8d2126b86c2a1e502e46840b92cf86:
 https://github.com/RATOR2000/csqtt-openwrt/blob/c509a1d1ad8d2126b86c2a1e502e46840b92cf86/docs/STATUS.md
@@ -27,14 +27,38 @@ outages and recovery results; do not declare72h before actual complete coverage.
 Process exit, boot change, sample gaps or invalid evidence mean incomplete; never
 silently reset the window. User ordinary settings/usage must be preserved.
 
-Heartbeat csqtt-preview9-72 is ACTIVE in this chat, updated from20min to DAILY
-(23:40local). It reads this status and existing evidence, stays quiet when normal,
-notifies only meaningful change/failure/action/completion. Update THIS automation,
-never create a duplicate. Desktop/PC must run for heartbeat access; router-local
-collection continues independently. After successful72h, implement the remaining
-defaultauto1 source/release step with appropriate checks/checkpoint; never replace
-published9 tag/assets. Stop this heartbeat after this stage is fully complete.
+USER OVERRIDE 2026-10-19: NO CODEX SCHEDULED TASKS. User cited token availability
+and explicitly requested removal. Heartbeat csqtt-preview9-72 DELETED through app
+tool, deleteStatus=deleted; its automation.toml is absent. Do not recreate it or
+any substitute schedule without a new explicit user request. Continue manually
+when the user asks. Router-local procd recovery and passive72h evidence collection
+remain running without Codex tokens; cancellation did not change router services.
+After successful72h, implement the remaining defaultauto1 source/release step
+with appropriate checks/checkpoint; never replace published9 tag/assets.
 Source defaultauto remains0 pending acceptance; live owner auto_recover=1.
+
+Manual read Oct19 15:50UTC: elapsed69686s (19h21m), sameboot/coverage valid,
+collector fresh/alive,72workers and WAN/VPN/DNS healthy.385 recordedchanges/
+heartbeats,0observed client process changes, no new soft/transport cycle. Brief
+groupDNS failures returned to vpn_reachable after84/24/25s; two preceding
+probe_uncertain samples also cleared. Counts are recorded transitions, not a
+claim of confirmed LAN outages.100 status_stale transitions require diagnosis.
+Readonly low-priority native clock proof .work/preview.9/clock-freshness.public.json:
+status5ms ahead of truncated /proc/uptime, SAME PID/startticks/boot,72workers,
+clock catches up at next10ms tick. Thus strict future-time comparison can reject
+a current status; it does not establish the cause of every historical warning.
+SOURCE correction completed in runtime.uc and recovery.test/native-runtime:
+integer uptime interval[L,L+10), current-tick timestamp accepted, next tick and
+malformed data rejected. Expiry uses conservative upperbound: status<=15s,
+lease<85s; may expire<=10ms early, never later. PID/startticks/boot/human ownership
+checks preserved. Node runtime/recovery40/40 PASS, native generator syntax and
+generation PASS, actual router ucode in-memory fixture PASS (production services
+untouched). Centiseconds .01/.08/.09/.12, +0/+1/+9/+10ms, expired/malformed times,
+ownership mismatches and lease guards covered. Original native success marker
+preserved; extra freshness marker added. Evidence: .work/preview.9/freshness-
+{node,native}.public.log; generator node tests/policy/native-runtime.mjs followed
+by root run-freshness-native.py. No new SDK/Rust/CI build or signed release.
+Source-only checkpoint; no live installation/restart/window reset, signed9 continues.
 
 ## Exact signed release and live state
 
@@ -119,7 +143,7 @@ boot/crash/synthetic routedIPv6 proof. Never call the project stable/fullyaccept
 
 ## Tooling and ownership
 
-Root owns live/router/Git/publication. Review agents finished; check liveness
+Root owns live/router/Git/publication. Freshness review agent finished; check liveness
 before delegation. Keep future outputs/checks focused: owner requests lowtokens.
 Repo RATOR2000/csqtt-openwrt; dev codex/csqtt-openwrt, no merge just to save work.
 Windows/PowerShell, portableGo .work/tools/go/bin; no localRust/WSL/Docker.

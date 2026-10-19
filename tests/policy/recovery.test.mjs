@@ -183,10 +183,67 @@ function live(status = {}) {
 test('status rejects wrong PID, recycled PID, previous boot, stale/future/missing monotonic metadata', () => {
   assert.equal(runtime('status', live()).output[0].core.state, 'connected');
   for (const change of [{ pid: 902 }, { process_startticks: 1235 }, { boot_id: 'old-boot' },
-    { updated_boottime_ms: 84999 }, { updated_boottime_ms: 100001 }, { updated_boottime_ms: null }]) {
+    { updated_boottime_ms: 84999 }, { updated_boottime_ms: 100010 }, { updated_boottime_ms: null }]) {
     const core = runtime('status', live(change)).output[0].core;
     assert.equal(core.state, 'starting'); assert.equal(core.active_workers, undefined);
   }
+});
+
+test('status accepts only timestamps inside the uptime tick and expires against its upper bound', () => {
+  // This decimal also catches conversion through floating-point seconds.
+  for (const [uptime, lower] of [['100.00', 100000], ['100.01', 100010], ['100.08', 100080],
+    ['100.09', 100090], ['100.12', 100120], ['1048.57', 1048570], ['1234567.89', 1234567890]]) {
+    for (const offset of [0, 1, 9]) {
+      const f = live({ updated_boottime_ms: lower + offset }); f.files['/proc/uptime'] = uptime + '\t0.00';
+      assert.equal(runtime('status', f).output[0].core.state, 'connected', `${uptime}/${offset}`);
+    }
+    for (const [offset, expected] of [[10, 'starting'], [-14990, 'connected'], [-14991, 'starting'], [-15000, 'starting']]) {
+      const f = live({ updated_boottime_ms: lower + offset }); f.files['/proc/uptime'] = uptime + ' 0.00';
+      assert.equal(runtime('status', f).output[0].core.state, expected, `${uptime}/${offset}`);
+    }
+  }
+  for (const change of [{ pid: 902 }, { process_startticks: 1235 }, { boot_id: 'old-boot' }]) {
+    assert.equal(runtime('status', live({ updated_boottime_ms: 100009, ...change })).output[0].core.state, 'starting');
+  }
+  const stopped = live({ updated_boottime_ms: 100009 }); stopped.services.csqtt.instances.client.running = false;
+  assert.equal(runtime('status', stopped).output[0].core.state, 'stopped');
+});
+
+test('status fails closed on malformed uptime or nonnumeric, fractional and unsafe timestamps', () => {
+  for (const value of ['', '100', '100.0', '100.000', '-100.00', '1e2.00', '100.00x', '9007199254740.00']) {
+    const f = live(); f.files['/proc/uptime'] = value;
+    assert.equal(runtime('status', f).output[0].core.state, 'starting', value);
+  }
+  for (const value of [null, true, false, '100001', [], {}, -1, 100000.5, 9007199254740992]) {
+    assert.equal(runtime('status', live({ updated_boottime_ms: value })).output[0].core.state, 'starting', JSON.stringify(value));
+  }
+});
+
+function leaseFixture(lease = {}, status = {}) {
+  const f = live({ health: { human_epoch: 7 }, ...status });
+  f.files['/var/run/csqtt/recovery-lease.json'] = JSON.stringify({ ok: true, pid: 901,
+    process_startticks: 1234, boot_id: 'test-boot', human_epoch: 7, recovery_id: 'fixture-recovery',
+    lease_secs: 90, updated_boottime_ms: 99000, ...lease });
+  return f;
+}
+
+test('recovery lease shares uptime interval handling and keeps its strict conservative expiry', () => {
+  for (const value of [100000, 100001, 100009, 15011]) {
+    runtime('health-lease-valid', leaseFixture({ updated_boottime_ms: value }));
+  }
+  for (const value of [100010, 15010, 15000, null, true, '99000', -1, 99000.5, 9007199254740992]) {
+    assert.throws(() => runtime('health-lease-valid', leaseFixture({ updated_boottime_ms: value })), /Exit 1/, JSON.stringify(value));
+  }
+  for (const change of [{ ok: false }, { pid: 902 }, { process_startticks: 1235 }, { boot_id: 'old-boot' },
+    { human_epoch: 8 }, { recovery_id: 'invalid id' }, { lease_secs: 91 }]) {
+    assert.throws(() => runtime('health-lease-valid', leaseFixture({ updated_boottime_ms: 100009, ...change })), /Exit 1/);
+  }
+  for (const status of [{ pid: 902 }, { process_startticks: 1235 }, { boot_id: 'old-boot' },
+    { updated_boottime_ms: 85009 }, { health: { human_epoch: 8 } }]) {
+    assert.throws(() => runtime('health-lease-valid', leaseFixture({}, status)), /Exit 1/);
+  }
+  const malformed = leaseFixture(); malformed.files['/proc/uptime'] = '100.000 0.00';
+  assert.throws(() => runtime('health-lease-valid', malformed), /Exit 1/);
 });
 
 test('current unexpired CAPTCHA is a warning alongside healthy allocations; expired CAPTCHA disappears', () => {

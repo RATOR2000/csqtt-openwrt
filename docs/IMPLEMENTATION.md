@@ -67,6 +67,15 @@ and guarded VPN DNS/HTTPS every30s without reserving a VPN runtime identity.
 Public `health` and `recovery` are additive. Router-origin probes do not prove
 the classification of every LAN device. Missing/old observations are unknown.
 
+Source correction after preview.9: `/proc/uptime` truncates to centiseconds,
+while core status and recovery leases use millisecond `CLOCK_BOOTTIME`. Parse
+the uptime into an integer interval `[L, L+10)` milliseconds. A timestamp inside
+that interval can be current; reject the next tick and malformed timestamps.
+Use the exclusive upper bound for the 15s status and <85s lease age limits,
+allowing expiry up to10ms early without extending either deadline. All process,
+boot and human-epoch ownership checks remain mandatory. This correction is not
+installed on the signed r9 router during its72h observation.
+
 Automatic recovery is initially observe-only (`auto_recover=0`). Both fixed
 VPN HTTPS targets must fail after successful bound DNS, with both matching WAN
 controls reachable, continuously for180s. HTTP errors with verified TLS prove

@@ -164,9 +164,22 @@ function transport_instance() {
 	let s = call('service', 'list', { name: 'csqtt' });
 	return s && s.csqtt && s.csqtt.instances ? s.csqtt.instances.client : null;
 }
-function boottime() {
-	let value = split(trim(fs.readfile('/proc/uptime') || ''), ' ')[0];
-	return match(value, /^[0-9]+(\.[0-9]+)?$/) ? +value : null;
+function boottime_ms() {
+	let value = split(trim(fs.readfile('/proc/uptime') || ''), /\s+/)[0];
+	let parts = match(value, /^([0-9]+)\.([0-9]{2})$/);
+	// Parse the kernel's truncated centiseconds as integer milliseconds. Keep
+	// the full tick and its exclusive upper bound within exact numeric range.
+	if (!parts || +parts[1] > 9007199254739) return null;
+	return +parts[1] * 1000 + +parts[2] * 10;
+}
+function boottime_age_ms(updated, lower) {
+	if (lower == null || !includes(['int', 'double', 'number'], type(updated)) ||
+		updated < 0 || updated > 9007199254740991 || updated % 1 !== 0) return null;
+	// CLOCK_BOOTTIME milliseconds can be up to 9ms ahead of /proc/uptime.
+	// Use the tick's exclusive upper bound for expiry, so neither deadline
+	// gains time from that uncertainty (it may instead expire <=10ms early).
+	let upper = lower + 10;
+	return updated < upper ? upper - updated : null;
 }
 function process_id(value) {
 	return match('' + (value || ''), /^[1-9][0-9]*$/) ? '' + value : null;
@@ -184,12 +197,13 @@ function process_startticks(pid) {
 }
 function current_status() {
 	let stored = readjson(ROOT + 'status.json', {}), instance = transport_instance(), pid = instance && process_id(instance.pid);
-	let now = boottime(), boot = trim(fs.readfile('/proc/sys/kernel/random/boot_id') || ''), ticks = process_startticks(pid);
+	let now_ms = boottime_ms(), now = now_ms == null ? null : now_ms / 1000;
+	let age = boottime_age_ms(stored.updated_boottime_ms, now_ms);
+	let boot = trim(fs.readfile('/proc/sys/kernel/random/boot_id') || ''), ticks = process_startticks(pid);
 	let running = !!(instance && instance.running), current = running && pid && ticks && boot && now != null &&
 		('' + stored.pid) === pid && ('' + stored.process_startticks) === ticks && stored.boot_id === boot &&
-		stored.updated_boottime_ms != null && stored.updated_boottime_ms <= now * 1000 &&
-		now * 1000 - stored.updated_boottime_ms <= 15000;
-	return { stored: stored, running: running, current: !!current, pid: pid, ticks: ticks, boot_id: boot, now: now };
+		age != null && age <= 15000;
+	return { stored: stored, running: running, current: !!current, pid: pid, ticks: ticks, boot_id: boot, now: now, now_ms: now_ms };
 }
 function transport_snapshot() {
 	let live = current_status();
@@ -453,11 +467,12 @@ function health_finish(action, success) {
 }
 function health_lease_valid() {
 	let lease = readjson(ROOT + 'recovery-lease.json', {}), live = current_status();
+	let age = boottime_age_ms(lease.updated_boottime_ms, live.now_ms);
 	return live.current && lease.ok === true && lease.boot_id === live.boot_id &&
 		('' + lease.pid) === live.pid && ('' + lease.process_startticks) === live.ticks &&
 		lease.human_epoch === (live.stored.health ? (live.stored.health.human_epoch || 0) : 0) &&
 		match(lease.recovery_id || '', /^[a-zA-Z0-9_-]{1,80}$/) && lease.lease_secs === 90 &&
-		lease.updated_boottime_ms <= live.now * 1000 && live.now * 1000 - lease.updated_boottime_ms < 85000;
+		age != null && age < 85000;
 }
 function firewall_include(name, file, position, chain) {
 	if (c.get('firewall', name) && c.get('firewall', name, 'csqtt_owned') !== '1') die('Firewall section collision');
