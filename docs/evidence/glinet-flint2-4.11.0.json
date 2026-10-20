@@ -1,0 +1,151 @@
+{
+  "capabilities": {
+    "firewall_calls_fw3": true,
+    "fw3": true,
+    "fw4": false,
+    "ipset": true,
+    "iptables": true,
+    "luci_bundled": true,
+    "mtk_hnat_post_hook": true,
+    "mtk_hnat_service": true,
+    "ucode": false
+  },
+  "evidence_kind": "offline_factory_image",
+  "feeds": [
+    {
+      "name": "glinet_core",
+      "url": "https://fw.gl-inet.com/releases/mt798x/kmod-4.5.7/aarch64_cortex-a53/mediatek/mt7986"
+    },
+    {
+      "name": "glinet_gli_pub",
+      "url": "https://fw.gl-inet.com/releases/mt798x/packages-4.5/aarch64_cortex-a53/glinet"
+    },
+    {
+      "name": "glinet_gli_packages",
+      "url": "https://fw.gl-inet.com/releases/mt798x/packages-4.5/aarch64_cortex-a53/packages"
+    }
+  ],
+  "gl_version": "4.11.0",
+  "image": {
+    "sha256": "4004632eaf516fd2844be0e5595b6e4171d243181ff49b81569b986c79007dae",
+    "size": 83146618,
+    "squashfs_offset": 3806720
+  },
+  "packages": {
+    "conntrack": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, libnetfilter-conntrack3, libnetfilter-cttimeout1, libnetfilter-cthelper0, libnetfilter-queue1",
+      "Status": "install user installed",
+      "Version": "1.4.6-3"
+    },
+    "dnsmasq": null,
+    "dnsmasq-full": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, libubus20251202, libnettle8, kmod-ipt-ipset, libnetfilter-conntrack3",
+      "Status": "install user installed",
+      "Version": "2.92-7"
+    },
+    "firewall": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, libubox20210516, libubus20251202, libuci20130104, libip4tc2, libip6tc2, libxtables12, kmod-ipt-core, kmod-ipt-conntrack, kmod-nf-conntrack6, kmod-ipt-nat",
+      "Status": "install user installed",
+      "Version": "2021-03-23-61db17ed-1.1"
+    },
+    "firewall4": null,
+    "gl-sdk4-dns": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, dnscrypt-proxy2, dnsproxy",
+      "Status": "install user installed",
+      "Version": "git-2026.258.09390-8941d49-1"
+    },
+    "gl-sdk4-firewall": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, lua, kmod-ipt-conntrack, kmod-nf-nat, kmod-nf-nathelper, iptables-mod-fullconenat, kmod-ipt-fullconenat, ipset",
+      "Status": "install user installed",
+      "Version": "git-2026.260.44126-04cafdf-1"
+    },
+    "ip-full": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, libnl-tiny1, libbpf0",
+      "Status": "install user installed",
+      "Version": "6.3.0-1"
+    },
+    "ip6tables": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, kmod-ip6tables, iptables",
+      "Status": "install user installed",
+      "Version": "1.8.7-1"
+    },
+    "ipset": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, kmod-ipt-ipset, libmnl0, libipset13",
+      "Status": "install user installed",
+      "Version": "7.6-1"
+    },
+    "iptables": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, kmod-ipt-core, libip4tc2, libip6tc2, libxtables12",
+      "Status": "install user installed",
+      "Version": "1.8.7-1"
+    },
+    "kernel": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc",
+      "Status": "install user installed",
+      "Version": "5.4.238-1-d4a7d36962bb6218ebd94bf040ac560e"
+    },
+    "kmod-tun": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "kernel (= 5.4.238-1-d4a7d36962bb6218ebd94bf040ac560e)",
+      "Status": "install user installed",
+      "Version": "5.4.238-1"
+    },
+    "libc": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libgcc1",
+      "Status": "install hold installed",
+      "Version": "1.1.24-3"
+    },
+    "libucode": null,
+    "luci-base": null,
+    "nftables": null,
+    "nftables-json": null,
+    "openssl-util": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, libopenssl1.1, libopenssl-conf",
+      "Status": "install user installed",
+      "Version": "1.1.1t-1"
+    },
+    "rpcd": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, libubus20251202, libubox20210516, libuci20130104, libblobmsg-json20210516, libjson-c5",
+      "Status": "install user installed",
+      "Version": "2022-02-19-8d26a1ba-1"
+    },
+    "ucode": null,
+    "ucode-mod-fs": null,
+    "ucode-mod-ubus": null,
+    "ucode-mod-uci": null,
+    "usign": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, libubox20210516",
+      "Status": "install user installed",
+      "Version": "2020-05-23-f1f65026-1"
+    }
+  },
+  "qualification": {
+    "activate": false,
+    "install": false,
+    "reason": "image inspection does not prove native installation or routing"
+  },
+  "release": {
+    "DISTRIB_ARCH": "aarch64_cortex-a53",
+    "DISTRIB_DESCRIPTION": "OpenWrt 21.02-SNAPSHOT r15812+1095-46b6ee7ffc",
+    "DISTRIB_ID": "OpenWrt",
+    "DISTRIB_RELEASE": "21.02-SNAPSHOT",
+    "DISTRIB_REVISION": "r15812+1095-46b6ee7ffc",
+    "DISTRIB_TAINTS": "busybox override",
+    "DISTRIB_TARGET": "mediatek/mt7986"
+  },
+  "schema": 1
+}

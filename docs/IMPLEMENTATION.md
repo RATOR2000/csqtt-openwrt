@@ -1,7 +1,10 @@
 # CSQTT OpenWrt implementation contract
 
-Target: GL.iNet GL-MT6000, OpenWrt 25.12.5, mediatek/filogic,
-aarch64_cortex-a53. One active tunnel. Upstream protocol is original
+Current native reference: GL.iNet GL-MT6000, OpenWrt 25.12.5,
+mediatek/filogic, aarch64_cortex-a53. Portability priority is global Stable GL
+Flint2, then official24.10/25.12 ARM64/x86_64, later ARMv7. Qualification is per
+firmware/ABI/capability profile, not an unconditional all-routers claim.
+One active tunnel. Upstream protocol is original
 amurcanov/csqtt v2.1.9 at 446293aa2e873ac5323ef6fd2316d9b81d966c11.
 Android deployment and upstream server stay compatible and unchanged.
 
@@ -126,6 +129,39 @@ LAN management by IP and unassigned/router-origin DNS remain available. Normal
 active-policy local DNS remains available when the VPN transport is stopped.
 
 ## Delivery and acceptance
+
+### Portable platform contract (approved2026-10-20)
+
+Provide one installer with a read-only compatibility mode. Select signed exact
+platform manifests through an authenticated catalogue; retain schema1 verification
+for immutable prior releases. Separate opkg/IPK and APK transaction backends and
+SDK profiles. Before mutation, prove compatible kernel dependencies, authenticated
+complete downloads, adequate storage/staging RAM and offline package/config
+rollback. Never force dependency/architecture/kernel mismatch or unsigned trust.
+Unknown versions preserve settings and refuse unsafe activation. A compiled or
+emulated target is not native device qualification. Public diagnostic additions
+must preserve existing RPC fields and secret redaction.
+
+Platform integration owns firewall hooks, DNS, interface discovery and acceleration.
+Current official OpenWrt backend retains fw4/nft semantics below. GL Stable4.11
+factory evidence confirms fw3/iptables/ipset and absent ucode; it needs a distinct
+legacy policy backend plus compatible private runtime/DNS dependencies. Do not
+replace vendor firewall or stock DHCP/DNS to make existing code run. Private DNS
+must retain local names and equivalent guarded routing; acceleration must be
+disabled/verified while active and restored after safe deactivation. Both
+backends must preserve LAN, explicit WAN exceptions, IPv6 restrictions, boot and
+reload guards. The Helper follows configured LAN scope, not logical-name 'lan'.
+
+New-install resource profiles require measured RAM/load evidence, valid worker
+cohorts (minimum9, multiples9, credential-dependent limits) and manual override.
+Existing explicit parameters survive upgrade/reinstall unchanged. Do not invent
+hardware minimums or reduce security to fit a device. Existing Russian LuCI is
+the management UI; qualify the vendor LuCI version and Russian locale separately.
+Vendor firmware updates require regression/capability qualification; no scheduled
+Codex jobs. Main router is untouched until the owner's later firmware migration.
+See PORTABILITY.md and docs/evidence for source/build/native gate distinctions.
+
+### Existing reference release
 
 New public repository `csqtt-openwrt`. Do not publish untested binaries as a
 stable release. Support the exact router target first. Build through the

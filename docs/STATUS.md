@@ -1,11 +1,48 @@
 # Development status — resume here
 
-Updated 2026-10-19. Read this first, then IMPLEMENTATION.md.
+Updated 2026-10-20. Read this first, then IMPLEMENTATION.md.
 Files, Git and current router evidence are authoritative. Preserve owner settings.
 Older detailed history is retained in Git at c509a1d1ad8d2126b86c2a1e502e46840b92cf86:
 https://github.com/RATOR2000/csqtt-openwrt/blob/c509a1d1ad8d2126b86c2a1e502e46840b92cf86/docs/STATUS.md
 
-## First unfinished action — actual72h observation
+## First unfinished action — portable installer and GL.iNet Stable
+
+USER APPROVED portability plan 2026-10-20: first latest global/US Stable Flint2
+and subsequent qualified firmware updates, then official OpenWrt24.10/25.12 on
+ARM64/x86_64, later ARMv7; MIPS is a distinct source/toolchain feasibility gate.
+New installs may adapt resource use; preserve existing explicit settings.
+USER OVERRIDE: leave main router alone now (including SSH/installation/restart).
+Owner will flash official GL firmware and add Russian later. Do not interrupt
+signed9 collector or replace frozen9 assets. No Codex scheduled tasks.
+
+Baseline clean1add9ff. Offline official4.11.0 image inspected without execution:
+83,146,618bytes, SHA2564004632eaf516fd2844be0e5595b6e4171d243181ff49b81569b986c79007dae.
+OpenWrt21.02-SNAPSHOT r15812+1095-46b6ee7ffc; mediatek/mt7986;
+aarch64_cortex-a53; kernel5.4.238-1-d4a7d36962bb6218ebd94bf040ac560e.
+fw3/iptables1.8.7/ipset7.6, dnsmasq-full2.92-7 and kmod-tun installed;
+ucode/fw4/nftables/LuCIbase NOT installed.27 LuCIipks bundled in factory image.
+mtkhnat acceleration enabled; vendor hooks can change packet path.
+This is image evidence, NOT native compatibility/installation/traffic proof.
+Reproducible audit: scripts/inspect-glinet-firmware.py and
+docs/evidence/glinet-flint2-4.11.0.json. Source image/extracted public files remain
+ignored under .work/portability/glinet-4.11.0; optional dissect.squashfs1.0 tooling
+under .work/tools/firmware-python. Exact source URL is in PORTABILITY.md.
+
+Current subagent ownership (recheck liveness on resume): installer_portability
+owns install/probe/catalog/manifest/transaction tests; architecture_portability
+owns platforms registry, SDK/build/portableCI; runtime_portability owns openwrt
+runtime/LuCI/legacy renderer/policy tests. Root owns image audit/docs/Git/review.
+Next: integrate their source, run focused regression checks, checkpoint and push
+through GitHub connector; execute native build checks before claiming support.
+Unknown/unqualified tuples must refuse activation without altering vendor stack.
+Retain current25.12.5 schema1 installation path; no wholesale vendor firewall or
+DHCP/DNS replacement, no unrelated official libraries/kernel modules on GL.
+Image audit milestone: exact digest re-read through the inspector;5/5 offline
+evidence/security tests PASS (tests/firmware/firmware_test.py): metadata ambiguity,
+shell-as-data rejection, oversized input before read, wrong digest before parse,
+and no native qualification inferred from the reference image. No router access.
+
+## Parallel observation — actual72h, manual only and router untouched
 
 Signed preview.9 is published, installed and passed native smoke acceptance.
 72H IS RUNNING, NOT COMPLETE. Do not reinstall or repeat completed fault/Stop tests.
