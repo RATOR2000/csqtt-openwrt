@@ -65,12 +65,13 @@ return view.extend({
 		o.validate = function(id, value) { return value === 'csqtt0' || 'В этой версии используется интерфейс csqtt0.'; };
 		o = s.taboption('advanced', form.Value, 'captcha_timeout_secs', 'Время ожидания CAPTCHA, с');
 		o.default = '180'; o.datatype = 'range(30,600)'; o.rmempty = false;
-		o = s.taboption('advanced', form.DynamicList, 'lan_device', 'Локальные интерфейсы', 'Политики применяются только к устройствам за этими интерфейсами.');
-		o.default = ['br-lan']; o.rmempty = false; this.lanOption = o;
+		o = s.taboption('advanced', form.DynamicList, 'lan_device', 'Локальные интерфейсы', 'auto определяет доверенные локальные сети из firewall и netifd. Или укажите реальные устройства, например br-home. Политики действуют только за ними.');
+		o.default = ['auto']; o.rmempty = false; this.lanOption = o;
 		o.validate = function(id, value) {
 			// DynamicList also validates its empty input for adding the next item.
 			if (value === '') return true;
 			var list = Array.isArray(value) ? value : [value];
+			if (list.indexOf('auto') >= 0) return list.length === 1 || 'auto нельзя смешивать с именами интерфейсов.';
 			return list.length > 0 && list.every(function(v) { return /^[a-zA-Z0-9_.:-]{1,15}$/.test(v) && v !== 'csqtt0' && v !== 'lo'; }) || 'Укажите локальный интерфейс, например br-lan.';
 		};
 		o = s.taboption('advanced', form.Value, 'vpn_dns', 'DNS для запросов через VPN', 'Запросы VPN-групп проходят через туннель; при обрыве прямого резервного DNS нет.');

@@ -15,7 +15,7 @@ PACKAGE_DIR=$(cd "$2" && pwd -P)
 ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
 PACKAGE_ARCH=${CSQTT_PACKAGE_ARCH:-aarch64_cortex-a53}
 EMULATOR=${CSQTT_EMULATOR:-qemu-aarch64}
-case "$PACKAGE_ARCH:$EMULATOR" in aarch64_cortex-a53:qemu-aarch64|x86_64:qemu-x86_64) ;; *) die 'Unsupported package ABI/emulator tuple.' ;; esac
+case "$PACKAGE_ARCH:$EMULATOR" in aarch64_cortex-a53:qemu-aarch64|x86_64:qemu-x86_64|arm_cortex-a15_neon-vfpv4:qemu-arm) ;; *) die 'Unsupported package ABI/emulator tuple.' ;; esac
 for TOOL in openssl python3 sha256sum cp find grep cmp "$EMULATOR"; do command -v "$TOOL" >/dev/null || die "Missing host tool: $TOOL"; done
 set -- "$PACKAGE_DIR"/*.apk
 [ "$#" -eq 3 ] || die 'Expected exactly three compiled SDK APKs.'
@@ -95,12 +95,12 @@ packages = {
         'usr/bin/csqtt-captcha': 0o755, 'etc/init.d/csqtt-captcha': 0o755,
         'etc/hotplug.d/iface/91-csqtt-captcha': 0o755,
     }),
-    'luci': ('luci-app-csqtt', 'noarch', {'csqtt', 'csqtt-captcha', 'luci-base', 'rpcd'}, {
+    'luci': ('luci-app-csqtt', 'noarch', {'csqtt', 'csqtt-captcha', 'luci-base', 'luci-theme-bootstrap', 'rpcd'}, {
         'usr/libexec/rpcd/csqtt': 0o755, 'etc/uci-defaults/90-luci-csqtt': 0o644,
         'usr/share/rpcd/acl.d/luci-app-csqtt.json': 0o644,
         'usr/share/luci/menu.d/luci-app-csqtt.json': 0o644,
         **{'www/luci-static/resources/view/csqtt/' + page + '.js': 0o644
-           for page in ('overview', 'settings', 'policies', 'diagnostics')},
+           for page in ('overview', 'settings', 'policies', 'diagnostics', 'setup')},
         **{'www/luci-static/resources/csqtt/' + asset: 0o644
            for asset in ('api.js', 'model.js', 'style.css')},
     }),

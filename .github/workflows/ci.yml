@@ -35,16 +35,27 @@ jobs:
           go test -race ./...
           go vet ./...
       - name: Installer failure and rollback scenarios
-        run: python3 tests/installer/installer_test.py
+        run: |
+          python3 tests/installer/installer_test.py
+          python3 tests/installer/portable_test.py
+          python3 scripts/assemble-installer.py --check
+          python3 tests/platforms/platforms_test.py
+          python3 tests/firmware/firmware_test.py
+          python3 tests/firmware/resources_test.py
       - name: Release artifact integrity
         run: |
           python3 tests/release/release_test.py
+          python3 tests/release/dependency_test.py
           node --test tests/release/*.test.cjs
       - name: Shell syntax
         run: |
           bash -n scripts/build-sdk.sh
           sh -n scripts/test-native-apk.sh
           sh -n install.sh
+          sh -n scripts/platform-probe.sh
+          sh -n scripts/portable-install.sh
+          sh -n scripts/measure-resources.sh
+          sh -n scripts/test-openwrt-guest.sh
           find openwrt -type f \( -name '*.init' -o -name manage -o -name monitor -o -name lifecycle.sh -o -name tun-hook -o -name '9*-csqtt*' \) -exec sh -n {} \;
   core:
     concurrency:

@@ -5,7 +5,6 @@ umask 077
 RUN=/var/run/csqtt
 RUNTIME=/usr/share/csqtt/runtime.uc
 UCODE=ucode
-if [ -x /usr/libexec/csqtt/ucode ]; then UCODE=/usr/libexec/csqtt/ucode; fi
 . /usr/libexec/csqtt/lifecycle.sh
 mkdir -p "$RUN" /var/lock
 chmod 0700 "$RUN"

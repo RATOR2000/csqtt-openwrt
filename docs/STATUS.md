@@ -34,6 +34,77 @@ Next: finish official-only installer and signed dependency path, LuCI wizard,
 native clean OpenWrt24/25 tests, signed preview publication and main README.
 Never certify a profile just by changing qualification booleans.
 
+Implementation milestone22Oct (NOT a release): unfinished baseline checkpoint
+91285131ca77bdeee1813044b42ae7a24d4bf0c2 pushed through connector and localtree
+equality verified; owner settings/router unchanged. Root updated official-only
+AGENTS/contract/user docs and existing draftPR#1 title/body; PR attached to chat.
+Default main README must be updated only after verified new preview assets.
+Planned new tag v0.1.0-preview.10/r10; publiclateststill9, allolderassetsimmutable.
+
+Active ownership (recheck liveness): installer_verify owns installer/bootstrap/
+journal/r9migration/probe/tests; release_finish owns SDK/dependencyclosure/evidence/
+VMdriver/signing/workflows; wizard_review owns runtime/pkgs/LuCI/guestsmoke/tests;
+root owns docs/Git/CIintegration/publication. Prior agents ended; do not assume
+their running test processes survived. ModernsourceNode127/127PASS reported,
+shellsyntax and nativeUCgenerator/renderPASS; no nativeUC/SDK/VMproof yet.
+LegacyGLproductionrenderer/backend/private-runtimebranches moved to experiments;
+officialruntime uses nativeucode. Wizard uses existing scopedRPC/UCI, no new
+arbitrary-command API, no configwrites until explicitfinish, bounded90s status
+poll, preservesconfigured/stoppedr9+manualworkers and auto_recover0.
+
+Installer in progress: native-signed bootstrap and prefetch, exact-kernel TUN,
+durablejournal/offlinerollback/schema1migration. Both package-manager mock success
+paths pass; bootstrap interruption/badsignature inventory rollback being tightened.
+Readonly owner'sAPK3.0.5 --formatdefault query confirmed Name/Version output used
+before jsonfilter exists. No install/service/network mutation performed.
+Newcandidate workflow has4officialSDKtargets; official-preview pipeline then
+2cleanstockx86VMs, exactsource/packageproofs andP256signeddraft. Preview acceptance
+scope is ABI+cleanOpenWrtVM, neverphysical-device/VKcertification. Allprofileflags
+remainheld until realrunnerproof. NextsourceCIpushwaits installer generatedcheck/
+tests and finaldependency/licensehelpers; no newCIrun yet.
+
+Continuation audit22Oct: source/doc checkpoint e16c108 is local, not pushed yet.
+All implementation files below it remain uncommitted pending coherent freeze.
+The first4 catalogue omitted25.12.5, making advertised r9 migration unreachable.
+Release owner is adding exact25.12.5 filogic+x86 SDK/dependency/VM evidence rather
+than substituting25.12.6 proof. Real-board migration remains distinct from native
+isolated package transactions. Root added missing luci-theme-bootstrap dependency
+for truly LuCI-absent firmware. Nonstandard fresh LAN discovery is being audited
+in installer/wizard; preserve existing explicit interface choices.
+Root ran sh -n on portable-install.sh, platform-probe.sh, test-openwrt-guest.sh
+and git diff --check successfully; Git sh runtime discovery differed between
+agent sessions, so any fresh test SKIP must be reported, never counted as PASS.
+
+Source freeze22Oct for first full CI (NOT installation-ready): all owners frozen.
+129/129 Node policy+LuCI PASS; native-runtime fixture generation PASS (execution
+requires CI), platform9/release8/dependency4 PASS; legacy installer7/7 PASS.
+New focused installer lifecycle/LAN2/2 PASS: owner/ticks exported, competing Stop
+admitted only after cleanup; current lifecycle embedded in generated installer
+and held for the full transaction, including first install. Generated --check,
+POSIX syntax and diff-check PASS. Fresh full portable13-method suite and focused
+bootstrap/powerloss tests still running; old run invalidated by concurrent source
+and test-wrapper change is DISCARDED, not counted as passing or a product failure.
+Sources now cover6 exact SDK tuples (24.10.8/25.12.5/25.12.6 x filogic ARM64/x86),
+3 clean x86 VM checks and signed original ARM r9 native APK upgrade/rollback
+in an isolated root with package scripts disabled. All native results PENDING.
+Fresh LAN auto uses trusted static firewall/netifd scope, refuses unknown LAN;
+existing explicit lists unchanged. New guest fixture has separate static LAN.
+Next: connector push this checkpoint, inspect current CI, then run dedicated
+codex/portable-preview.10-build workflow for native VM/signing/draft publication.
+Never publish or update main README as ready until signed public assets and all
+required checks pass. Owner router untouched; no scheduled tasks.
+
+Pre-push guard fix: bootstrap now proves removal of new verifier packages in
+the cloned native database restores the exact pre-bootstrap inventory before any
+live addition. Both PM orphan-pruning refusals covered;8 fresh negative scenarios
+PASS. Focused lifecycle/LAN2tests PASS. Full portable/resume checks continue.
+SDK matrix runs once via official-preview workflow (or manual portability run),
+not twice for identical dev/build branch pushes; existing PR CI remains intact.
+Fresh8 bootstrap/SIGKILL resume scenarios PASS for both PMs (288.3s), including
+interruption during bootstrap, completed bootstrap plus main install, and main
+transaction. Root caught connector exporter missing renamed-file deletions before
+ref update; --no-renames fixes export, tree equality remains a mandatory gate.
+
 ## Historical2026-10-20 vendor work — superseded, retained as checkpoint
 
 USER APPROVED portability plan 2026-10-20: first latest global/US Stable Flint2

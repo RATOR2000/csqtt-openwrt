@@ -13,6 +13,7 @@ def main():
     parser.add_argument('--profile')
     parser.add_argument('--registry', type=pathlib.Path)
     parser.add_argument('--dependencies', type=pathlib.Path, help='Cached signed-index dependency bundle metadata')
+    parser.add_argument('--third-party', type=pathlib.Path, help='Corresponding source/license artifacts')
     args = parser.parse_args()
     root = args.directory
     if args.profile:
@@ -31,6 +32,10 @@ def main():
                     'backend': p.get('backend', 'fw4-nft'),
                     'dns_binary': p.get('dns_binary', '/usr/libexec/csqtt/dnsmasq'), 'packages': [],
                     'dependency_bundle': load(args.dependencies) if args.dependencies else {'indexes': [], 'packages': []}}
+        if args.dependencies:
+            manifest['requirements'].update(manifest['dependency_bundle'].pop('requirements', {}))
+        if args.third_party:
+            manifest['third_party_sources'] = load(args.third_party)
         fmt = platform['package_format']
         dependency_names = {d['name'] for d in manifest['dependency_bundle']['packages']}
         for path in sorted(root.glob('*.' + fmt)):
@@ -48,7 +53,7 @@ def main():
             manifest['packages'].append(describe(dest, role=match[1], version=match[2]))
         name = p['id'] + '-manifest.json'
     else:
-        require(args.registry is None and args.dependencies is None, 'Profile is required for portable metadata')
+        require(args.registry is None and args.dependencies is None and args.third_party is None, 'Profile is required for portable metadata')
         manifest = {'schema': 1, 'openwrt': '25.12.5', 'target': 'mediatek/filogic', 'architecture': 'aarch64_cortex-a53', 'upstream': UPSTREAM,
                     'packages': [describe(p) for p in sorted(root.glob('*.apk'))]}
         name = 'manifest.json'
@@ -58,6 +63,7 @@ def main():
     if name != 'manifest.json':
         (root / 'manifest.json').write_text(data, encoding='utf-8')
     entries = [*manifest['packages'], describe(root / name)]
+    entries.extend(manifest.get('third_party_sources', []))
     if manifest['schema'] == 2:
         entries.extend(manifest['dependency_bundle']['packages'])
         for index in manifest['dependency_bundle']['indexes']:

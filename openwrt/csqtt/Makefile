@@ -11,7 +11,7 @@ define Package/csqtt
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CSQTT native client and guarded device policies
-  DEPENDS:=+kmod-tun +ip-full +firewall4 +nftables-json $(if $(CSQTT_DNSMASQ_BINARY),+libubus +libubox +libnftnl +libmnl,+dnsmasq-full) $(if $(CSQTT_RUNTIME_DIR),,+ucode +ucode-mod-fs +ucode-mod-uci +ucode-mod-ubus) +jsonfilter +conntrack
+  DEPENDS:=+kmod-tun +ip-full +firewall4 +nftables-json $(if $(CSQTT_DNSMASQ_BINARY),+libubus +libubox +libnftnl +libmnl,+dnsmasq-full) +ucode +ucode-mod-fs +ucode-mod-uci +ucode-mod-ubus +jsonfilter +conntrack
 endef
 
 define Package/csqtt/conffiles
@@ -26,7 +26,8 @@ define Build/Prepare
 	$(CP) $(CSQTT_BINARY) $(PKG_BUILD_DIR)/csqtt-client
 	$(CP) $(if $(CSQTT_PLATFORM_PROBE),$(CSQTT_PLATFORM_PROBE),./files/platform-probe) $(PKG_BUILD_DIR)/platform-probe
 	$(if $(CSQTT_DNSMASQ_BINARY),test -f "$(CSQTT_DNSMASQ_BINARY)" && $(CP) "$(CSQTT_DNSMASQ_BINARY)" $(PKG_BUILD_DIR)/dnsmasq,true)
-	$(if $(CSQTT_RUNTIME_DIR),test -x "$(CSQTT_RUNTIME_DIR)/usr/libexec/csqtt/ucode" && test -d "$(CSQTT_RUNTIME_DIR)/usr/libexec/csqtt/ucode-runtime",true)
+	$(if $(CSQTT_DNSMASQ_BINARY),test -s "$(CSQTT_DNSMASQ_LICENSE)" && $(CP) "$(CSQTT_DNSMASQ_LICENSE)" $(PKG_BUILD_DIR)/dnsmasq-COPYING,true)
+	$(if $(CSQTT_DNSMASQ_BINARY),test -s "$(CSQTT_DNSMASQ_NOTICE)" && $(CP) "$(CSQTT_DNSMASQ_NOTICE)" $(PKG_BUILD_DIR)/dnsmasq-NOTICE,true)
 endef
 
 define Build/Compile
@@ -38,8 +39,6 @@ define Package/csqtt/install
 	$(INSTALL_BIN) ./files/manage $(1)/usr/libexec/csqtt/manage
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/platform-probe $(1)/usr/libexec/csqtt/platform-probe
 	$(if $(CSQTT_DNSMASQ_BINARY),$(INSTALL_BIN) $(PKG_BUILD_DIR)/dnsmasq $(1)/usr/libexec/csqtt/dnsmasq,true)
-	$(if $(CSQTT_RUNTIME_DIR),$(INSTALL_BIN) "$(CSQTT_RUNTIME_DIR)/usr/libexec/csqtt/ucode" $(1)/usr/libexec/csqtt/ucode,true)
-	$(if $(CSQTT_RUNTIME_DIR),$(CP) "$(CSQTT_RUNTIME_DIR)/usr/libexec/csqtt/ucode-runtime" $(1)/usr/libexec/csqtt/,true)
 	$(INSTALL_DATA) ./files/lifecycle.sh $(1)/usr/libexec/csqtt/lifecycle.sh
 	$(INSTALL_BIN) ./files/monitor $(1)/usr/libexec/csqtt/monitor
 	$(INSTALL_BIN) ./files/tun-hook $(1)/usr/libexec/csqtt/tun-hook
@@ -47,6 +46,8 @@ define Package/csqtt/install
 	$(INSTALL_DATA) ./files/runtime.uc $(1)/usr/share/csqtt/runtime.uc
 	$(INSTALL_DATA) ./files/health.uc $(1)/usr/share/csqtt/health.uc
 	$(INSTALL_DATA) ./files/LICENSE $(1)/usr/share/licenses/csqtt/LICENSE
+	$(if $(CSQTT_DNSMASQ_BINARY),$(INSTALL_DATA) $(PKG_BUILD_DIR)/dnsmasq-COPYING $(1)/usr/share/licenses/csqtt/dnsmasq-COPYING,true)
+	$(if $(CSQTT_DNSMASQ_BINARY),$(INSTALL_DATA) $(PKG_BUILD_DIR)/dnsmasq-NOTICE $(1)/usr/share/licenses/csqtt/dnsmasq-NOTICE,true)
 	$(INSTALL_CONF) ./files/csqtt.config $(1)/etc/config/csqtt
 	$(INSTALL_CONF) ./files/guard.nft $(1)/etc/csqtt/policy.nft
 	$(INSTALL_BIN) ./files/csqtt.init $(1)/etc/init.d/csqtt

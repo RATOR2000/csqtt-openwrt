@@ -293,7 +293,8 @@ test('LAN DynamicList accepts an empty add field but requires valid saved interf
 	await view.render();
 	assert.equal(view.lanOption.validate('main', ''), true);
 	assert.equal(view.lanOption.validate('main', ['br-lan']), true);
-	for (const value of [[], ['lo'], ['csqtt0'], ['bad interface']]) {
+	assert.equal(view.lanOption.validate('main', ['auto']), true);
+	for (const value of [[], ['lo'], ['csqtt0'], ['bad interface'], ['auto', 'br-lan']]) {
 		assert.notEqual(view.lanOption.validate('main', value), true);
 		view.lanOption.current = value;
 		await assert.rejects(view.handleSave(), /локальные интерфейсы/);

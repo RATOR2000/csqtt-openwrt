@@ -8,6 +8,11 @@
 return view.extend({
 	load: function() { return api.call('status').catch(function() { return { unavailable: true }; }); },
 	render: function(initial) {
+		if (initial.setup_required === true) return E('div', { 'class': 'csqtt-shell' }, [
+			E('h2', {}, 'Первая настройка CSQTT'),
+			E('p', {}, 'Клиент установлен и пока выключен. Мастер поможет добавить сервер и выбрать устройства для VPN.'),
+			E('a', { 'class': 'cbi-button cbi-button-positive', href: L.url('admin/services/csqtt/setup') }, 'Начать настройку')
+		]);
 		var self = this, pairing = null, currentChallenge = null, pairingTimer = null;
 		var statusNode = E('div'), captchaNode = E('div');
 		function notify() { ui.addNotification(null, E('p', {}, 'Не удалось связаться со службой CSQTT. Откройте диагностику.'), 'error'); }

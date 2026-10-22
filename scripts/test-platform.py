@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import pathlib
+import socket
 import subprocess
 import tempfile
 
@@ -11,7 +12,7 @@ from binary_abi import emulator_command, validate_elf
 from platforms import load_registry, select_profile
 
 
-def smoke(profile, core, broker):
+def smoke(profile, core, broker, require_tls=False):
     core, broker = pathlib.Path(core).resolve(), pathlib.Path(broker).resolve()
     for binary in (core, broker):
         validate_elf(binary, profile)
@@ -38,16 +39,29 @@ def smoke(profile, core, broker):
         result = run(core, '--health-probe', 'invalid', input='{}')
         assert result.returncode == 2 and not result.stderr, 'early probe mode failed'
         assert {path.name for path in root.iterdir()} == {'client.json'}, 'invalid input created runtime state'
+        if require_tls:
+            resolvers = [line.split()[1] for line in pathlib.Path('/etc/resolv.conf').read_text().splitlines()
+                         if line.startswith('nameserver ') and '.' in line.split()[1] and not line.split()[1].startswith('127.')]
+            dns = resolvers[0] if resolvers else '1.1.1.1'
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route:
+                route.connect((dns, 53))
+                source = route.getsockname()[0]
+            result = run(core, '--health-probe', 'wan', input=json.dumps({'source_ipv4': source, 'dns_ipv4': dns}))
+            observation = json.loads(result.stdout)
+            assert result.returncode == 0 and observation['completed'] and observation['config_valid'], 'native TLS probe did not complete'
+            assert len(observation['endpoints']) == 2 and all(e['reachable'] and e['dns'] == 'ok' for e in observation['endpoints']), 'native DNS/TLS reachability failed'
+            assert {path.name for path in root.iterdir()} == {'client.json'}, 'probe created runtime state'
     print('Selected platform static ELF/ISA smoke passed; no router/VK or runtime qualification.')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--profile', required=True)
+    parser.add_argument('--require-tls', action='store_true', help='Require native selected-ABI DNS and verified HTTPS controls')
     parser.add_argument('core')
     parser.add_argument('broker')
     args = parser.parse_args()
-    smoke(select_profile(load_registry(), args.profile), args.core, args.broker)
+    smoke(select_profile(load_registry(), args.profile), args.core, args.broker, args.require_tls)
 
 
 if __name__ == '__main__':

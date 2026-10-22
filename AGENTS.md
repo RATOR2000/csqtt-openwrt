@@ -23,8 +23,11 @@ reclone the upstream source, or restart already completed work.
 
 - Preserve compatibility with original amurcanov/csqtt v2.1.9; do not switch to
   the protocol-incompatible danusha2345 fork.
-- First supported target: GL-MT6000, OpenWrt 25.12.5, mediatek/filogic,
-  aarch64_cortex-a53. One active tunnel, named groups, domain/IP rules.
+- Current delivery scope: official OpenWrt24.10/25.12, selected by verified ABI
+  and capabilities without a board lock. Historical native reference is
+  GL-MT6000/25.12.5; current owner's fresh router is25.12.6. GLvendor firmware
+  work was cancelled2026-10-22 and retained in checkpoints. One active tunnel,
+  named groups, domain/IP rules.
 - VPN-classified traffic must not fall back to WAN. Preserve local management.
   Explicit WAN exceptions are allowed. See the full contract for DNS/IPv6.
 - Keep passwords, VK links, pairing grants, private signing keys and runtime
@@ -34,7 +37,10 @@ reclone the upstream source, or restart already completed work.
 - Separate source implementation, compilation, simulated tests and real
   router/VK tests in reports. Do not call the project ready for installation
   until the stated release checks have actually passed.
-- Do not touch the live router without connection details and task scope.
+- User installs published releases personally. SSH alias `router` is for agreed
+  read-only checks only; no installation, reboot or network/service changes.
+- No Codex scheduled tasks. Old72h acceptance is incomplete after owner reflash;
+  elapsed wall time is not evidence of a pass.
 
 ## Local tooling
 

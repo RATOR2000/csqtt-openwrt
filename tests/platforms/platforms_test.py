@@ -57,7 +57,7 @@ class PlatformsTest(unittest.TestCase):
     def test_default_keeps_preview_sdk_and_new_profiles_are_unqualified(self):
         self.assertEqual(self.profile['openwrt'], '25.12.5')
         self.assertEqual(self.profile['sdk']['sha256'], 'ff4a38a397caa2cfe1c39e18f84ddede14878221b3593c3f2c4cfe24e3ec4c25')
-        self.assertEqual(len(self.registry['profiles']), 5)
+        self.assertEqual(len(self.registry['profiles']), 8)
         for profile in self.registry['profiles']:
             self.assertFalse(profile['qualification']['installation'])
             self.assertFalse(profile['qualification']['activation'])
@@ -113,6 +113,25 @@ class PlatformsTest(unittest.TestCase):
         validate_elf(binary, x86)
         binary.write_bytes(elf(interp=True, needed=True))
         validate_elf(binary, self.profile, require_static=False)
+
+    def test_armv7_elf32_requires_soft_float_eabi5_and_bounded_segments(self):
+        profile = next(p for p in self.registry['profiles'] if p['target'] == 'armsr/armv7')
+        header = bytearray(52)
+        header[:7] = b'\x7fELF\x01\x01\x01'
+        struct.pack_into('<HHI', header, 16, 2, 40, 1)
+        struct.pack_into('<I', header, 28, 52)
+        struct.pack_into('<I', header, 36, 0x05000200)
+        struct.pack_into('<HHH', header, 40, 52, 32, 1)
+        program = struct.pack('<IIIIIIII', 1, 0, 0, 0, 84, 84, 5, 4096)
+        binary = self.root / 'arm32'
+        binary.write_bytes(bytes(header) + program)
+        validate_elf(binary, profile)
+        for flags in (0x05000400, 0x04000200, 0):
+            changed = bytearray(header)
+            struct.pack_into('<I', changed, 36, flags)
+            binary.write_bytes(bytes(changed) + program)
+            with self.assertRaises(ValueError):
+                validate_elf(binary, profile)
 
     def test_private_runtime_resolves_only_its_sdk_libraries_and_preserves_pins(self):
         work = self.root / 'work'

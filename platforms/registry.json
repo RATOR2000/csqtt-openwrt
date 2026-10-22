@@ -37,6 +37,40 @@
       }
     },
     {
+      "id": "official-25.12.5-x86-64-x86_64",
+      "family": "official",
+      "openwrt": "25.12.5",
+      "target": "x86/64",
+      "architecture": "x86_64",
+      "package_manager": "apk",
+      "package_format": "apk",
+      "backend": "fw4-nft",
+      "rust_target": "x86_64-unknown-linux-musl",
+      "goarch": "amd64",
+      "elf": {
+        "class": 64,
+        "endian": "little",
+        "machine": 62
+      },
+      "emulator": {
+        "command": "qemu-x86_64",
+        "cpu": "qemu64"
+      },
+      "sdk": {
+        "name": "openwrt-sdk-25.12.5-x86-64_gcc-14.3.0_musl.Linux-x86_64",
+        "url": "https://downloads.openwrt.org/releases/25.12.5/targets/x86/64/openwrt-sdk-25.12.5-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst",
+        "sha256": "0c8df0151a1e88feb7c03d694d61f6a18d51872815b7c811d76e2b77504d5e9c",
+        "checksum_url": "https://downloads.openwrt.org/releases/25.12.5/targets/x86/64/sha256sums",
+        "toolchain_prefix": "x86_64-openwrt-linux-musl",
+        "toolchain_dir_glob": "toolchain-x86_64*"
+      },
+      "qualification": {
+        "installation": false,
+        "activation": false,
+        "reason": "build_and_runtime_acceptance_required"
+      }
+    },
+    {
       "id": "official-24.10.8-mediatek-filogic-aarch64_cortex-a53",
       "family": "official",
       "openwrt": "24.10.8",
@@ -171,13 +205,87 @@
         "activation": false,
         "reason": "build_and_runtime_acceptance_required"
       }
+    },
+    {
+      "id": "official-24.10.8-armsr-armv7-arm_cortex-a15_neon-vfpv4",
+      "family": "official",
+      "openwrt": "24.10.8",
+      "target": "armsr/armv7",
+      "architecture": "arm_cortex-a15_neon-vfpv4",
+      "package_manager": "opkg",
+      "package_format": "ipk",
+      "backend": "fw4-nft",
+      "rust_target": "armv7-unknown-linux-musleabi",
+      "goarch": "arm",
+      "goarm": "7,softfloat",
+      "elf": {
+        "class": 32,
+        "endian": "little",
+        "machine": 40,
+        "eabi": 5,
+        "float_abi": "soft"
+      },
+      "emulator": {
+        "command": "qemu-arm",
+        "cpu": "cortex-a15"
+      },
+      "sdk": {
+        "name": "openwrt-sdk-24.10.8-armsr-armv7_gcc-13.3.0_musl_eabi.Linux-x86_64",
+        "url": "https://downloads.openwrt.org/releases/24.10.8/targets/armsr/armv7/openwrt-sdk-24.10.8-armsr-armv7_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst",
+        "sha256": "c30c6fc09d8038351e1cccb7d8565d8f3e4447dd017d15de8c7e83960fdb4718",
+        "checksum_url": "https://downloads.openwrt.org/releases/24.10.8/targets/armsr/armv7/sha256sums",
+        "toolchain_prefix": "arm-openwrt-linux-muslgnueabi",
+        "toolchain_dir_glob": "toolchain-arm*"
+      },
+      "qualification": {
+        "installation": false,
+        "activation": false,
+        "reason": "armv7_eabi_sdk_and_runtime_acceptance_required"
+      }
+    },
+    {
+      "id": "official-25.12.6-armsr-armv7-arm_cortex-a15_neon-vfpv4",
+      "family": "official",
+      "openwrt": "25.12.6",
+      "target": "armsr/armv7",
+      "architecture": "arm_cortex-a15_neon-vfpv4",
+      "package_manager": "apk",
+      "package_format": "apk",
+      "backend": "fw4-nft",
+      "rust_target": "armv7-unknown-linux-musleabi",
+      "goarch": "arm",
+      "goarm": "7,softfloat",
+      "elf": {
+        "class": 32,
+        "endian": "little",
+        "machine": 40,
+        "eabi": 5,
+        "float_abi": "soft"
+      },
+      "emulator": {
+        "command": "qemu-arm",
+        "cpu": "cortex-a15"
+      },
+      "sdk": {
+        "name": "openwrt-sdk-25.12.6-armsr-armv7_gcc-14.3.0_musl_eabi.Linux-x86_64",
+        "url": "https://downloads.openwrt.org/releases/25.12.6/targets/armsr/armv7/openwrt-sdk-25.12.6-armsr-armv7_gcc-14.3.0_musl_eabi.Linux-x86_64.tar.zst",
+        "sha256": "b29c5b96d757c3518a4f4df18e3187e16de618381625847b8874461935358179",
+        "checksum_url": "https://downloads.openwrt.org/releases/25.12.6/targets/armsr/armv7/sha256sums",
+        "toolchain_prefix": "arm-openwrt-linux-muslgnueabi",
+        "toolchain_dir_glob": "toolchain-arm*"
+      },
+      "qualification": {
+        "installation": false,
+        "activation": false,
+        "reason": "armv7_eabi_sdk_and_runtime_acceptance_required"
+      }
     }
   ],
   "architecture_gates": [
     {
       "architecture": "armv7",
-      "status": "pending",
-      "reason": "requires_explicit_sdk_cpu_and_float_abi_profile_and_native_dependency_tests"
+      "status": "candidate",
+      "reason": "pinned_cortex_a15_neon_vfpv4_soft_float_eabi5_profiles_require_native_build_and_runtime_proof"
     },
     {
       "architecture": "mips32-le",

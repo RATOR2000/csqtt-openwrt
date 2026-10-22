@@ -16,7 +16,7 @@ out.mkdir(parents=True, exist_ok=True)
 head = git("rev-parse", "HEAD").decode().strip()
 parent = git("rev-parse", args.base).decode().strip()
 base_tree = git("rev-parse", f"{args.base}^{{tree}}").decode().strip()
-paths = git("diff", "--name-only", "-z", args.base, "HEAD").split(b"\0")
+paths = git("diff", "--no-renames", "--name-only", "-z", args.base, "HEAD").split(b"\0")
 records, deleted = [], []
 for name in filter(None, paths):
     path = name.decode("utf-8")

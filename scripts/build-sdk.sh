@@ -35,7 +35,8 @@ rm -f "$OUT"/csqtt-*.apk "$OUT"/luci-app-csqtt-*.apk "$OUT"/csqtt_*.ipk \
     "$OUT"/csqtt-captcha_*.ipk "$OUT"/luci-app-csqtt_*.ipk \
     "$OUT"/"$PROFILE_ID"--*.apk "$OUT"/"$PROFILE_ID"--*.ipk \
     "$OUT/manifest.json" "$OUT/manifest.sig" "$OUT/SHA256SUMS" \
-    "$OUT/$PROFILE_ID-manifest.json" "$OUT/$PROFILE_ID-manifest.sig"
+    "$OUT/$PROFILE_ID-manifest.json" "$OUT/$PROFILE_ID-manifest.sig" \
+    "$OUT/$PROFILE_ID-abi-evidence.json" "$OUT/$PROFILE_ID-vm-evidence.json" "$OUT/dependencies.json"
 if [[ ! -d "$WORK/$SDK_NAME" ]]; then
     curl --fail --location --retry 3 "$SDK_URL" -o "$WORK/sdk.tar.zst"
     printf '%s  %s\n' "$SDK_SHA" "$WORK/sdk.tar.zst" | sha256sum -c -
@@ -53,15 +54,19 @@ RUST_ENV=${RUST_TARGET//-/_}
 export "CARGO_TARGET_${RUST_ENV^^}_LINKER=$SDK_TOOLCHAIN_PREFIX-gcc"
 export "CC_$RUST_ENV=$SDK_TOOLCHAIN_PREFIX-gcc" "CXX_$RUST_ENV=$SDK_TOOLCHAIN_PREFIX-g++" "AR_$RUST_ENV=$SDK_TOOLCHAIN_PREFIX-ar"
 export "CARGO_TARGET_${RUST_ENV^^}_RUSTFLAGS=-C target-feature=+crt-static"
+if [[ "$GOARCH" = arm ]]; then
+    export "CARGO_TARGET_${RUST_ENV^^}_RUSTFLAGS=-C target-feature=+crt-static -C target-cpu=cortex-a15"
+    export "CFLAGS_$RUST_ENV=-mcpu=cortex-a15 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
+fi
 # Separate native objects by SDK tuple, including the two ARM64 musl versions.
 # Reusing Cargo outputs across different C linkers/headers can silently mix ABIs.
 if [[ -n "${CSQTT_PROFILE:-}" ]]; then export CARGO_TARGET_DIR="$ROOT/.work/cargo/$PROFILE_ID"; fi
 rustup target add "$RUST_TARGET" --toolchain "$RUST_VERSION"
 cargo +"$RUST_VERSION" check --tests --manifest-path "$ROOT/vendor/csqtt/rust-client/Cargo.toml" --release --locked --target "$RUST_TARGET"
 cargo +"$RUST_VERSION" build --manifest-path "$ROOT/vendor/csqtt/rust-client/Cargo.toml" --release --locked --target "$RUST_TARGET"
-(cd "$ROOT/captcha-broker" && CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" GOAMD64=v1 go build -trimpath -ldflags='-s -w' -o "$OUT/csqtt-captcha" .)
+(cd "$ROOT/captcha-broker" && CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" GOAMD64=v1 GOARM="$GOARM" go build -trimpath -ldflags='-s -w' -o "$OUT/csqtt-captcha" .)
 CORE="${CARGO_TARGET_DIR:-$ROOT/vendor/csqtt/rust-client/target}/$RUST_TARGET/release/client"
-python3 "$ROOT/scripts/test-platform.py" --profile "$PROFILE_ID" "$CORE" "$OUT/csqtt-captcha"
+python3 "$ROOT/scripts/test-platform.py" --profile "$PROFILE_ID" --require-tls "$CORE" "$OUT/csqtt-captcha"
 # SDK make derives its target/host staging paths itself. The compiler's staging
 # directory must not override those make variables.
 unset STAGING_DIR
@@ -76,6 +81,10 @@ CONFIG_PACKAGE_csqtt-captcha=m
 CONFIG_PACKAGE_luci-app-csqtt=m
 CONFIG_PACKAGE_dnsmasq-full=m
 CONFIG_PACKAGE_dnsmasq_full_nftset=y
+# CONFIG_PACKAGE_dnsmasq_full_dnssec is not set
+# CONFIG_PACKAGE_dnsmasq_full_idn is not set
+# CONFIG_PACKAGE_dnsmasq_full_idn2 is not set
+# CONFIG_PACKAGE_dnsmasq_full_ipset is not set
 # CONFIG_PACKAGE_dnsmasq is not set
 CONFIG_ALL_NONSHARED=n
 CONFIG_ALL_KMODS=n
@@ -90,7 +99,9 @@ if [[ -n "${CSQTT_PROFILE:-}" ]]; then
     run_logged private-dns make package/network/services/dnsmasq/compile -j2 V=s
     mapfile -t DNS_BINARIES < <(find build_dir -type f -path '*/dnsmasq-full/dnsmasq-*/src/dnsmasq')
     [[ "${#DNS_BINARIES[@]}" = 1 ]] || { echo 'Expected exactly one SDK full dnsmasq binary' >&2; exit 1; }
-    PRIVATE_DNS_ARGS=("CSQTT_DNSMASQ_BINARY=$SDK/${DNS_BINARIES[0]}")
+    DNS_SOURCE=$(dirname "$(dirname "$SDK/${DNS_BINARIES[0]}")")
+    python3 "$ROOT/scripts/package-dnsmasq-source.py" --profile "$PROFILE_ID" --source "$DNS_SOURCE" --sdk "$SDK" --output "$OUT"
+    PRIVATE_DNS_ARGS=("CSQTT_DNSMASQ_BINARY=$SDK/${DNS_BINARIES[0]}" "CSQTT_DNSMASQ_LICENSE=$DNS_SOURCE/COPYING" "CSQTT_DNSMASQ_NOTICE=$OUT/dnsmasq-NOTICE")
 fi
 # Cached dependencies may stay compiled; our three packages must always use
 # this checkout's source and newly built binaries.
@@ -136,12 +147,25 @@ if [[ -n "$RELEASE_SIGNING_KEY" ]]; then
     done
 fi
 if [[ -n "${CSQTT_PROFILE:-}" ]]; then
-    python3 "$ROOT/scripts/release-manifest.py" "$OUT" --profile "$PROFILE_ID" --registry "$ROOT/platforms/registry.json"
+    USIGN="$SDK/staging_dir/host/bin/usign"
+    if [[ ! -x "$USIGN" && "$PACKAGE_FORMAT" = ipk ]]; then
+        run_logged host-usign make tools/usign/compile -j2 V=s
+    fi
+    python3 "$ROOT/scripts/bundle-dependencies.py" --profile "$PROFILE_ID" --directory "$OUT" \
+        --apk "$SDK/staging_dir/host/bin/apk" --usign "$USIGN"
+    python3 "$ROOT/scripts/release-manifest.py" "$OUT" --profile "$PROFILE_ID" --registry "$ROOT/platforms/registry.json" --dependencies "$OUT/dependencies.json" --third-party "$OUT/dnsmasq-source.json"
 else
     python3 "$ROOT/scripts/release-manifest.py" "$OUT"
+fi
+if [[ -n "${CSQTT_PROFILE:-}" ]]; then
+    python3 "$ROOT/scripts/release-evidence.py" abi --directory "$OUT" --profile "$PROFILE_ID"
 fi
 if [[ -n "${KEYFILE:-}" ]]; then
     openssl dgst -sha256 -sign "$KEYFILE" -out "$OUT/manifest.sig" "$OUT/manifest.json"
     openssl dgst -sha256 -verify "$ROOT/release/csqtt-public.pem" -signature "$OUT/manifest.sig" "$OUT/manifest.json"
     if [[ -n "${CSQTT_PROFILE:-}" ]]; then cp "$OUT/manifest.sig" "$OUT/$PROFILE_ID-manifest.sig"; fi
+fi
+if [[ "$PROFILE_ID" = official-25.12.5-mediatek-filogic-aarch64_cortex-a53 && -n "${CSQTT_PROFILE:-}" ]]; then
+    sudo python3 "$ROOT/scripts/test-r9-migration.py" --apk "$SDK/staging_dir/host/bin/apk" --directory "$OUT" \
+        --source-commit "$(git -C "$ROOT" rev-parse HEAD)"
 fi

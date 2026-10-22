@@ -9,7 +9,7 @@ const runtime = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/runtime.uc'
 const health = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/health.uc'), 'utf8').replaceAll('export function', 'function');
 const adapters = `
 let native_files = {};
-let native_sections = {};
+let native_sections = {}, native_options = {};
 let native_services = {}, native_network = { interface: [] }, native_allow_write = false, native_service_unavailable = false;
 let fs = {
   readfile: function(p) { return native_files[p]; },
@@ -35,7 +35,7 @@ let fs = {
 };
 function cursor() {
   return {
-    get: function(p, s, option) { return option === 'enabled' ? '0' : null; },
+    get: function(p, s, option) { let value = native_options[p + '/' + s + '/' + option]; return value == null ? (option === 'enabled' ? '0' : null) : value; },
     foreach: function(p, kind, callback) {
       for (let section in native_sections[p + '/' + kind] || []) callback(section);
     }
@@ -245,6 +245,21 @@ native_services={};
 check(!dns_stopped(), 'Native DNS stop ignored a surviving captured PID');
 native_files['/proc/901/fd/4']=null; native_files['/proc/901/fd/5']=null;
 check(dns_stopped(), 'Native DNS stop did not recognize old process exit');
+native_options = { 'csqtt/main/lan_device': 'auto' };
+native_sections = { 'firewall/zone': [{ input: 'ACCEPT', network: ['home','uplink'] }] };
+native_network = { interface: [
+  { interface:'home',proto:'static',up:true,l3_device:'br-private','ipv4-address':[{ address:'192.168.8.1',mask:24 }] },
+  { interface:'uplink',proto:'static',up:true,l3_device:'eth2','ipv4-address':[{ address:'192.0.2.1',mask:24 }],route:[{ target:'0.0.0.0',mask:0 }] }
+] };
+let detected_lans=lan_devices(native_network);
+check(length(detected_lans) === 1 && detected_lans[0] === 'br-private', 'Native automatic LAN scope included a default-route interface');
+check(helper_address() === '192.168.8.1', 'Native Helper did not use detected local network');
+native_files['/tmp/dhcp.leases']='0 02:00:00:00:00:01 192.168.8.10 local *\\n0 02:00:00:00:00:02 192.0.2.10 outside *\\n';
+native_files['/proc/net/arp']='';
+check(length(devices()) === 1, 'Native automatic LAN discovery offered unprotected DHCP devices');
+native_options['csqtt/main/lan_device']=['br-manual'];
+check(lan_devices(native_network)[0] === 'br-manual', 'Native automatic discovery replaced explicit configuration');
+print('Native ucode automatic LAN discovery and explicit scope preservation passed\\n');
 print('Native ucode boot-clock freshness interval and conservative expiry passed\\n');
 print('Native ucode runtime parser, control validation, redaction and DNS lifecycle passed\\n');
 `;

@@ -1,9 +1,11 @@
 # CSQTT OpenWrt implementation contract
 
 Current native reference: GL.iNet GL-MT6000, OpenWrt 25.12.5,
-mediatek/filogic, aarch64_cortex-a53. Portability priority is global Stable GL
-Flint2, then official24.10/25.12 ARM64/x86_64, later ARMv7. Qualification is per
-firmware/ABI/capability profile, not an unconditional all-routers claim.
+mediatek/filogic, aarch64_cortex-a53. Current delivery scope (user replacement
+plan2026-10-22) is official24.10/25.12 ARM64/x86_64, later ARMv7. The GLvendor
+firmware plan was cancelled; its experiments remain checkpointed. Qualification
+is per verified ABI/firmware/capability profile, without a board allowlist or an
+unconditional all-routers claim. Owner's current fresh reference is25.12.6.
 One active tunnel. Upstream protocol is original
 amurcanov/csqtt v2.1.9 at 446293aa2e873ac5323ef6fd2316d9b81d966c11.
 Android deployment and upstream server stay compatible and unchanged.
@@ -130,7 +132,7 @@ active-policy local DNS remains available when the VPN transport is stopped.
 
 ## Delivery and acceptance
 
-### Portable platform contract (approved2026-10-20)
+### Portable platform contract (replaced2026-10-22)
 
 Provide one installer with a read-only compatibility mode. Select signed exact
 platform manifests through an authenticated catalogue; retain schema1 verification
@@ -142,24 +144,32 @@ Unknown versions preserve settings and refuse unsafe activation. A compiled or
 emulated target is not native device qualification. Public diagnostic additions
 must preserve existing RPC fields and secret redaction.
 
-Platform integration owns firewall hooks, DNS, interface discovery and acceleration.
-Current official OpenWrt backend retains fw4/nft semantics below. GL Stable4.11
-factory evidence confirms fw3/iptables/ipset and absent ucode; it needs a distinct
-legacy policy backend plus compatible private runtime/DNS dependencies. Do not
-replace vendor firewall or stock DHCP/DNS to make existing code run. Private DNS
-must retain local names and equivalent guarded routing; acceleration must be
-disabled/verified while active and restored after safe deactivation. Both
-backends must preserve LAN, explicit WAN exceptions, IPv6 restrictions, boot and
-reload guards. The Helper follows configured LAN scope, not logical-name 'lan'.
+Official OpenWrt retains fw4/nft semantics below. Private DNS must retain stock
+DHCP/DNS, local names and equivalent guarded routing; offloading must be disabled
+while active and restored after safe deactivation. Preserve LAN, explicit WAN
+exceptions, IPv6 restrictions, boot and reload guards. The Helper follows
+configured LAN scope, not logical-name 'lan'. GLlegacy/private-runtime experiments
+are excluded from current release/build qualification, preserved in history.
 
 New-install resource profiles require measured RAM/load evidence, valid worker
 cohorts (minimum9, multiples9, credential-dependent limits) and manual override.
 Existing explicit parameters survive upgrade/reinstall unchanged. Do not invent
-hardware minimums or reduce security to fit a device. Existing Russian LuCI is
-the management UI; qualify the vendor LuCI version and Russian locale separately.
-Vendor firmware updates require regression/capability qualification; no scheduled
-Codex jobs. Main router is untouched until the owner's later firmware migration.
+hardware minimums or reduce security to fit a device. A Russian LuCI first-run
+wizard collects existing connection fields, selects devices and checks public
+VPN health only after explicit activation. New installs remain disabled until
+completion; configured upgrades bypass the wizard, even when manually stopped.
+No scheduled Codex jobs. Owner installs the published preview personally; no
+remote mutation is authorized. Current SSH alias `router` permits agreed reads.
 See PORTABILITY.md and docs/evidence for source/build/native gate distinctions.
+
+One README command must work on a clean supported image: authenticated bootstrap
+of verifier/tools, full signed dependency resolution (including exact-kernel TUN),
+staged downloads and solver proof, persistent transaction journal/offline rollback,
+and schema1r9 upgrade migration. Never require the user to preinstall tools or
+replace DNS manually. Package install success means software installed; actual
+VPN success is reported separately by the wizard. Publish only after native
+clean-OpenWrt installation and guarded-routing proofs are bound to the release.
+VM/ABI preview qualification is distinct from physical-device/VK acceptance.
 
 ### Existing reference release
 

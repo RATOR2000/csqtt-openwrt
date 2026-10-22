@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import { cursor } from 'uci';
 import { connect } from 'ubus';
-import { compile, hold, compile_legacy, hold_legacy, legacy_guard } from '/usr/share/csqtt/policy.uc';
+import { compile, hold } from '/usr/share/csqtt/policy.uc';
 import { health_initial, health_advance, health_reserve, health_complete, health_public } from '/usr/share/csqtt/health.uc';
 
 const ROOT = '/var/run/csqtt/';
@@ -37,6 +37,36 @@ function sections(package, kind) {
 function list(v) { return type(v) === 'array' ? v : (v ? [v] : []); }
 function includes(a, value) { for (let i = 0; i < length(a); i++) if (a[i] === value) return true; return false; }
 function network() { return call('network.interface', 'dump', {}) || { interface: [] }; }
+function lan_devices(net) {
+	let configured = list(c.get('csqtt', 'main', 'lan_device') || 'br-lan');
+	if (!includes(configured, 'auto')) return configured;
+	if (length(configured) !== 1) die('Automatic LAN discovery cannot be mixed with explicit devices');
+	let trusted = [], devices = [];
+	// Discover local networks from their firewall policy, never from a bridge,
+	// board or logical interface name. A WAN/default-route interface is excluded.
+	c.foreach('firewall', 'zone', function(zone) {
+		if (zone.input !== 'ACCEPT' || zone.masq === '1' || zone.masq6 === '1') return;
+		let names = list(zone.network);
+		for (let i = 0; i < length(names); i++) {
+			let words = split(trim(names[i]), /\s+/);
+			for (let j = 0; j < length(words); j++) if (words[j] && !includes(trusted, words[j])) push(trusted, words[j]);
+		}
+	});
+	for (let i = 0; i < length(net.interface || []); i++) {
+		let intf = net.interface[i], device = intf.l3_device || intf.device;
+		if (intf.up === false || !includes(trusted, intf.interface) ||
+			(intf.proto || c.get('network', intf.interface, 'proto')) !== 'static' ||
+			!match(device || '', /^[a-zA-Z0-9_.:-]{1,15}$/) || device === 'lo' || device === 'csqtt0' ||
+			!length(intf['ipv4-address'] || [])) continue;
+		let gateway = false;
+		for (let j = 0; j < length(intf.route || []); j++) {
+			let route = intf.route[j];
+			if ((route.target === '0.0.0.0' || route.target === '::') && +route.mask === 0) gateway = true;
+		}
+		if (!gateway && !includes(devices, device)) push(devices, device);
+	}
+	return devices;
+}
 function local_domain() {
 	let domain = 'lan';
 	c.foreach('dhcp', 'dnsmasq', function(s) { if (s.domain) domain = s.domain; });
@@ -60,8 +90,11 @@ function platform() {
 		if (match('' + resources[key], /^[0-9]+$/) && resources[key] <= 9007199254740991) result.resource[key] = resources[key];
 	}
 	let caps = probe.capabilities || {}, qualified = installed && installed.schema === 1 && installed.qualification && installed.qualification.activation === true;
-	if (qualified) for (let i = 0; i < length(fields); i++)
-		if (installed[fields[i]] !== probe[fields[i]]) qualified = false;
+	// Installer binds its authenticated profile to the installed firmware/ABI.
+	// Board/model is diagnostic evidence, not an architecture compatibility key.
+	let abi_fields = ['family', 'firmware', 'openwrt', 'target', 'architecture', 'package_manager', 'backend', 'kernel', 'kernel_package'];
+	if (qualified) for (let i = 0; i < length(abi_fields); i++)
+		if (installed[abi_fields[i]] !== probe[abi_fields[i]]) qualified = false;
 	if (qualified && match(installed.profile_id || '', /^[a-z0-9][a-z0-9._-]{0,95}$/)) result.profile_id = installed.profile_id;
 	else qualified = false;
 	// Preserve the existing released target, with actual capability checks and
@@ -70,6 +103,10 @@ function platform() {
 		probe.board === 'glinet,gl-mt6000' && probe.target === 'mediatek/filogic' &&
 		probe.architecture === 'aarch64_cortex-a53' && probe.package_manager === 'apk' && probe.backend === 'fw4-nft';
 	if (original) { qualified = true; result.profile_id = 'openwrt-25.12.5-filogic-aarch64'; }
+	let official = probe.family === 'official' && probe.backend === 'fw4-nft' &&
+		((match(probe.openwrt || '', /^24\.10\.[0-9]+$/) && probe.package_manager === 'opkg') ||
+		 (match(probe.openwrt || '', /^25\.12\.[0-9]+$/) && probe.package_manager === 'apk'));
+	if (!official) { qualified = false; push(result.reasons, 'official_openwrt_required'); }
 	if (!qualified) push(result.reasons, 'platform_unqualified');
 	if (caps.ucode !== true || caps.procd !== true || caps.netifd !== true) push(result.reasons, 'runtime_capability_missing');
 	if (probe.backend === 'fw4-nft') {
@@ -82,6 +119,7 @@ function platform() {
 	let dns = installed ? installed.dns_binary : '/usr/sbin/dnsmasq';
 	if (!includes(['/usr/sbin/dnsmasq', '/usr/libexec/csqtt/dnsmasq'], dns) || !fs.stat(dns)) push(result.reasons, 'dns_binary_missing');
 	if (probe.backend === 'fw4-nft' && dns === '/usr/sbin/dnsmasq' && caps.dnsmasq_nftset !== true) push(result.reasons, 'dns_capability_missing');
+	if (dns === '/usr/libexec/csqtt/dnsmasq' && caps.private_dnsmasq_nftset !== true) push(result.reasons, 'private_dns_capability_missing');
 	result.dns_mode = dns === '/usr/libexec/csqtt/dnsmasq' ? 'private' : 'system';
 	result.state = length(result.reasons) ? 'unqualified' : 'qualified';
 	let configured = c.get('csqtt', 'main', 'workers');
@@ -92,7 +130,7 @@ function platform() {
 	return result;
 }
 function helper_address() {
-	let net = network(), lans = list(c.get('csqtt', 'main', 'lan_device') || 'br-lan');
+	let net = network(), lans = lan_devices(net);
 	for (let i = 0; i < length(net.interface || []); i++) {
 		let intf = net.interface[i];
 		if (intf.up === false || !includes(lans, intf.l3_device || intf.device)) continue;
@@ -107,8 +145,10 @@ function helper_address() {
 	return null;
 }
 function input() {
-	let m = c.get_all('csqtt', 'main') || {}, subnets = [], net = network();
-	let lans = list(m.lan_device || 'br-lan');
+	let saved = c.get_all('csqtt', 'main') || {}, m = {}, subnets = [], net = network();
+	for (let key in saved) m[key] = saved[key];
+	let lans = lan_devices(net);
+	m.lan_device = lans;
 	for (let i = 0; i < length(net.interface || []); i++) {
 		let intf = net.interface[i];
 		if (!includes(lans, intf.l3_device || intf.device)) continue;
@@ -189,16 +229,35 @@ function client(main) {
 	if (main.turn_port) cfg.turn_port = integer(main.turn_port, 3478, 1, 65535, 'TURN port');
 	return cfg;
 }
-function devices() {
-	let found = {};
+function devices(for_flush) {
+	let found = {}, net = network(), lans = lan_devices(net);
 	let leases = split(fs.readfile('/tmp/dhcp.leases') || '', '\n');
 	for (let i = 0; i < length(leases); i++) {
 		let p = split(trim(leases[i]), /\s+/);
 		if (length(p) < 4 || !match(p[1], /^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/)) continue;
+		// dnsmasq's lease file also includes guest/WAN-adjacent networks. Offer
+		// only devices whose lease is behind the actual protected LAN scope.
+		let inside = false, client_ip = split(p[2], '.');
+		for (let n = 0; n < length(net.interface || []); n++) {
+			let intf = net.interface[n];
+			if (!includes(lans, intf.l3_device || intf.device)) continue;
+			for (let a = 0; a < length(intf['ipv4-address'] || []); a++) {
+				let local = intf['ipv4-address'][a], local_ip = split(local.address || '', '.'), bits = +local.mask, same = true;
+				if (length(client_ip) !== 4 || length(local_ip) !== 4 || bits < 1 || bits > 32) continue;
+				for (let k = 0; k < 4; k++) {
+					let width = bits > 8 ? 8 : (bits > 0 ? bits : 0), mask = 256 - (1 << (8 - width)); bits -= 8;
+					if (!match(client_ip[k], /^(0|[1-9][0-9]{0,2})$/) || +client_ip[k] > 255 ||
+						((+client_ip[k]) & mask) !== ((+local_ip[k]) & mask)) same = false;
+				}
+				if (same) inside = true;
+			}
+		}
+		// Apply still needs old lease addresses for flushing a removed/moved
+		// assignment; they are never offered in the public discovery response.
+		if (!inside && !for_flush) continue;
 		found[lc(p[1])] = { mac: lc(p[1]), ip: p[2], name: p[3] === '*' ? '' : p[3], online: false };
 	}
 	let arp = split(fs.readfile('/proc/net/arp') || '', '\n');
-	let lans = list(c.get('csqtt', 'main', 'lan_device') || 'br-lan');
 	for (let i = 1; i < length(arp); i++) {
 		let p = split(trim(arp[i]), /\s+/);
 		if (length(p) < 6 || p[2] !== '0x2' || !includes(lans, p[5])) continue;
@@ -219,6 +278,12 @@ function devices() {
 	let result = [];
 	for (let mac in found) push(result, found[mac]);
 	return result;
+}
+function setup_required() {
+	// Existing configured installations, including a deliberately stopped r9,
+	// never re-enter setup and retain their explicit worker/recovery choices.
+	return c.get('csqtt', 'main', 'setup_complete') !== '1' &&
+		!(c.get('csqtt', 'main', 'peer') && c.get('csqtt', 'main', 'password') && length(list(c.get('csqtt', 'main', 'vk_hashes'))));
 }
 function service_running(name, instance) {
 	let s = call('service', 'list', { name: name });
@@ -442,6 +507,7 @@ function status() {
 	let model = readjson(STATE + 'policy.json', { devices: [], groups: [] });
 	let ctx = health_context(false), public_health = health_public(readjson(ROOT + 'health-state.json', null), ctx);
 	return { core: core, running: running, enabled: c.get('csqtt', 'main', 'enabled') === '1',
+		setup_required: setup_required(),
 		platform: platform(),
 		health: public_health.health, recovery: public_health.recovery,
 		local_domain: local_domain(),
@@ -596,18 +662,6 @@ if (mode === 'compile') {
 	let path = ARGV[1];
 	if (!match(path || '', /^\/var\/run\/csqtt\/apply\.[0-9]+$/)) die('Invalid staging path');
 	let data = input(), result = compile(data), cfg = client(data.main), previous = readjson(STATE + 'policy.json', null);
-	if (platform().backend === 'legacy-xtables') {
-		let legacy = compile_legacy(data);
-		save(path + '/policy.v4', legacy.ipv4); save(path + '/policy.v6', legacy.ipv6);
-		save(path + '/policy.ipset', legacy.ipset);
-		save(path + '/hold.v4', hold_legacy([previous, legacy.model], true, false));
-		save(path + '/hold.v6', hold_legacy([previous, legacy.model], true, true));
-		save(path + '/release.v4', hold_legacy([], false, false));
-		save(path + '/release.v6', hold_legacy([], false, true));
-		save(path + '/hold.guard.nft', legacy_guard([previous, legacy.model], true));
-		save(path + '/release.guard.nft', legacy_guard([legacy.model], false));
-		result.dns = legacy.dns;
-	}
 	save(path + '/policy.nft', result.nft);
 	save(path + '/hold.nft', hold([previous, result.model], true));
 	save(path + '/release.nft', hold([], false));
@@ -621,28 +675,21 @@ if (mode === 'compile') {
 		let d = result.dns[i]; save(path + '/dns-' + d.id + '.conf', d.config); push(ids, d.id);
 	}
 	save(path + '/dns.ids', join('\n', ids) + '\n');
-	let addresses = [], devs = devices(), macs = [];
+	let addresses = [], devs = devices(true), macs = [];
 	for (let i = 0; i < length(result.model.devices); i++) push(macs, result.model.devices[i].mac);
 	for (let i = 0; i < length(previous ? previous.devices : []); i++) push(macs, previous.devices[i].mac);
 	for (let i = 0; i < length(devs); i++)
 		if (includes(macs, devs[i].mac) && match(devs[i].ip, /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/)) push(addresses, devs[i].ip);
 	save(path + '/flush.ips', join('\n', addresses) + '\n');
 } else if (mode === 'firewall-on') firewall(true);
-else if (mode === 'render-legacy') {
-	let data = input(), result = compile_legacy(data), previous = readjson(STATE + 'policy.json', null);
-	output({ ipv4: result.ipv4, ipv6: result.ipv6, ipset: result.ipset, dns: result.dns,
-		guard: legacy_guard([result.model], false), hold_guard: legacy_guard([previous, result.model], true),
-		hold_ipv4: hold_legacy([previous, result.model], true, false), hold_ipv6: hold_legacy([previous, result.model], true, true),
-		release_ipv4: hold_legacy([], false, false), release_ipv6: hold_legacy([], false, true) });
-}
 else if (mode === 'firewall-off') firewall(false);
 else if (mode === 'firewall-hold') firewall_hold();
 else if (mode === 'status') output(status());
 else if (mode === 'platform') output(platform());
-else if (mode === 'platform-backend') { let backend = platform().backend; if (!includes(['fw4-nft', 'legacy-xtables'], backend)) exit(1); printf('%s\n', backend); }
+else if (mode === 'platform-backend') { let backend = platform().backend; if (backend !== 'fw4-nft') exit(1); printf('%s\n', backend); }
 else if (mode === 'platform-check') { if (platform().state !== 'qualified') exit(1); }
 else if (mode === 'helper-address') { let address = helper_address(); if (!address) exit(1); printf('%s\n', address); }
-else if (mode === 'devices') output({ devices: devices() });
+else if (mode === 'devices') output({ devices: devices(), lan_devices: lan_devices(network()) });
 else if (mode === 'diagnostics') {
 	let s = status(), model = readjson(STATE + 'policy.json', { groups: [] }), checks = [];
 	push(checks, { name: 'platform', ok: s.platform.state === 'qualified', detail: s.platform.state === 'qualified' ? 'Platform qualified' : 'Platform activation is blocked' });

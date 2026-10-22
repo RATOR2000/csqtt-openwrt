@@ -17,8 +17,13 @@ export const globals = {
 const source = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/policy.uc'), 'utf8');
 export function compiler() {
   const context = vm.createContext({ ...globals });
-  vm.runInContext(source.replaceAll('export function', 'function') + '\nthis.api = {validate, compile, hold, compile_legacy, hold_legacy, legacy_guard};', context);
-  return context.api;
+  vm.runInContext(source.replaceAll('export function', 'function') + '\nthis.api = {validate, compile, hold};', context);
+  // Superseded vendor experiments remain independently testable and are never
+  // imported by production runtime or included in the OpenWrt package.
+  const legacy = vm.createContext({ ...globals });
+  const experiment = fs.readFileSync(path.join(root, 'experiments/glinet/policy.uc'), 'utf8');
+  vm.runInContext(experiment.replaceAll('export function', 'function') + '\nthis.api = {compile_legacy, hold_legacy, legacy_guard};', legacy);
+  return { ...context.api, ...legacy.api };
 }
 export const fixture = JSON.parse(fs.readFileSync(path.join(root, 'tests/policy/fixture.json'), 'utf8'));
 export function health() {

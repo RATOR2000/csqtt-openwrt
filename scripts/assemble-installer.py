@@ -12,12 +12,17 @@ if marker in text:
     legacy = text.split(end, 1)[1]
 else:
     legacy = text.removeprefix('#!/bin/sh\n')
-helpers = ''.join((root / 'scripts' / name).read_text(encoding='utf-8').removeprefix('#!/bin/sh\n').rstrip() + '\n' for name in ('platform-probe.sh', 'portable-install.sh'))
+sources = [root / 'openwrt/csqtt/files/lifecycle.sh', *(root / 'scripts' / name for name in ('platform-probe.sh', 'portable-install.sh'))]
+helpers = ''.join(source.read_text(encoding='utf-8').removeprefix('#!/bin/sh\n').rstrip() + '\n' for source in sources)
 dispatch = '''case "${1:-}" in
     --check|--preflight) csqtt_probe_main; exit $? ;;
     --portable) shift; csqtt_portable_main "${1:-latest}"; exit $? ;;
 esac
 # Exact signed9 compatibility remains on its original transaction path.
+case "${1:-latest}" in
+    v0.1.0-preview.[1-9]) ;;
+    *) csqtt_portable_main "${1:-latest}"; exit $? ;;
+esac
 CS_DISPATCH_RELEASE=$(csqtt_release_value /etc/openwrt_release DISTRIB_RELEASE)
 CS_DISPATCH_TARGET=$(csqtt_release_value /etc/openwrt_release DISTRIB_TARGET)
 CS_DISPATCH_ARCH=$(csqtt_release_value /etc/openwrt_release DISTRIB_ARCH)

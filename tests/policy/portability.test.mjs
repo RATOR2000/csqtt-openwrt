@@ -25,7 +25,6 @@ test('activation requires exact authenticated qualification and actual local cap
   for (const change of [
     f => { f.installed.qualification.activation = false; },
     f => { f.probe.kernel = 'new-kernel'; },
-    f => { f.probe.board = 'other-board'; },
     f => { f.probe.family = 'glinet'; },
     f => { f.probe.capabilities.fw4 = false; },
     f => { f.probe.capabilities.ucode = false; },
@@ -33,6 +32,10 @@ test('activation requires exact authenticated qualification and actual local cap
     f => { f.probe.capabilities.dnsmasq_nftset = false; },
     f => { f.installed.dns_binary = '/tmp/untrusted'; },
     f => { f.installed.profile_id = '../untrusted'; },
+    f => { f.probe.family = f.installed.family = 'glinet'; },
+    f => { f.probe.openwrt = f.installed.openwrt = '26.01.0'; },
+    f => { f.probe.openwrt = f.installed.openwrt = '25.12-SNAPSHOT'; },
+    f => { f.probe.package_manager = f.installed.package_manager = 'opkg'; },
   ]) {
     const data = qualified(); change(data);
     assert.throws(() => runtime('platform-check', { files: files(data) }), /Exit 1/);
@@ -40,15 +43,57 @@ test('activation requires exact authenticated qualification and actual local cap
   assert.throws(() => runtime('platform-check'), /Exit 1/);
 });
 
+test('official ABI profiles do not use the router model as an activation lock', () => {
+  const data = qualified(); data.probe.board = 'another-vendor,another-router';
+  assert.equal(runtime('platform', { files: files(data) }).output[0].state, 'qualified');
+  data.probe.openwrt = data.installed.openwrt = '24.10.5';
+  data.probe.firmware = data.installed.firmware = '24.10.5';
+  data.probe.package_manager = data.installed.package_manager = 'opkg';
+  assert.equal(runtime('platform', { files: files(data) }).output[0].state, 'qualified');
+  data.probe.architecture = 'arm_cortex-a7_neon-vfpv4';
+  assert.throws(() => runtime('platform-check', { files: files(data) }), /Exit 1/, 'ABI changes still require the signed installer');
+});
+
+test('new runtime package has no active private ucode or legacy firewall path', () => {
+  const makefile = fs.readFileSync(path.join(root, 'openwrt/csqtt/Makefile'), 'utf8');
+  assert.doesNotMatch(makefile, /CSQTT_RUNTIME_DIR|legacy-backend/);
+  assert.match(makefile, /CSQTT_DNSMASQ_LICENSE/);
+  assert.match(makefile, /CSQTT_DNSMASQ_NOTICE/);
+  const policy = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/policy.uc'), 'utf8');
+  assert.doesNotMatch(policy, /compile_legacy|hold_legacy|legacy_guard|iptables|ipset=/);
+  for (const file of ['manage', 'csqtt.init', 'monitor'])
+    assert.doesNotMatch(fs.readFileSync(path.join(root, 'openwrt/csqtt/files', file), 'utf8'), /libexec\/csqtt\/ucode/);
+  const data = qualified(); data.probe.backend = data.installed.backend = 'legacy-xtables';
+  assert.throws(() => runtime('platform-backend', { files: files(data) }), /Exit 1/);
+  const compiled = runtime('compile', { files: files(data) });
+  assert.ok(compiled.files['/var/run/csqtt/apply.42/policy.nft']);
+  assert.equal(compiled.files['/var/run/csqtt/apply.42/policy.v4'], undefined);
+});
+
+test('first-run public flag preserves stopped existing configurations and contains no credentials', () => {
+  for (const workers of ['auto', '9', '72']) {
+    const main = { '.type': 'client', enabled: '0', workers, peer: 'server.example:443', password: 'not-a-real-password', vk_hashes: ['not_a_real_call_hash'] };
+    const result = runtime('status', { packages: { csqtt: { main } } });
+    assert.equal(result.output[0].setup_required, false);
+    assert.equal(result.packages.csqtt.main.workers, workers);
+    assert.doesNotMatch(JSON.stringify(result.output), /not-a-real-password|not_a_real_call_hash|server\.example/);
+  }
+  assert.equal(runtime('status').output[0].setup_required, true);
+  assert.equal(runtime('status', { packages: { csqtt: { main: { '.type': 'client', setup_complete: '1' } } } }).output[0].setup_required, false);
+});
+
 test('private DNS leaves vendor DHCP/DNS configuration untouched and is independently checked', () => {
   const data = qualified(); data.installed.dns_binary = '/usr/libexec/csqtt/dnsmasq';
   data.probe.capabilities.dnsmasq_nftset = false;
+  data.probe.capabilities.private_dnsmasq_nftset = true;
   const original = { dhcp: { vendor: { '.type': 'dnsmasq', port: '53', server: 'vendor-dns' } } };
   const inputs = files(data); inputs['/usr/libexec/csqtt/dnsmasq'] = 'ELF';
   const out = runtime('platform', { files: inputs, packages: original });
   assert.equal(out.output[0].state, 'qualified');
   assert.equal(out.output[0].dns_mode, 'private');
   assert.deepEqual(out.packages, original);
+  data.probe.capabilities.private_dnsmasq_nftset = false;
+  assert.throws(() => runtime('platform-check', { files: { ...inputs, '/var/run/csqtt/platform-probe.json': JSON.stringify(data.probe) } }), /Exit 1/);
   delete inputs['/usr/libexec/csqtt/dnsmasq'];
   assert.throws(() => runtime('platform-check', { files: inputs }), /Exit 1/);
 });
@@ -74,6 +119,32 @@ test('Helper selects configured physical LAN rather than logical interface named
   assert.throws(() => runtime('helper-address', { packages, network }), /Exit 1/);
   for (const file of ['csqtt-captcha.init', '91-csqtt-captcha'])
     assert.doesNotMatch(fs.readFileSync(path.join(root, 'openwrt/csqtt-captcha/files', file), 'utf8'), /network\.interface\.lan|\[ "\$INTERFACE" = lan \]/);
+});
+
+test('automatic LAN scope uses trusted static netifd networks and excludes WAN without names or board assumptions', () => {
+  const packages = { csqtt: { main: { '.type': 'client', enabled: '0', lan_device: 'auto' } },
+    firewall: {
+      private: { '.type': 'zone', input: 'ACCEPT', network: ['home', 'management', 'uplink', 'dynamic', 'down'] },
+      guest: { '.type': 'zone', input: 'REJECT', network: ['guests'] },
+      wan: { '.type': 'zone', input: 'ACCEPT', masq: '1', network: ['outside'] }
+    } };
+  const local = (name, device, extra = {}) => ({ interface: name, l3_device: device, up: true, proto: 'static',
+    'ipv4-address': [{ address: '192.168.8.1', mask: 24 }], ...extra });
+  const network = { interface: [local('home', 'br-private'), local('management', 'eth1.20'), local('guests', 'br-guest'),
+    local('outside', 'eth0'), local('uplink', 'eth2', { route: [{ target: '0.0.0.0', mask: 0 }] }),
+    local('dynamic', 'eth3', { proto: 'dhcp' }), local('down', 'eth4', { up: false })] };
+  const result = runtime('devices', { packages, network, files: { '/tmp/dhcp.leases':
+    '0 02:00:00:00:00:01 192.168.8.10 home *\n0 02:00:00:00:00:02 192.168.9.10 guest *\n' } }).output[0];
+  assert.deepEqual(result.lan_devices, ['br-private', 'eth1.20']);
+  assert.deepEqual(result.devices.map(device => device.mac), ['02:00:00:00:00:01'], 'unprotected DHCP networks are not offered as VPN devices');
+  const compiled = runtime('compile', { packages, network });
+  const policy = JSON.parse(compiled.files['/var/run/csqtt/apply.42/policy.json']);
+  assert.deepEqual(policy.lans, ['br-private', 'eth1.20']);
+  assert.equal(compiled.packages.csqtt.main.lan_device, 'auto', 'read/compile never rewrites saved settings');
+  assert.equal(runtime('helper-address', { packages, network }).output[0], '192.168.8.1');
+  assert.throws(() => runtime('compile', { packages, network: { interface: [] } }), /At least one LAN device/);
+  packages.csqtt.main.lan_device = ['br-fixed'];
+  assert.deepEqual(runtime('devices', { packages, network }).output[0].lan_devices, ['br-fixed']);
 });
 
 test('legacy rendering preserves ordered marks, private DNS, IPv6 and output guards without replacing vendor chains', () => {
@@ -120,7 +191,7 @@ test('legacy backend admission rejects unqualified activation before touching ha
     .map(p => path.resolve(path.dirname(git), p)).find(p => fs.existsSync(p)) : '/bin/sh';
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'csqtt-legacy-gate-')).replaceAll('\\', '/');
   try {
-    const source = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/legacy-backend'), 'utf8')
+    const source = fs.readFileSync(path.join(root, 'experiments/glinet/legacy-backend'), 'utf8')
       .replace('umask 077', `umask 077\nlogger() { :; }\nuci() { printf 'unexpected\\n' >> '${dir}/effects'; }\niptables() { printf 'unexpected\\n' >> '${dir}/effects'; }\nip6tables() { printf 'unexpected\\n' >> '${dir}/effects'; }`)
       .replace('. /usr/libexec/csqtt/lifecycle.sh', 'csqtt_operation_owned() { return 0; }')
       .replace('runtime() { "$UCODE" /usr/share/csqtt/runtime.uc "$@"; }', 'runtime() { return 1; }');

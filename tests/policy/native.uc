@@ -1,6 +1,6 @@
 // Run with the real ucode interpreter on Linux, independent of Node compatibility.
 import * as fs from 'fs';
-import { compile, validate, hold, compile_legacy, hold_legacy, legacy_guard } from '../../openwrt/csqtt/files/policy.uc';
+import { compile, validate, hold } from '../../openwrt/csqtt/files/policy.uc';
 let data = json(fs.readfile('tests/policy/fixture.json'));
 let result = compile(data);
 function check(ok, message) { if (!ok) die(message); }
@@ -82,17 +82,5 @@ if (ARGV[0]) {
 	fs.writefile(ARGV[0] + '/native-model.json', sprintf('%J', result.model));
 	for (let i = 0; i < length(result.dns); i++)
 		fs.writefile(ARGV[0] + '/native-dns-' + result.dns[i].id + '.conf', result.dns[i].config);
-	let legacy = compile_legacy(data);
-	fs.writefile(ARGV[0] + '/native-legacy-policy.v4', legacy.ipv4);
-	fs.writefile(ARGV[0] + '/native-legacy-policy.v6', legacy.ipv6);
-	fs.writefile(ARGV[0] + '/native-legacy-policy.ipset', legacy.ipset);
-	fs.writefile(ARGV[0] + '/native-legacy-hold.v4', hold_legacy([legacy.model], true, false));
-	fs.writefile(ARGV[0] + '/native-legacy-hold.v6', hold_legacy([legacy.model], true, true));
-	fs.writefile(ARGV[0] + '/native-legacy-release.v4', hold_legacy([], false, false));
-	fs.writefile(ARGV[0] + '/native-legacy-release.v6', hold_legacy([], false, true));
-	fs.writefile(ARGV[0] + '/native-legacy-hold.guard.nft', legacy_guard([legacy.model], true));
-	fs.writefile(ARGV[0] + '/native-legacy-release.guard.nft', legacy_guard([legacy.model], false));
-	for (let i = 0; i < length(legacy.dns); i++)
-		fs.writefile(ARGV[0] + '/native-legacy-dns-' + legacy.dns[i].id + '.conf', legacy.dns[i].config);
 }
 print('Native ucode policy assertions passed\n');

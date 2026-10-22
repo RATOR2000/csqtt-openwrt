@@ -44,6 +44,8 @@ csqtt_probe_main() (
         [ "$CS_APK_ARCH" = "$CS_ARCH" ] || CS_ARCH=
         if command -v jsonfilter >/dev/null 2>&1; then
             CS_KERNEL_PACKAGE=$(apk query --installed --match name --fields version --format json kernel 2>/dev/null | jsonfilter -e '@[0].version' 2>/dev/null || true)
+        else
+            CS_KERNEL_PACKAGE=$(apk query --installed --match name --fields version --format default kernel 2>/dev/null | awk '/^Version: [A-Za-z0-9_.+~-]+$/ {print $2;exit}' || true)
         fi
     elif [ "$CS_APK:$CS_OPKG" = false:true ]; then
         CS_PM=opkg CS_FORMAT=ipk
@@ -54,7 +56,6 @@ csqtt_probe_main() (
     case "$CS_KERNEL_PACKAGE" in *[!A-Za-z0-9_.+~-]*) CS_KERNEL_PACKAGE= ;; esac
     CS_NFT=$(csqtt_has nft) CS_FW4=$(csqtt_has fw4) CS_FW3=$(csqtt_has fw3)
     CS_IPTABLES=$(csqtt_has iptables) CS_UCODE=$(csqtt_has ucode)
-    [ ! -x /usr/libexec/csqtt/ucode ] || CS_UCODE=true
     CS_PROCD=$(csqtt_has procd) CS_NETIFD=$(csqtt_has netifd)
     CS_BACKEND=unknown
     if [ "$CS_NFT:$CS_FW4" = true:true ]; then CS_BACKEND=fw4-nft
@@ -64,6 +65,10 @@ csqtt_probe_main() (
         CS_DNS_FEATURES=$(dnsmasq --version 2>/dev/null || true)
         if printf '%s\n' "$CS_DNS_FEATURES" | awk ' /(^|[[:space:]])nftset([[:space:]]|$)/ { found=1 } END { exit !found }'; then CS_NFTSET=true; fi
         if printf '%s\n' "$CS_DNS_FEATURES" | awk ' /(^|[[:space:]])ipset([[:space:]]|$)/ { found=1 } END { exit !found }'; then CS_IPSET=true; fi
+    fi
+    CS_PRIVATE_NFTSET=false
+    if [ -x /usr/libexec/csqtt/dnsmasq ]; then
+        if /usr/libexec/csqtt/dnsmasq --version 2>/dev/null | awk '/(^|[[:space:]])nftset([[:space:]]|$)/ { found=1 } END { exit !found }'; then CS_PRIVATE_NFTSET=true; fi
     fi
     CS_MEM_TOTAL=$(awk '$1=="MemTotal:" && $2 ~ /^[0-9]+$/ { print $2; exit }' /proc/meminfo 2>/dev/null || true)
     CS_MEM_AVAILABLE=$(awk '$1=="MemAvailable:" && $2 ~ /^[0-9]+$/ { print $2; found=1; exit } $1=="MemFree:" { fallback=$2 } END { if (!found) print fallback+0 }' /proc/meminfo 2>/dev/null || true)
@@ -75,9 +80,9 @@ csqtt_probe_main() (
         [ "$CS_FAMILY" != glinet ] || CS_PROFILE_VERSION=$CS_FIRMWARE
         CS_PROFILE=$(printf '%s-%s-%s-%s' "$CS_FAMILY" "$CS_PROFILE_VERSION" "$CS_TARGET" "$CS_ARCH" | tr / -)
     fi
-    printf '{"schema":1,"profile_id":"%s","family":"%s","firmware":"%s","openwrt":"%s","board":"%s","target":"%s","architecture":"%s","package_manager":"%s","package_format":"%s","kernel":"%s","kernel_package":"%s","backend":"%s","readiness":"unqualified","resource":{"mem_total_kib":%s,"mem_available_kib":%s,"overlay_free_kib":%s,"tmp_free_kib":%s,"cpu_count":%s},"capabilities":{"ucode":%s,"nft":%s,"fw4":%s,"fw3":%s,"procd":%s,"netifd":%s,"dnsmasq_nftset":%s,"dnsmasq_ipset":%s},"reasons":["signed_profile_and_acceptance_required"]}\n' \
+    printf '{"schema":1,"profile_id":"%s","family":"%s","firmware":"%s","openwrt":"%s","board":"%s","target":"%s","architecture":"%s","package_manager":"%s","package_format":"%s","kernel":"%s","kernel_package":"%s","backend":"%s","readiness":"unqualified","resource":{"mem_total_kib":%s,"mem_available_kib":%s,"overlay_free_kib":%s,"tmp_free_kib":%s,"cpu_count":%s},"capabilities":{"ucode":%s,"nft":%s,"fw4":%s,"fw3":%s,"procd":%s,"netifd":%s,"dnsmasq_nftset":%s,"dnsmasq_ipset":%s,"private_dnsmasq_nftset":%s},"reasons":["signed_profile_and_acceptance_required"]}\n' \
       "$CS_PROFILE" "$CS_FAMILY" "$CS_FIRMWARE" "$CS_OPENWRT" "$CS_BOARD" "$CS_TARGET" "$CS_ARCH" "$CS_PM" "$CS_FORMAT" "$CS_KERNEL" "$CS_KERNEL_PACKAGE" "$CS_BACKEND" \
       "${CS_MEM_TOTAL:-0}" "${CS_MEM_AVAILABLE:-0}" "$CS_OVERLAY" "$CS_TMP" "${CS_CPUS:-1}" \
-      "$CS_UCODE" "$CS_NFT" "$CS_FW4" "$CS_FW3" "$CS_PROCD" "$CS_NETIFD" "$CS_NFTSET" "$CS_IPSET"
+      "$CS_UCODE" "$CS_NFT" "$CS_FW4" "$CS_FW3" "$CS_PROCD" "$CS_NETIFD" "$CS_NFTSET" "$CS_IPSET" "$CS_PRIVATE_NFTSET"
 )
 case "${0##*/}" in platform-probe|platform-probe.sh) csqtt_probe_main "$@" ;; esac

@@ -38,8 +38,9 @@ def validate_profile(profile):
     configurations = {
         ('mediatek/filogic', 'aarch64_cortex-a53'): ('aarch64-unknown-linux-musl', 'arm64', 183, 'aarch64', 'qemu-aarch64', 'cortex-a53'),
         ('x86/64', 'x86_64'): ('x86_64-unknown-linux-musl', 'amd64', 62, 'x86_64', 'qemu-x86_64', 'qemu64'),
+        ('armsr/armv7', 'arm_cortex-a15_neon-vfpv4'): ('armv7-unknown-linux-musleabi', 'arm', 40, 'arm', 'qemu-arm', 'cortex-a15'),
     }
-    require((target, arch) in configurations, 'unsupported CPU/SDK ABI tuple (ARMv7 pending; MIPS32 unsupported)')
+    require((target, arch) in configurations, 'unsupported CPU/SDK ABI tuple (MIPS32 remains unsupported)')
     rust, go, machine, compiler, emulator, cpu = configurations[(target, arch)]
     expected_id = f'official-{version}-{target.replace("/", "-")}-{arch}'
     require(profile.get('id') == expected_id, 'platform id does not bind its exact tuple')
@@ -47,15 +48,19 @@ def validate_profile(profile):
     require((profile.get('package_manager'), profile.get('package_format')) == (manager, extension), 'package manager/format mismatch')
     require(profile.get('backend') == 'fw4-nft', 'unvalidated firewall backend')
     require((profile.get('rust_target'), profile.get('goarch')) == (rust, go), 'Rust/Go ABI mismatch')
-    require(profile.get('elf') == {'class': 64, 'endian': 'little', 'machine': machine}, 'ELF ABI mismatch')
+    elf = {'class': 64, 'endian': 'little', 'machine': machine}
+    if go == 'arm':
+        elf.update({'class': 32, 'eabi': 5, 'float_abi': 'soft'})
+        require(profile.get('goarm') == '7,softfloat', 'Go ARMv7 ABI must be explicit')
+    require(profile.get('elf') == elf, 'ELF ABI mismatch')
     require(profile.get('emulator') == {'command': emulator, 'cpu': cpu}, 'CPU emulator mismatch')
     sdk = profile.get('sdk', {})
     name = sdk.get('name', '')
-    require(re.fullmatch(r'openwrt-sdk-' + re.escape(version + '-' + target.replace('/', '-')) + r'_gcc-[0-9.]+_musl\.Linux-x86_64', name), 'SDK name mismatch')
+    require(re.fullmatch(r'openwrt-sdk-' + re.escape(version + '-' + target.replace('/', '-')) + r'_gcc-[0-9.]+_musl' + ('_eabi' if go == 'arm' else '') + r'\.Linux-x86_64', name), 'SDK name mismatch')
     base = f'https://downloads.openwrt.org/releases/{version}/targets/{target}/'
     require(sdk.get('url') == base + name + '.tar.zst' and sdk.get('checksum_url') == base + 'sha256sums', 'SDK origin/tuple mismatch')
     require(re.fullmatch(r'[0-9a-f]{64}', sdk.get('sha256', '')), 'missing pinned SDK hash')
-    require(sdk.get('toolchain_prefix') == compiler + '-openwrt-linux-musl', 'SDK linker ABI mismatch')
+    require(sdk.get('toolchain_prefix') == compiler + '-openwrt-linux-musl' + ('gnueabi' if go == 'arm' else ''), 'SDK linker ABI mismatch')
     require(sdk.get('toolchain_dir_glob') == 'toolchain-' + compiler + '*', 'SDK toolchain directory mismatch')
     qualification = profile.get('qualification', {})
     require(all(type(qualification.get(key)) is bool for key in ('installation', 'activation')), 'qualification flags must be explicit booleans')
@@ -82,6 +87,7 @@ def shell_environment(profile):
         'RUST_VERSION': RUST_VERSION, 'PACKAGE_FORMAT': profile['package_format'],
         'PACKAGE_ARCH': profile['architecture'], 'GOARCH': profile['goarch'],
         'FIREWALL_BACKEND': profile['backend'], 'EMULATOR': profile['emulator']['command'],
+        'GOARM': profile.get('goarm', ''),
     }
     return ''.join(f'{name}={shlex.quote(value)}\n' for name, value in values.items())
 

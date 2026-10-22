@@ -66,6 +66,12 @@ def validate(manifest, root=None):
         require(type(q.get('installation')) is bool and type(q.get('activation')) is bool, 'Missing qualification gates')
         if q['installation'] or q['activation']:
             require(isinstance(q.get('evidence'), list) and q['evidence'] and all(token(e) for e in q['evidence']), 'Qualified profile requires acceptance evidence references')
+        if q.get('preview') and q.get('reason') != 'private_ci_fixture_only':
+            require(q.get('physical_device') is False and re.fullmatch(r'[0-9a-f]{40}', q.get('source_commit', '')), 'Preview requires explicit scope and source binding')
+            require(isinstance(q.get('proofs'), list) and len(q['proofs']) >= 2, 'Preview requires ABI and firmware proof artifacts')
+            for proof in q['proofs']:
+                artifact(proof, root)
+            require([p['name'] for p in q['proofs']] == q['evidence'], 'Preview evidence references differ from proof bytes')
         r = manifest.get('requirements', {})
         for key in ('overlay_free_kib', 'tmp_free_kib', 'mem_available_kib'):
             require(type(r.get(key)) is int and 0 < r[key] <= 4194304, 'Invalid resource requirement')
@@ -112,11 +118,20 @@ def validate(manifest, root=None):
             artifact(dep, root)
             require(token(dep.get('package')) and token(dep.get('version')) and token(dep.get('filename')), 'Invalid dependency identity')
             require(dep['package'] not in dep_names and dep['package'] not in ROLES, 'Duplicate dependency package')
-            require(dep['package'] not in ('kernel', 'procd', 'netifd') and not dep['package'].startswith(('kmod-', 'dnsmasq', 'firewall')), 'Kernel/DNS/firewall/services must come from the running firmware')
+            if dep['package'] == 'kmod-tun':
+                require(token(r.get('kernel_package')) and dep.get('kernel_package') == r['kernel_package'], 'TUN package requires exact running kernel ABI')
+            else:
+                require(dep['package'] not in ('kernel', 'procd', 'netifd') and not dep['package'].startswith(('kmod-', 'dnsmasq', 'firewall')), 'Kernel/DNS/firewall/services must come from the running firmware')
             require(dep.get('index') in by_id and dep['filename'].endswith('.' + fmt), 'Dependency index or filename mismatch')
             dep_names.add(dep['package'])
             all_names.add(dep['name'])
         require(len(all_names) == len(packages) + len(indexes) + len(deps) + (len(indexes) if fmt == 'ipk' else 0), 'Duplicate artifact filename')
+        sources = manifest.get('third_party_sources', [])
+        require(isinstance(sources, list) and len(sources) <= 16, 'Invalid corresponding source artifacts')
+        for source in sources:
+            artifact(source, root)
+            require(source['name'] not in all_names and token(source.get('component')) and token(source.get('license')), 'Invalid corresponding source identity')
+            all_names.add(source['name'])
     if root is not None:
         actual = {p.name for p in root.iterdir() if p.suffix in ('.apk', '.ipk')}
         expected = {name for name in all_names if name.endswith(('.apk', '.ipk'))}

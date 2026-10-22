@@ -4,7 +4,6 @@ STOP=10
 USE_PROCD=1
 EXTRA_COMMANDS="prepared_start prepared_restart"
 UCODE=ucode
-if [ -x /usr/libexec/csqtt/ucode ]; then UCODE=/usr/libexec/csqtt/ucode; fi
 . /usr/libexec/csqtt/lifecycle.sh
 
 # rc.common sources procd.sh after this file, and that source acquires the

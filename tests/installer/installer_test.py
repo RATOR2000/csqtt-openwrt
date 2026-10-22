@@ -108,7 +108,7 @@ class InstallerTest(unittest.TestCase):
             env = os.environ.copy()
             env.update(CSQTT_FAKE_ROOT=str(root), CSQTT_FAKE_SCENARIO=scenario, CSQTT_FAKE_BIN=str(bindir), MSYS2_ENV_CONV_EXCL='APK_CONFIG')
             # MSYS adjusts PATH on startup; set the isolated path inside sh.
-            result = subprocess.run([SH, '-c', 'PATH="$CSQTT_WRAPPER_PATH"; export PATH; exec /usr/bin/sh "$CSQTT_WRAPPER_SCRIPT"'], env={**env, 'CSQTT_WRAPPER_PATH': posix(bindir), 'CSQTT_WRAPPER_SCRIPT': posix(script)}, text=True, capture_output=True, timeout=40)
+            result = subprocess.run([SH, '-c', 'PATH="$CSQTT_WRAPPER_PATH"; export PATH; exec /usr/bin/sh "$CSQTT_WRAPPER_SCRIPT" v0.1.0-preview.9'], env={**env, 'CSQTT_WRAPPER_PATH': posix(bindir), 'CSQTT_WRAPPER_SCRIPT': posix(script)}, text=True, capture_output=True, timeout=40)
             self.assertTrue((root / 'commands.jsonl').exists(), result.stdout + result.stderr)
             if scenario == 'maintenance_busy':
                 self.assertEqual((root / 'var/lock/csqtt-maintenance/pid').read_text(), 'other-installer\n')

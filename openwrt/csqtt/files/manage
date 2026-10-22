@@ -6,7 +6,6 @@ RUN=/var/run/csqtt
 STATE=/etc/csqtt
 RUNTIME=/usr/share/csqtt/runtime.uc
 UCODE=ucode
-if [ -x /usr/libexec/csqtt/ucode ]; then UCODE=/usr/libexec/csqtt/ucode; fi
 DNSMASQ=dnsmasq
 if [ -x /usr/libexec/csqtt/dnsmasq ]; then DNSMASQ=/usr/libexec/csqtt/dnsmasq; fi
 . /usr/libexec/csqtt/lifecycle.sh

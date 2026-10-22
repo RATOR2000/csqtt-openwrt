@@ -148,6 +148,23 @@ return baseclass.extend({
 	validPairing: validPairing,
 	normalizeHash: normalizeHash,
 	validDestination: validDestination,
+	needsSetup: function(main) {
+		main = main || {};
+		return main.setup_complete !== '1' && !(main.peer && main.password &&
+			(Array.isArray(main.vk_hashes) ? main.vk_hashes.length : main.vk_hashes));
+	},
+	setupCheck: function(status) {
+		if (!status || status.unavailable) return 'waiting';
+		if (status.platform && status.platform.state !== 'qualified') return 'incompatible';
+		if (status.enabled === false) return 'stopped';
+		// Allocated workers alone do not prove Internet access through VPN.
+		if (status.health && status.health.state === 'healthy') return 'healthy';
+		var core = status.core || {}, challenge = status.captcha || core.captcha;
+		if (challenge && challenge.id && Number(challenge.expires_at) > Date.now() / 1000) return 'captcha';
+		if (status.health && status.health.state === 'wan_down') return 'wan_down';
+		if (core.error_code || core.state === 'error') return 'error';
+		return 'waiting';
+	},
 	workerLimit: function(count) { return Number.isInteger(count) && count > 0 && count <= 6 ? Math.min(126, count * 27) : 0; },
 	connectionState: function(status) {
 		if (!status || status.unavailable) return 'unknown';
