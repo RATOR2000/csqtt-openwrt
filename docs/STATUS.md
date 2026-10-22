@@ -146,6 +146,56 @@ Fresh targeted3 methods (APK environment/lock, both PM install, bootstrap refusa
 PASS93.8s; generated/syntax/diff-check PASS. No guard or signature checks weakened.
 Next: push this corrective checkpoint to dev AND build refs, inspect NEW CI only.
 
+Corrective checkpoint pushed+fetched with exact tree equality: source
+6d83ac2237e3280a977fe0667b378972a273d5f3, tree8c1786c83af7670753c503158a9daac3f18fa547.
+Both dev/build refs now at this SHA; OLD39806158401/39806085162 are superseded.
+CURRENT official39807723601 and regression39807727948 IN PROGRESS.
+First unfinished action is compact inspection of THESE runs, failed logs only.
+Local portable13/13 PASS1074.4s reported, but source evolved during that Windows
+run; final targeted tests and actual selected dash augment it, frozen Linux CI
+remains mandatory. No active installer test processes or remaining source edits.
+
+CURRENT milestone: official39807723601 candidate/contracts SUCCESS on exact
+6d83ac2; native Linux installer/powerloss regressions now PASS.6 SDK jobs and
+native-policy launched/queued. Regression39807727948 core/native-policy/Android
+SUCCESS; checks finishing. Native SDK/VM/signing/publication still PENDING.
+Independent tests-only follow-up owned release_finish: public-command helper+
+workflow after publication, leaving candidate6d83 product immutable. Current VM
+uses private authenticated HTTP fixture seam; it must NOT be counted as actual
+public README HTTPS command acceptance. New disposable VMs will verify exact
+published signatures/installer/tag, remove preinstalled LuCI/OpenSSL tool/TUN
+normally if needed, run literal README command, native guest smoke, repeat+remove.
+Root must run public-command acceptance before advertising readiness/merging main.
+
+SDK BLOCKER after Linux contracts PASS: official39807723601 job119929294664
+(25.12.5 x86) FAILED: no make target package/network/services/dnsmasq/compile in
+SDK. SDK source recipes are feed-installed; compile target and corresponding-
+source recipe path must be discovered/validated, not assume full buildroot layout.
+release_finish owns targeted fix plus restore/always-save Cargo cache so later
+packaging failures do not discard expensive compiled dependencies. Other current
+SDKs may reveal additional failures; read failed logs only. No draft/tag created.
+Public acceptance tests-only source now ready/uncommitted: test-public-command.py,
+public-command-check.yml, public_command_test.py (6host boundary PASS). Root added
+verify-published-release.py +published_test.py (3PASS): bounded TLS downloads,
+pinned P256, signed hashes, exact actual tag/source/installer; no router access.
+These complement frozen product checks; run the public workflow only AFTER actual
+publication. Public check fixture removes LuCI/OpenSSL-tool/TUN normally, then
+literal HTTPS command, repeat/manual18, native uninstall and management/DNS checks.
+
+SDK fix source checkpoint (native result PENDING): sdk_recipe.py selects the exact
+dnsmasq-full Source-Makefile from SDK metadata (feed/classic); build and GPL source
+packager share it, require SDK-contained source/license/version/upstream hash.
+sdk_recipe5 tests PASS; public_command6 and published3 PASS; py_compile/diff PASS.
+Cargo restore/always-save retains compile cache even if later packaging fails.
+Unused private dnsmasq conntrack feature disabled after official recipe inspection;
+external conntrack utility/flush logic preserved. README warning is now conditional
+on actual publication (so immutable tag will not forever say 'still preparing');
+exact versions/targets listed, no unverified broad support claim. Main unchanged.
+Active read-only owner dns_abi_audit examines missing selected-CPU startup coverage
+for the separate dynamic DNS payload; core/Go tests alone must not be called proof
+that ARM private DNS executed. Recheck liveness before delegation; other owners
+frozen. Next product-source push waits that focused audit and any minimal check.
+
 ## Historical2026-10-20 vendor work — superseded, retained as checkpoint
 
 USER APPROVED portability plan 2026-10-20: first latest global/US Stable Flint2

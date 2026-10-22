@@ -30,6 +30,7 @@ jobs:
           python3 tests/installer/installer_test.py
           python3 tests/installer/portable_test.py
           python3 tests/release/dependency_test.py
+          python3 tests/release/sdk_recipe_test.py
           python3 scripts/assemble-installer.py --check
           node --test tests/policy/*.test.* tests/luci/*.test.*
           bash -n scripts/build-sdk.sh
@@ -96,7 +97,8 @@ jobs:
           sudo modprobe tun
           test -c /dev/net/tun
           rustup toolchain install 1.97.1 --profile minimal
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: portability-cargo
         with:
           path: |
             ~/.cargo/registry
@@ -109,6 +111,14 @@ jobs:
           CSQTT_PACKAGE_RELEASE: ${{ inputs.package_release || '10' }}
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
         run: bash scripts/build-sdk.sh
+      - uses: actions/cache/save@v4
+        if: always() && steps.portability-cargo.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            .work/cargo/${{ matrix.profile }}
+          key: ${{ steps.portability-cargo.outputs.cache-primary-key }}
       - name: Compress SDK diagnostics
         if: always()
         run: |

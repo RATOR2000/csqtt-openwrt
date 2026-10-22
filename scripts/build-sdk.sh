@@ -81,6 +81,7 @@ CONFIG_PACKAGE_csqtt-captcha=m
 CONFIG_PACKAGE_luci-app-csqtt=m
 CONFIG_PACKAGE_dnsmasq-full=m
 CONFIG_PACKAGE_dnsmasq_full_nftset=y
+# CONFIG_PACKAGE_dnsmasq_full_conntrack is not set
 # CONFIG_PACKAGE_dnsmasq_full_dnssec is not set
 # CONFIG_PACKAGE_dnsmasq_full_idn is not set
 # CONFIG_PACKAGE_dnsmasq_full_idn2 is not set
@@ -96,7 +97,8 @@ if [[ -n "${CSQTT_PROFILE:-}" ]]; then
     # A separate resolver binary avoids replacing the owner's dnsmasq package.
     # Dependencies stay ordinary matching-firmware packages; the binary itself
     # lives only below /usr/libexec/csqtt.
-    run_logged private-dns make package/network/services/dnsmasq/compile -j2 V=s
+    DNS_COMPILE_TARGET=$(python3 "$ROOT/scripts/sdk_recipe.py" --sdk "$SDK" --field target)
+    run_logged private-dns make "$DNS_COMPILE_TARGET" -j2 V=s
     mapfile -t DNS_BINARIES < <(find build_dir -type f -path '*/dnsmasq-full/dnsmasq-*/src/dnsmasq')
     [[ "${#DNS_BINARIES[@]}" = 1 ]] || { echo 'Expected exactly one SDK full dnsmasq binary' >&2; exit 1; }
     DNS_SOURCE=$(dirname "$(dirname "$SDK/${DNS_BINARIES[0]}")")
