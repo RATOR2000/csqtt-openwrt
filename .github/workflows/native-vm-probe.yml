@@ -20,7 +20,7 @@ jobs:
       - name: Disposable VM dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 openssh-client python3-pexpect
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 openssh-client python3-pexpect
       - name: Private fixture only, never publish or qualify these packages
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}

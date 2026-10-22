@@ -21,6 +21,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import urllib.error
 
 from release_schema import describe, load, require, validate
 
@@ -37,6 +38,18 @@ def phase(value):
     global PHASE
     PHASE = value
     print('OpenWrt VM phase: ' + value, flush=True)
+
+
+def failure_message(error):
+    # Exception messages, commands, URLs, output and filenames may contain
+    # private data. Emit only its class and a bounded numeric HTTP status.
+    category = type(error).__name__
+    category = category if re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{0,79}', category) else 'Exception'
+    status = ''
+    if isinstance(error, urllib.error.HTTPError) and type(error.code) is int and 100 <= error.code <= 599:
+        status = ' http_status=' + str(error.code)
+    return ('Clean OpenWrt VM acceptance failed at stage=' + PHASE + ' exception=' + category + status +
+            '; private diagnostics are not printed or published.')
 
 
 def free_port():
@@ -77,12 +90,14 @@ def main():
     parser.add_argument('--directory', type=pathlib.Path, required=True)
     parser.add_argument('--profile', required=True)
     args = parser.parse_args()
+    phase('validation')
     manifest = validate(load(args.directory / (args.profile + '-manifest.json')), args.directory)
     platform = manifest['platform']
     require(platform['target'] == 'x86/64' and platform['architecture'] == 'x86_64', 'VM guest must use its own exact x86 package/kernel tuple')
     version = platform['openwrt']
     require(version in IMAGES, 'No pinned clean firmware image')
     require(manifest['qualification'].get('reason') == 'private_ci_fixture_only', 'Use an isolated signed provisional fixture')
+    phase('imports')
     import pexpect  # CI installs this small host-only console driver.
     spec = importlib.util.spec_from_file_location('bundle', ROOT / 'scripts/bundle-dependencies.py')
     bundle = importlib.util.module_from_spec(spec)
@@ -91,6 +106,7 @@ def main():
     evidence = importlib.util.module_from_spec(evidence_spec)
     evidence_spec.loader.exec_module(evidence)
     output = args.directory / (args.profile + '-vm-evidence.json')
+    phase('fixture_copy')
     with tempfile.TemporaryDirectory(prefix='csqtt-vm-') as temporary:
         work = pathlib.Path(temporary)
         web = work / 'web'
@@ -103,6 +119,7 @@ def main():
         (fixture / 'catalogue.json').write_text(json.dumps(catalogue, indent=2) + '\n')
         # sign-portable-release refuses a provisional catalogue by design. Sign
         # only this test's exact private catalogue with a short-lived key file.
+        phase('catalogue_signing')
         secret = os.environ.pop('CSQTT_SIGNING_KEY', '')
         require(secret, 'Private CI fixture signing key unavailable')
         key = work / 'fixture-signing.pem'
@@ -112,6 +129,7 @@ def main():
         subprocess.run(['openssl', 'dgst', '-sha256', '-sign', str(key), '-out', str(fixture / 'catalogue.sig'),
                         str(fixture / 'catalogue.json')], check=True, capture_output=True)
         key.unlink()
+        phase('fixture_server')
         class QuietHandler(http.server.SimpleHTTPRequestHandler):
             def log_message(self, *unused):
                 pass
@@ -128,12 +146,15 @@ def main():
         shutil.copyfile(ROOT / 'scripts/test-openwrt-guest.sh', web / 'guest.sh')
         image_name = f'openwrt-{version}-x86-64-generic-ext4-combined.img.gz'
         compressed = work / image_name
+        phase('image_download')
         bundle.download(f'https://downloads.openwrt.org/releases/{version}/targets/x86/64/' + image_name,
                         compressed, IMAGES[version])
         disk = work / 'guest.img'
+        phase('image_extract')
         with gzip.open(compressed, 'rb') as source, disk.open('wb') as target:
             shutil.copyfileobj(source, target, 1024 * 1024)
         private_key = work / 'ssh-key'
+        phase('ssh_key')
         subprocess.run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(private_key)], check=True, capture_output=True)
         public_key = private_key.with_suffix('.pub').read_text().strip()
         port = free_port()
@@ -191,5 +212,5 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except Exception:
-        raise SystemExit('Clean OpenWrt VM acceptance failed at stage=' + PHASE + '; private guest diagnostics are not printed or published.') from None
+    except Exception as error:
+        raise SystemExit(failure_message(error)) from None
