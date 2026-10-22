@@ -1,0 +1,31 @@
+name: Diagnostic existing candidate VM (not release evidence)
+on:
+  push:
+    branches: [codex/portable-preview.10-vm-probe]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: candidate-official-24.10.8-x86-64-x86_64
+          run-id: 39839530729
+          github-token: ${{ github.token }}
+          path: .work/diagnostic-vm
+      - name: Disposable VM dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 openssh-client python3-pexpect
+      - name: Private fixture only, never publish or qualify these packages
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: python3 scripts/sign-portable-release.py .work/diagnostic-vm --provisional
+      - name: Diagnose clean firmware installation while APK trust is fixed
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: python3 scripts/test-openwrt-vm.py --directory .work/diagnostic-vm --profile official-24.10.8-x86-64-x86_64
