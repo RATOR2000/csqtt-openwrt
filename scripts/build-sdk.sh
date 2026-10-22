@@ -120,10 +120,10 @@ run_logged packages make package/csqtt-local/luci-app-csqtt/compile -j2 V=s \
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then printf 'sdk_ready=true\n' >> "$GITHUB_OUTPUT"; fi
 find bin -type f \( -name 'csqtt-[0-9]*.apk' -o -name 'csqtt-captcha-[0-9]*.apk' -o -name 'luci-app-csqtt-[0-9]*.apk' -o -name 'csqtt_*.ipk' -o -name 'csqtt-captcha_*.ipk' -o -name 'luci-app-csqtt_*.ipk' \) -exec cp '{}' "$OUT/" ';'
 if [[ "$PACKAGE_FORMAT" = apk ]]; then
-    sudo env CSQTT_PLATFORM_PROFILE="$PROFILE_ID" CSQTT_PACKAGE_ARCH="$PACKAGE_ARCH" CSQTT_EMULATOR="$EMULATOR" CSQTT_PRIVATE_DNS="${CSQTT_PROFILE:+1}" \
+    sudo env CSQTT_PLATFORM_PROFILE="$PROFILE_ID" CSQTT_PACKAGE_ARCH="$PACKAGE_ARCH" CSQTT_EMULATOR="$EMULATOR" CSQTT_PRIVATE_DNS="${CSQTT_PROFILE:+1}" CSQTT_SDK="$SDK" \
         sh "$ROOT/scripts/test-native-apk.sh" "$SDK/staging_dir/host/bin/apk" "$OUT"
 else
-    sudo python3 "$ROOT/scripts/test-native-ipk.py" --profile "$PROFILE_ID" "$OUT"
+    sudo python3 "$ROOT/scripts/test-native-ipk.py" --profile "$PROFILE_ID" --sdk "$SDK" "$OUT"
 fi
 if [[ -n "$RELEASE_SIGNING_KEY" ]]; then
     umask 077

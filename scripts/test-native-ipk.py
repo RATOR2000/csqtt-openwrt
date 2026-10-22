@@ -118,6 +118,7 @@ def inspect(directory, profile):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--profile', required=True)
+    parser.add_argument('--sdk', type=pathlib.Path, required=True, help='Matching SDK for private DNS execution')
     parser.add_argument('directory')
     args = parser.parse_args()
     profile = select_profile(load_registry(), args.profile)
@@ -127,11 +128,13 @@ def main():
     with tempfile.TemporaryDirectory(prefix='csqtt-native-ipk-') as directory:
         root = pathlib.Path(directory)
         for name, role, path in [('client', 'csqtt', 'usr/bin/csqtt-client'),
-                                  ('broker', 'csqtt-captcha', 'usr/bin/csqtt-captcha')]:
+                                  ('broker', 'csqtt-captcha', 'usr/bin/csqtt-captcha'),
+                                  ('dnsmasq', 'csqtt', 'usr/libexec/csqtt/dnsmasq')]:
             binary = root / name
             binary.write_bytes(found[role][path][0])
             binary.chmod(0o700)
         subprocess.run([sys.executable, str(ROOT / 'scripts/test-platform.py'), '--profile', profile['id'],
+                        '--sdk', str(args.sdk), '--dnsmasq', str(root / 'dnsmasq'),
                         str(root / 'client'), str(root / 'broker')], check=True)
         subprocess.run([sys.executable, str(ROOT / 'scripts/test-arm64-tun.py'), str(root / 'client'),
                         '--profile', profile['id']], check=True)

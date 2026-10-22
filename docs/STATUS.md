@@ -196,6 +196,17 @@ for the separate dynamic DNS payload; core/Go tests alone must not be called pro
 that ARM private DNS executed. Recheck liveness before delegation; other owners
 frozen. Next product-source push waits that focused audit and any minimal check.
 
+Audit closed in source: actual private DNS extracted from each APK/IPK now runs
+with selected QEMU CPU and matching verified SDK musl/target libraries; --version
+must contain exact nftset token and --test must parse managed nftset/source DNS
+configuration. No daemon/services/network mutation. Two ABI evidence requirements
+added only after successful packaged-payload gate. Platform13/13 focused host
+tests PASS (4new negative/extraction binding cases), py_compile/syntax/diff PASS;
+actual Linux QEMU/SDK execution still pending. Legacy reference mode preserved.
+Package metadata also lists GPL-2.0 for the optional separately bundled DNS binary;
+actual COPYING/NOTICE and corresponding source remain required. All source frozen
+for next full6SDK/3VM attempt; do not publish prior failed candidate.
+
 ## Historical2026-10-20 vendor work — superseded, retained as checkpoint
 
 USER APPROVED portability plan 2026-10-20: first latest global/US Stable Flint2

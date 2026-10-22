@@ -6,6 +6,7 @@ import io
 import json
 import pathlib
 import struct
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -20,6 +21,9 @@ from platforms import load_registry, select_profile, shell_environment, validate
 spec = importlib.util.spec_from_file_location('native_ipk', ROOT / 'scripts/test-native-ipk.py')
 native_ipk = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(native_ipk)
+smoke_spec = importlib.util.spec_from_file_location('platform_smoke', ROOT / 'scripts/test-platform.py')
+platform_smoke = importlib.util.module_from_spec(smoke_spec)
+smoke_spec.loader.exec_module(platform_smoke)
 runtime_spec = importlib.util.spec_from_file_location('private_runtime', ROOT / 'scripts/private-runtime.py')
 private_runtime = importlib.util.module_from_spec(runtime_spec)
 runtime_spec.loader.exec_module(private_runtime)
@@ -113,6 +117,94 @@ class PlatformsTest(unittest.TestCase):
         validate_elf(binary, x86)
         binary.write_bytes(elf(interp=True, needed=True))
         validate_elf(binary, self.profile, require_static=False)
+
+    def dns_fixture(self):
+        self.sdk_fixture()
+        target = self.root / 'staging_dir/target-aarch64_cortex-a53_musl'
+        target.mkdir()
+        loader = self.root / 'staging_dir/toolchain-aarch64_gcc-14.3.0/lib/libc.so'
+        loader.parent.mkdir()
+        loader.write_bytes(elf())
+        binary = self.root / 'extracted/usr/libexec/csqtt/dnsmasq'
+        binary.parent.mkdir(parents=True)
+        binary.write_bytes(elf(interp=True, needed=True))
+        return binary.resolve(), loader.resolve(), target.resolve()
+
+    def test_private_dns_command_uses_selected_cpu_sdk_loader_and_extracted_payload(self):
+        binary, loader, target = self.dns_fixture()
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append(command)
+            self.assertEqual(command[:4], ['qemu-aarch64', '-cpu', 'cortex-a53', str(loader)])
+            self.assertEqual(command[4:7], ['--library-path',
+                             ':'.join(map(str, (target / 'usr/lib', target / 'lib', loader.parent))), str(binary)])
+            self.assertEqual(kwargs['timeout'], 15)
+            self.assertNotIn('LD_PRELOAD', kwargs['env'])
+            self.assertNotIn('QEMU_LD_PREFIX', kwargs['env'])
+            if command[-1] == '--version':
+                return subprocess.CompletedProcess(command, 0, 'Dnsmasq version fixture\nCompile time options: nftset\n', '')
+            self.assertEqual(command[-2], '--test')
+            config = pathlib.Path(command[-1].removeprefix('--conf-file='))
+            self.assertIn('nftset=/csqtt-test.invalid/4#inet#csqtt#d_test\n', config.read_text())
+            self.assertIn('server=192.0.2.53@198.18.0.1\n', config.read_text())
+            return subprocess.CompletedProcess(command, 0, '', 'dnsmasq: syntax check OK.\n')
+
+        with mock.patch.object(platform_smoke.subprocess, 'run', side_effect=run), \
+                mock.patch.dict(platform_smoke.os.environ, {'LD_PRELOAD': 'host.so', 'QEMU_LD_PREFIX': '/host'}):
+            platform_smoke.private_dns_smoke(self.profile, binary, self.root)
+        self.assertEqual(len(calls), 2)
+
+    def test_private_dns_wrong_payload_loader_or_ambiguous_sdk_never_executes(self):
+        binary, loader, target = self.dns_fixture()
+        original_binary, original_loader = binary.read_bytes(), loader.read_bytes()
+        with mock.patch.object(platform_smoke.subprocess, 'run') as run:
+            for path in (binary, loader):
+                path.write_bytes(elf(machine=62))
+                with self.assertRaisesRegex(ValueError, 'selected platform'):
+                    platform_smoke.private_dns_smoke(self.profile, binary, self.root)
+                binary.write_bytes(original_binary)
+                loader.write_bytes(original_loader)
+            (target.parent / 'target-second').mkdir()
+            with self.assertRaisesRegex(ValueError, 'exactly one'):
+                platform_smoke.private_dns_smoke(self.profile, binary, self.root)
+            run.assert_not_called()
+
+    def test_private_dns_negative_capability_startup_and_configuration_fail(self):
+        binary, _, _ = self.dns_fixture()
+        for status, options in ((0, 'no-nftset'), (1, 'nftset')):
+            with mock.patch.object(platform_smoke.subprocess, 'run', return_value=
+                                   subprocess.CompletedProcess([], status, options, '')) as run:
+                with self.assertRaisesRegex(ValueError, 'startup or nftset'):
+                    platform_smoke.private_dns_smoke(self.profile, binary, self.root)
+                self.assertEqual(run.call_count, 1)
+        with mock.patch.object(platform_smoke.subprocess, 'run', side_effect=[
+                subprocess.CompletedProcess([], 0, 'nftset', ''),
+                subprocess.CompletedProcess([], 1, '', 'configuration refused')]):
+            with self.assertRaisesRegex(ValueError, 'managed nftset configuration'):
+                platform_smoke.private_dns_smoke(self.profile, binary, self.root)
+
+    def test_ipk_private_dns_command_binds_the_extracted_package_bytes(self):
+        profile = next(p for p in self.registry['profiles'] if p['package_format'] == 'ipk')
+        payloads = {'csqtt': {'usr/bin/csqtt-client': (b'core fixture', 0o755),
+                              'usr/libexec/csqtt/dnsmasq': (b'actual packaged DNS fixture', 0o755)},
+                    'csqtt-captcha': {'usr/bin/csqtt-captcha': (b'broker fixture', 0o755)}}
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append(command)
+            if 'test-platform.py' in pathlib.Path(command[1]).name:
+                binary = pathlib.Path(command[command.index('--dnsmasq') + 1])
+                self.assertEqual(binary.read_bytes(), b'actual packaged DNS fixture')
+                self.assertEqual(command[command.index('--sdk') + 1], str(self.root))
+            return subprocess.CompletedProcess(command, 0)
+
+        with mock.patch.object(native_ipk, 'inspect', return_value=payloads), \
+                mock.patch.object(native_ipk.subprocess, 'run', side_effect=run), \
+                mock.patch.object(sys, 'argv', ['test-native-ipk.py', '--profile', profile['id'],
+                                              '--sdk', str(self.root), str(self.root)]):
+            native_ipk.main()
+        self.assertEqual(len(calls), 2)
 
     def test_armv7_elf32_requires_soft_float_eabi5_and_bounded_segments(self):
         profile = next(p for p in self.registry['profiles'] if p['target'] == 'armsr/armv7')

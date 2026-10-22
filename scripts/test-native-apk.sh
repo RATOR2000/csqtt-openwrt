@@ -126,6 +126,11 @@ assert (extracted / 'core/usr/share/licenses/csqtt/LICENSE').read_bytes() == (so
 assert (extracted / 'core/etc/config/csqtt').read_bytes() == (source / 'openwrt/csqtt/files/csqtt.config').read_bytes(), 'Default private UCI configuration mismatch'
 print('native APK: required payloads, permissions, architecture, dependencies and upstream license passed.')
 NATIVE_APK_PAYLOAD
+if [ "${CSQTT_PRIVATE_DNS:-}" = 1 ]; then
+    [ -n "${CSQTT_PLATFORM_PROFILE:-}" ] && [ -n "${CSQTT_SDK:-}" ] || die 'Private DNS execution requires the selected profile and matching SDK.'
+    python3 "$ROOT/scripts/test-platform.py" --profile "$CSQTT_PLATFORM_PROFILE" --sdk "$CSQTT_SDK" \
+        --dnsmasq "$TMP/extracted/core/usr/libexec/csqtt/dnsmasq"
+fi
 if [ -n "${CSQTT_PLATFORM_PROFILE:-}" ]; then
     python3 "$ROOT/scripts/test-platform.py" --profile "$CSQTT_PLATFORM_PROFILE" "$TMP/extracted/core/usr/bin/csqtt-client" "$TMP/extracted/captcha/usr/bin/csqtt-captcha"
     python3 "$ROOT/scripts/test-arm64-tun.py" "$TMP/extracted/core/usr/bin/csqtt-client" --profile "$CSQTT_PLATFORM_PROFILE"

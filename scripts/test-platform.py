@@ -9,7 +9,42 @@ import subprocess
 import tempfile
 
 from binary_abi import emulator_command, validate_elf
-from platforms import load_registry, select_profile
+from platforms import load_registry, require, select_profile, verify_sdk
+
+
+def private_dns_smoke(profile, binary, sdk):
+    """Execute the packaged resolver with this SDK's musl and target libraries."""
+    binary, sdk = pathlib.Path(binary).resolve(), pathlib.Path(sdk).resolve()
+    toolchain = verify_sdk(profile, sdk, check_compiler=False)
+    targets = [path for path in (sdk / 'staging_dir').glob('target-*') if path.is_dir()]
+    require(len(targets) == 1, 'Private DNS requires exactly one SDK target staging directory')
+    loader = toolchain / 'lib/libc.so'
+    for payload in (binary, loader):
+        validate_elf(payload, profile, require_static=False)
+    libraries = ':'.join(str(path) for path in
+                         (targets[0] / 'usr/lib', targets[0] / 'lib', toolchain / 'lib'))
+    command = emulator_command(profile, loader) + ['--library-path', libraries, str(binary)]
+    env = {key: value for key, value in os.environ.items()
+           if key not in ('LD_PRELOAD', 'LD_LIBRARY_PATH', 'QEMU_LD_PREFIX')}
+
+    def run(*args):
+        return subprocess.run(command + list(args), capture_output=True, text=True, timeout=15, env=env)
+
+    version = run('--version')
+    require(version.returncode == 0 and 'nftset' in version.stdout.split(),
+            'Packaged private DNS startup or nftset capability failed')
+    with tempfile.TemporaryDirectory(prefix='csqtt-private-dns-') as directory:
+        config = pathlib.Path(directory) / 'dns-private.conf'
+        config.write_text('port=5400\nno-resolv\nno-hosts\nbind-dynamic\nlisten-address=127.0.0.1\n'
+                          'server=//127.0.0.1\nserver=/lan/127.0.0.1\n'
+                          'server=192.0.2.53@198.18.0.1\n'
+                          'nftset=/csqtt-test.invalid/4#inet#csqtt#d_test\n')
+        result = run('--test', '--conf-file=' + str(config))
+        require(result.returncode == 0 and 'syntax check OK' in result.stderr,
+                'Packaged private DNS managed nftset configuration failed')
+        require({path.name for path in config.parent.iterdir()} == {config.name},
+                'Private DNS syntax check created runtime state')
+    print('Packaged private DNS selected CPU startup and nftset syntax passed; no daemon or router services started.')
 
 
 def smoke(profile, core, broker, require_tls=False):
@@ -58,10 +93,20 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--profile', required=True)
     parser.add_argument('--require-tls', action='store_true', help='Require native selected-ABI DNS and verified HTTPS controls')
-    parser.add_argument('core')
-    parser.add_argument('broker')
+    parser.add_argument('--dnsmasq', type=pathlib.Path, help='Private DNS payload extracted from the candidate package')
+    parser.add_argument('--sdk', type=pathlib.Path, help='Matching SDK supplying the private DNS loader and libraries')
+    parser.add_argument('core', nargs='?')
+    parser.add_argument('broker', nargs='?')
     args = parser.parse_args()
-    smoke(select_profile(load_registry(), args.profile), args.core, args.broker, args.require_tls)
+    if bool(args.core) != bool(args.broker) or bool(args.dnsmasq) != bool(args.sdk):
+        parser.error('Pass both core/broker and both --dnsmasq/--sdk when selecting those checks')
+    if not (args.core or args.dnsmasq) or (args.require_tls and not args.core):
+        parser.error('Select a payload check; --require-tls requires core/broker')
+    profile = select_profile(load_registry(), args.profile)
+    if args.core:
+        smoke(profile, args.core, args.broker, args.require_tls)
+    if args.dnsmasq:
+        private_dns_smoke(profile, args.dnsmasq, args.sdk)
 
 
 if __name__ == '__main__':

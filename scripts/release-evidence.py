@@ -9,7 +9,8 @@ import subprocess
 
 from release_schema import describe, load, require, validate
 
-ABI_CHECKS = {'static_elf', 'selected_cpu_startup', 'private_input_rejection', 'linux_tun_lifecycle', 'native_dns_tls'}
+ABI_CHECKS = {'static_elf', 'selected_cpu_startup', 'private_input_rejection', 'linux_tun_lifecycle', 'native_dns_tls',
+              'private_dns_selected_cpu', 'private_dns_nftset_config'}
 VM_CHECKS = {'clean_firmware_boot', 'native_package_transaction', 'offline_dependencies', 'signature_rejection',
              'repeat_install', 'settings_preserved', 'native_runtime_dns_firewall_luci'}
 
@@ -42,7 +43,8 @@ def main():
     abi_path = root / (args.profile + '-abi-evidence.json')
     if args.action == 'abi':
         # Called only after the SDK builder's selected-ABI smoke/TLS and native
-        # package-payload/TUN commands have returned success under set -e.
+        # package-payload/TUN and extracted private DNS commands have returned
+        # success under set -e, using the matching SDK musl/target libraries.
         evidence = {'schema': 1, 'kind': 'selected_abi', 'source_commit': commit,
                     'profile_id': args.profile, 'physical_device': False,
                     'packages': package_binding(manifest), 'checks': sorted(ABI_CHECKS)}
