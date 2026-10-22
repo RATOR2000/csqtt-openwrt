@@ -77,6 +77,7 @@ sleep() {
 }
 ucode() {
   case "$2" in
+    platform-check) event platform-qualified; [ "$scenario" != unqualified ] ;;
     compile)
       printf 1 > "$3/active"
       printf 'closed guard\\n' > "$3/hold.nft"
@@ -114,6 +115,7 @@ ucode() {
     .replace('RUN=/var/run/csqtt', `RUN=${quote(`${dir}/run`)}`)
     .replace('STATE=/etc/csqtt', `STATE=${quote(`${dir}/state`)}`)
     .replace('. /usr/libexec/csqtt/lifecycle.sh', '')
+    .replace('case "${1:-}" in', 'refresh_platform() { event platform-inspected; }\ncase "${1:-}" in')
     .replaceAll('/var/lock', quote(`${dir}/lock`))
     .replaceAll('/etc/init.d/csqtt-dns', 'dns_service');
   try {
@@ -125,7 +127,7 @@ ucode() {
       ...result,
       events: fs.readFileSync(`${dir}/events`, 'utf8').trim().split('\n'),
       policy: fs.readFileSync(`${dir}/state/policy.nft`, 'utf8'),
-      hold: fs.readFileSync(`${dir}/state/hold.nft`, 'utf8'),
+      hold: fs.existsSync(`${dir}/state/hold.nft`) ? fs.readFileSync(`${dir}/state/hold.nft`, 'utf8') : '',
       oldAlive: fs.existsSync(`${dir}/old-process`),
       newAlive: fs.existsSync(`${dir}/new-process`),
       portsListening: fs.existsSync(`${dir}/listening-ports`),
@@ -141,6 +143,16 @@ function before(events, first, second) {
   assert.ok(events.includes(second), `Missing event: ${second}`);
   assert.ok(events.indexOf(first) < events.indexOf(second), `${first} must precede ${second}: ${events.join(', ')}`);
 }
+
+test('unqualified platform refuses activation before staging network changes', () => {
+  const result = runApply('unqualified');
+  assert.equal(result.status, 1);
+  assert.match(result.error, /Platform is not qualified/);
+  assert.deepEqual(result.events, ['platform-inspected', 'platform-qualified']);
+  assert.equal(result.policy, 'previous policy\n');
+  assert.equal(result.hold, '');
+  assert.equal(result.newAlive, false);
+});
 
 test('manage waits for captured old DNS processes before replacing policy or starting DNS', () => {
   const result = runApply('delayed');

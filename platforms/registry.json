@@ -1,0 +1,221 @@
+{
+  "schema": 1,
+  "default_profile": "official-25.12.5-mediatek-filogic-aarch64_cortex-a53",
+  "profiles": [
+    {
+      "id": "official-25.12.5-mediatek-filogic-aarch64_cortex-a53",
+      "family": "official",
+      "openwrt": "25.12.5",
+      "target": "mediatek/filogic",
+      "architecture": "aarch64_cortex-a53",
+      "package_manager": "apk",
+      "package_format": "apk",
+      "backend": "fw4-nft",
+      "rust_target": "aarch64-unknown-linux-musl",
+      "goarch": "arm64",
+      "elf": {
+        "class": 64,
+        "endian": "little",
+        "machine": 183
+      },
+      "emulator": {
+        "command": "qemu-aarch64",
+        "cpu": "cortex-a53"
+      },
+      "sdk": {
+        "name": "openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64",
+        "url": "https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst",
+        "sha256": "ff4a38a397caa2cfe1c39e18f84ddede14878221b3593c3f2c4cfe24e3ec4c25",
+        "checksum_url": "https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/sha256sums",
+        "toolchain_prefix": "aarch64-openwrt-linux-musl",
+        "toolchain_dir_glob": "toolchain-aarch64*"
+      },
+      "qualification": {
+        "installation": false,
+        "activation": false,
+        "reason": "legacy_preview_acceptance_incomplete"
+      }
+    },
+    {
+      "id": "official-24.10.8-mediatek-filogic-aarch64_cortex-a53",
+      "family": "official",
+      "openwrt": "24.10.8",
+      "target": "mediatek/filogic",
+      "architecture": "aarch64_cortex-a53",
+      "package_manager": "opkg",
+      "package_format": "ipk",
+      "backend": "fw4-nft",
+      "rust_target": "aarch64-unknown-linux-musl",
+      "goarch": "arm64",
+      "elf": {
+        "class": 64,
+        "endian": "little",
+        "machine": 183
+      },
+      "emulator": {
+        "command": "qemu-aarch64",
+        "cpu": "cortex-a53"
+      },
+      "sdk": {
+        "name": "openwrt-sdk-24.10.8-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64",
+        "url": "https://downloads.openwrt.org/releases/24.10.8/targets/mediatek/filogic/openwrt-sdk-24.10.8-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst",
+        "sha256": "d9fd074f281823a3023e8f6a73aaac598018c898ec9ac4d1c507b596930d7482",
+        "checksum_url": "https://downloads.openwrt.org/releases/24.10.8/targets/mediatek/filogic/sha256sums",
+        "toolchain_prefix": "aarch64-openwrt-linux-musl",
+        "toolchain_dir_glob": "toolchain-aarch64*"
+      },
+      "qualification": {
+        "installation": false,
+        "activation": false,
+        "reason": "build_and_runtime_acceptance_required"
+      }
+    },
+    {
+      "id": "official-24.10.8-x86-64-x86_64",
+      "family": "official",
+      "openwrt": "24.10.8",
+      "target": "x86/64",
+      "architecture": "x86_64",
+      "package_manager": "opkg",
+      "package_format": "ipk",
+      "backend": "fw4-nft",
+      "rust_target": "x86_64-unknown-linux-musl",
+      "goarch": "amd64",
+      "elf": {
+        "class": 64,
+        "endian": "little",
+        "machine": 62
+      },
+      "emulator": {
+        "command": "qemu-x86_64",
+        "cpu": "qemu64"
+      },
+      "sdk": {
+        "name": "openwrt-sdk-24.10.8-x86-64_gcc-13.3.0_musl.Linux-x86_64",
+        "url": "https://downloads.openwrt.org/releases/24.10.8/targets/x86/64/openwrt-sdk-24.10.8-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst",
+        "sha256": "ac4a0405d2eea821b06f93c14ba13ffa90ad0457648903df7dde02570027ab21",
+        "checksum_url": "https://downloads.openwrt.org/releases/24.10.8/targets/x86/64/sha256sums",
+        "toolchain_prefix": "x86_64-openwrt-linux-musl",
+        "toolchain_dir_glob": "toolchain-x86_64*"
+      },
+      "qualification": {
+        "installation": false,
+        "activation": false,
+        "reason": "build_and_runtime_acceptance_required"
+      }
+    },
+    {
+      "id": "official-25.12.6-mediatek-filogic-aarch64_cortex-a53",
+      "family": "official",
+      "openwrt": "25.12.6",
+      "target": "mediatek/filogic",
+      "architecture": "aarch64_cortex-a53",
+      "package_manager": "apk",
+      "package_format": "apk",
+      "backend": "fw4-nft",
+      "rust_target": "aarch64-unknown-linux-musl",
+      "goarch": "arm64",
+      "elf": {
+        "class": 64,
+        "endian": "little",
+        "machine": 183
+      },
+      "emulator": {
+        "command": "qemu-aarch64",
+        "cpu": "cortex-a53"
+      },
+      "sdk": {
+        "name": "openwrt-sdk-25.12.6-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64",
+        "url": "https://downloads.openwrt.org/releases/25.12.6/targets/mediatek/filogic/openwrt-sdk-25.12.6-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst",
+        "sha256": "1c04ac47bdfc361d6aab299eb520d570e368013dedcb8d29cf39dc7168ae642e",
+        "checksum_url": "https://downloads.openwrt.org/releases/25.12.6/targets/mediatek/filogic/sha256sums",
+        "toolchain_prefix": "aarch64-openwrt-linux-musl",
+        "toolchain_dir_glob": "toolchain-aarch64*"
+      },
+      "qualification": {
+        "installation": false,
+        "activation": false,
+        "reason": "build_and_runtime_acceptance_required"
+      }
+    },
+    {
+      "id": "official-25.12.6-x86-64-x86_64",
+      "family": "official",
+      "openwrt": "25.12.6",
+      "target": "x86/64",
+      "architecture": "x86_64",
+      "package_manager": "apk",
+      "package_format": "apk",
+      "backend": "fw4-nft",
+      "rust_target": "x86_64-unknown-linux-musl",
+      "goarch": "amd64",
+      "elf": {
+        "class": 64,
+        "endian": "little",
+        "machine": 62
+      },
+      "emulator": {
+        "command": "qemu-x86_64",
+        "cpu": "qemu64"
+      },
+      "sdk": {
+        "name": "openwrt-sdk-25.12.6-x86-64_gcc-14.3.0_musl.Linux-x86_64",
+        "url": "https://downloads.openwrt.org/releases/25.12.6/targets/x86/64/openwrt-sdk-25.12.6-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst",
+        "sha256": "1864152619092e781fa36a401960c8e9ae42d6a364c44ee5f0b197ca5f3c0fcc",
+        "checksum_url": "https://downloads.openwrt.org/releases/25.12.6/targets/x86/64/sha256sums",
+        "toolchain_prefix": "x86_64-openwrt-linux-musl",
+        "toolchain_dir_glob": "toolchain-x86_64*"
+      },
+      "qualification": {
+        "installation": false,
+        "activation": false,
+        "reason": "build_and_runtime_acceptance_required"
+      }
+    }
+  ],
+  "architecture_gates": [
+    {
+      "architecture": "armv7",
+      "status": "pending",
+      "reason": "requires_explicit_sdk_cpu_and_float_abi_profile_and_native_dependency_tests"
+    },
+    {
+      "architecture": "mips32-le",
+      "status": "unsupported",
+      "reason": "requires_64_bit_atomic_portability_and_pinned_tier3_std_toolchain"
+    },
+    {
+      "architecture": "mips32-be",
+      "status": "unsupported",
+      "reason": "requires_64_bit_atomic_portability_pinned_tier3_std_toolchain_and_big_endian_tests"
+    }
+  ],
+  "held_profiles": [
+    {
+      "id": "glinet-stable-4.11-gl-mt6000",
+      "family": "glinet",
+      "firmware": "4.11.0",
+      "board": "glinet,gl-mt6000",
+      "status": "audit_required",
+      "reason": "private_runtime_and_legacy_firewall_build_runtime_acceptance_required",
+      "openwrt": "21.02-SNAPSHOT",
+      "revision": "r15812+1095-46b6ee7ffc",
+      "target": "mediatek/mt7986",
+      "architecture": "aarch64_cortex-a53",
+      "package_manager": "opkg",
+      "package_format": "ipk",
+      "libc": "musl-1.1.24",
+      "kernel": "5.4.238-1-d4a7d36962bb6218ebd94bf040ac560e",
+      "backend": "legacy-xtables",
+      "image_evidence": "docs/evidence/glinet-flint2-4.11.0.json",
+      "image_sha256": "4004632eaf516fd2844be0e5595b6e4171d243181ff49b81569b986c79007dae",
+      "image_size": 83146618,
+      "sdk_candidate": {
+        "repository": "https://github.com/gl-inet-builder/openwrt-sdk-mt7981",
+        "revision": "a33235b199d59d50b6acf576ee1253d9f17fc688",
+        "qualification": "userspace_candidate_only_not_matching_sdk"
+      },
+      "private_runtime_experiment": "platforms/private-runtime-experiment.json"
+    }
+  ]
+}

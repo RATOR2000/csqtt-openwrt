@@ -41,9 +41,10 @@ return view.extend({
 			call.remove = function() {};
 			self.callOptions.push(call);
 		});
-		o = s.taboption('advanced', form.ListValue, 'workers', 'Число потоков', 'Начните с 9. Больше потоков расходуют больше памяти. На каждый хеш доступно до 27 потоков, всего до 126.');
+		o = s.taboption('advanced', form.ListValue, 'workers', 'Число потоков', 'Автоматический профиль начинает с 9 потоков. Больше потоков расходуют больше памяти. На каждый хеш доступно до 27 потоков, всего до 126.');
+		o.value('auto', 'Автоматически — 9 потоков');
 		for (var n = 9; n <= 126; n += 9) o.value(String(n));
-		o.default = '9'; o.rmempty = false; this.workersOption = o;
+		o.default = 'auto'; o.rmempty = false; this.workersOption = o;
 		o = s.taboption('advanced', form.ListValue, 'obfs', 'Маскировка');
 		o.value('video', 'Видеозвонок'); o.value('audio', 'Аудиозвонок'); o.default = 'video'; o.rmempty = false;
 		o = s.taboption('advanced', form.ListValue, 'turn_transport', 'Транспорт TURN');
@@ -106,7 +107,7 @@ return view.extend({
 			ui.addNotification(null, E('p', {}, 'Добавьте локальный интерфейс, например br-lan.'), 'error');
 			return Promise.reject(new Error('Некорректные локальные интерфейсы.'));
 		}
-		var links = this.callValues('main'), values = links.map(model.normalizeHash), workers = Number(this.workersOption.formvalue('main'));
+		var links = this.callValues('main'), values = links.map(model.normalizeHash), selectedWorkers = this.workersOption.formvalue('main'), workers = selectedWorkers === 'auto' ? 9 : Number(selectedWorkers);
 		if (!links.every(model.validCallLink) || !model.validHashes(values)) {
 			ui.addNotification(null, E('p', {}, 'Добавьте от одной до шести разных полных ссылок на звонки VK.'), 'error');
 			return Promise.reject(new Error('Некорректные ссылки на звонки.'));

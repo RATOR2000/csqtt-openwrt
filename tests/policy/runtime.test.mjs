@@ -284,6 +284,7 @@ csqtt_operation_release() { :; }
 nft() { case "$1" in -c|list) return 1 ;; *) return 0 ;; esac; }
 ucode() {
   case "$2" in
+    platform-check) return 0 ;;
     compile)
       printf 1 > "$3/active"
       printf 'saved maintenance guard\\n' > "$3/hold.nft"
@@ -298,6 +299,7 @@ ucode() {
       .replace('RUN=/var/run/csqtt', `RUN='${dir}/run'`)
       .replace('STATE=/etc/csqtt', `STATE='${dir}/state'`)
       .replace('. /usr/libexec/csqtt/lifecycle.sh', '')
+      .replace('case "${1:-}" in', 'refresh_platform() { :; }\ncase "${1:-}" in')
       .replaceAll('/var/lock', `${dir}/lock`);
     const script = `${dir}/manage`; fs.writeFileSync(script, manage);
     const failed = spawnSync(shell, [script, 'apply'], { encoding: 'utf8' });

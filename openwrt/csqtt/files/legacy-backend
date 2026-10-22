@@ -1,0 +1,120 @@
+#!/bin/sh
+# Experimental qualification adapter for the audited GL-MT6000 4.11 stack.
+# Production activation stays refused by runtime platform-check until native
+# firewall/hotplug/acceleration and packet-leak qualification is recorded.
+set -eu
+umask 077
+RUN=/var/run/csqtt
+STATE=/etc/csqtt
+UCODE=ucode
+[ ! -x /usr/libexec/csqtt/ucode ] || UCODE=/usr/libexec/csqtt/ucode
+runtime() { "$UCODE" /usr/share/csqtt/runtime.uc "$@"; }
+die() { logger -t csqtt 'Legacy backend operation failed; protection retained'; exit 1; }
+
+legacy_admission() {
+	# This adapter is intentionally not a public RPC method or package hook.
+	. /usr/libexec/csqtt/lifecycle.sh
+	csqtt_operation_owned || die
+	runtime platform-check >/dev/null 2>&1 || die
+	[ "$(runtime platform-backend)" = legacy-xtables ] || die
+}
+acceleration_off() {
+	# The vendor hotplug scripts can re-enable HNAT on L2TP/PPTP changes.
+	# Reject those configurations, along with competing vendor multipath/VPNs.
+	uci -q show network | grep -Eq "\.proto='(l2tp|pptp)'" && die
+	[ "$(uci -q get mptun.global.enable || true)" != 1 ] || die
+	for service in vpn-client openvpn; do
+		[ ! -x "/etc/init.d/$service" ] || ! "/etc/init.d/$service" running >/dev/null 2>&1 || die
+	done
+	[ -w /sys/kernel/debug/hnat/hook_toggle ] || die
+	local original
+	original=$(uci -q get mtkhnat.global.enable) || die
+	case "$original" in 0|1) ;; *) die ;; esac
+	if [ ! -f "$STATE/legacy-acceleration.enable" ]; then
+		printf '%s\n' "$original" > "$STATE/legacy-acceleration.enable.new"
+		mv "$STATE/legacy-acceleration.enable.new" "$STATE/legacy-acceleration.enable"
+	fi
+	uci set mtkhnat.global.enable=0 && uci commit mtkhnat || die
+	/etc/init.d/shortcut-fe stop >/dev/null 2>&1 || die
+	printf '0\n' > /sys/kernel/debug/hnat/hook_toggle || die
+	[ "$(cat /sys/kernel/debug/hnat/hook_toggle)" = 0 ] || die
+	for module in shortcut_fe_drv shortcut_fe_cm fast_classifier; do
+		[ ! -d "/sys/module/$module" ] || die
+	done
+}
+acceleration_restore() {
+	[ -f "$STATE/legacy-acceleration.enable" ] || return 0
+	local original
+	original=$(cat "$STATE/legacy-acceleration.enable")
+	case "$original" in 0|1) ;; *) die ;; esac
+	# An administrator's later explicit change wins. Restore only our own 0.
+	if [ "$(uci -q get mtkhnat.global.enable || true)" = 0 ]; then
+		uci set "mtkhnat.global.enable=$original" && uci commit mtkhnat || die
+		/etc/init.d/mtk-hwnat-post start >/dev/null 2>&1 || die
+		/etc/init.d/shortcut-fe start >/dev/null 2>&1 || die
+	fi
+	rm -f "$STATE/legacy-acceleration.enable"
+}
+jump() {
+	local command=$1 table=$2 source=$3 target=$4
+	"$command" -w 5 -t "$table" -C "$source" -j "$target" 2>/dev/null ||
+		"$command" -w 5 -t "$table" -I "$source" 1 -j "$target" || die
+}
+hold_load() {
+	local directory=$1
+	# Separate IPv4/IPv6 tables have no cross-family atomic transaction. Keep
+	# both maintenance guards until DNS and all final rules have been checked.
+	ip6tables-restore -w 5 --noflush < "$directory/hold.v6" || die
+	ip6tables -w 5 -t filter -C FORWARD -j CSQ_HOLD 2>/dev/null ||
+		ip6tables -w 5 -t filter -I FORWARD 1 -j CSQ_HOLD || die
+	jump ip6tables filter INPUT CSQ_HOLD_DNS
+	iptables-restore -w 5 --noflush < "$directory/hold.v4" || die
+	jump iptables filter FORWARD CSQ_HOLD
+	jump iptables filter INPUT CSQ_HOLD_DNS
+}
+policy_load() {
+	local directory=$1
+	acceleration_off
+	# ipset -exist retains DNS entries across guarded reloads.
+	ipset restore < "$directory/policy.ipset" || die
+	ip6tables-restore -w 5 --test --noflush < "$directory/policy.v6" || die
+	iptables-restore -w 5 --test --noflush < "$directory/policy.v4" || die
+	ip6tables-restore -w 5 --noflush < "$directory/policy.v6" || die
+	iptables-restore -w 5 --noflush < "$directory/policy.v4" || die
+	jump iptables mangle PREROUTING CSQ_CLASS
+	jump iptables nat PREROUTING CSQ_DNS
+	jump iptables nat POSTROUTING CSQ_NAT
+	jump iptables filter FORWARD CSQ_FORWARD
+	jump iptables filter INPUT CSQ_INPUT
+	jump iptables filter OUTPUT CSQ_OUTPUT
+	jump ip6tables filter FORWARD CSQ_FORWARD
+	jump ip6tables filter INPUT CSQ_INPUT
+	# Reassert maintenance at the head after adding the ordinary policy jumps.
+	for command in iptables ip6tables; do
+		"$command" -w 5 -t filter -D FORWARD -j CSQ_HOLD || die
+		"$command" -w 5 -t filter -I FORWARD 1 -j CSQ_HOLD || die
+		"$command" -w 5 -t filter -D INPUT -j CSQ_HOLD_DNS || die
+		"$command" -w 5 -t filter -I INPUT 1 -j CSQ_HOLD_DNS || die
+	done
+}
+
+legacy_admission
+case "${1:-}" in
+	stage)
+		case "${2:-}" in /var/run/csqtt/apply.*) ;; *) die ;; esac
+		case "${2##*.}" in ''|*[!0-9]*) die ;; esac
+		hold_load "$2"
+		policy_load "$2"
+		;;
+	release)
+		runtime dns-ready >/dev/null 2>&1 || die
+		ip6tables-restore -w 5 --noflush < "$STATE/release.v6" || die
+		iptables-restore -w 5 --noflush < "$STATE/release.v4" || die
+		;;
+	restore-acceleration)
+		# Only a complete explicit deactivation may restore hardware shortcuts.
+		[ -f "$STATE/deactivated" ] || die
+		acceleration_restore
+		;;
+	*) exit 2 ;;
+esac

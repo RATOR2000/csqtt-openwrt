@@ -5,7 +5,7 @@ STOP=09
 
 start_service() {
     local address
-    address="$(ubus call network.interface.lan status 2>/dev/null | jsonfilter -e '@["ipv4-address"][0].address')"
+    address="$(/usr/libexec/csqtt/manage helper-address 2>/dev/null)"
     [ -n "$address" ] || return 0
     mkdir -p /var/run/csqtt /etc/csqtt/captcha
     chmod 0700 /var/run/csqtt /etc/csqtt/captcha
@@ -17,4 +17,7 @@ start_service() {
     procd_close_instance
 }
 
-service_triggers() { procd_add_interface_trigger "interface.*" lan /etc/init.d/csqtt-captcha restart; }
+service_triggers() {
+    # Logical interface names differ across vendor firmware and custom LANs.
+    procd_add_reload_trigger csqtt
+}

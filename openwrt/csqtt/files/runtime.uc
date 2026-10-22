@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import { cursor } from 'uci';
 import { connect } from 'ubus';
-import { compile, hold } from '/usr/share/csqtt/policy.uc';
+import { compile, hold, compile_legacy, hold_legacy, legacy_guard } from '/usr/share/csqtt/policy.uc';
 import { health_initial, health_advance, health_reserve, health_complete, health_public } from '/usr/share/csqtt/health.uc';
 
 const ROOT = '/var/run/csqtt/';
@@ -41,6 +41,70 @@ function local_domain() {
 	let domain = 'lan';
 	c.foreach('dhcp', 'dnsmasq', function(s) { if (s.domain) domain = s.domain; });
 	return lc(trim('' + domain));
+}
+// A probe describes capabilities; only an authenticated installer profile may
+// qualify a new platform. Never infer support from a marketing firmware name.
+function platform() {
+	let probe = readjson(ROOT + 'platform-probe.json', {}), installed = readjson(STATE + 'platform.json', null);
+	let result = { profile_id: 'unknown', backend: 'unknown', state: 'unqualified', reasons: [],
+		worker_profile: 'manual', workers: 9, resource: {} };
+	let fields = ['family', 'firmware', 'openwrt', 'board', 'target', 'architecture', 'package_manager', 'backend', 'kernel', 'kernel_package'];
+	for (let i = 0; i < length(fields); i++) {
+		let key = fields[i], value = probe[key];
+		if (type(value) === 'string' && length(value) <= 128 && !has_control(value, 31)) result[key] = value;
+	}
+	let resources = probe.resource || {};
+	let resource_keys = ['mem_total_kib', 'mem_available_kib', 'overlay_free_kib', 'tmp_free_kib', 'cpu_count'];
+	for (let i = 0; i < length(resource_keys); i++) {
+		let key = resource_keys[i];
+		if (match('' + resources[key], /^[0-9]+$/) && resources[key] <= 9007199254740991) result.resource[key] = resources[key];
+	}
+	let caps = probe.capabilities || {}, qualified = installed && installed.schema === 1 && installed.qualification && installed.qualification.activation === true;
+	if (qualified) for (let i = 0; i < length(fields); i++)
+		if (installed[fields[i]] !== probe[fields[i]]) qualified = false;
+	if (qualified && match(installed.profile_id || '', /^[a-z0-9][a-z0-9._-]{0,95}$/)) result.profile_id = installed.profile_id;
+	else qualified = false;
+	// Preserve the existing released target, with actual capability checks and
+	// official-family verification. Vendor firmware spoofing this tuple fails.
+	let original = !installed && probe.family === 'official' && probe.openwrt === '25.12.5' &&
+		probe.board === 'glinet,gl-mt6000' && probe.target === 'mediatek/filogic' &&
+		probe.architecture === 'aarch64_cortex-a53' && probe.package_manager === 'apk' && probe.backend === 'fw4-nft';
+	if (original) { qualified = true; result.profile_id = 'openwrt-25.12.5-filogic-aarch64'; }
+	if (!qualified) push(result.reasons, 'platform_unqualified');
+	if (caps.ucode !== true || caps.procd !== true || caps.netifd !== true) push(result.reasons, 'runtime_capability_missing');
+	if (probe.backend === 'fw4-nft') {
+		if (caps.nft !== true || caps.fw4 !== true) push(result.reasons, 'firewall_capability_missing');
+	} else {
+		// Legacy rules are rendered for qualification, but activation must wait
+		// for native firewall reload, acceleration and packet-leak acceptance.
+		push(result.reasons, 'backend_not_qualified');
+	}
+	let dns = installed ? installed.dns_binary : '/usr/sbin/dnsmasq';
+	if (!includes(['/usr/sbin/dnsmasq', '/usr/libexec/csqtt/dnsmasq'], dns) || !fs.stat(dns)) push(result.reasons, 'dns_binary_missing');
+	if (probe.backend === 'fw4-nft' && dns === '/usr/sbin/dnsmasq' && caps.dnsmasq_nftset !== true) push(result.reasons, 'dns_capability_missing');
+	result.dns_mode = dns === '/usr/libexec/csqtt/dnsmasq' ? 'private' : 'system';
+	result.state = length(result.reasons) ? 'unqualified' : 'qualified';
+	let configured = c.get('csqtt', 'main', 'workers');
+	result.worker_profile = configured === 'auto' ? 'automatic_conservative' : 'manual';
+	result.workers = match('' + configured, /^[0-9]+$/) && +configured >= 9 && +configured <= 126 && +configured % 9 === 0 ? +configured : 9;
+	// No fabricated RAM thresholds: 9 is the protocol's existing minimum.
+	// Higher automatic tiers require separately recorded device measurements.
+	return result;
+}
+function helper_address() {
+	let net = network(), lans = list(c.get('csqtt', 'main', 'lan_device') || 'br-lan');
+	for (let i = 0; i < length(net.interface || []); i++) {
+		let intf = net.interface[i];
+		if (intf.up === false || !includes(lans, intf.l3_device || intf.device)) continue;
+		for (let j = 0; j < length(intf['ipv4-address'] || []); j++) {
+			let address = intf['ipv4-address'][j].address, parts = split(address || '', '.');
+			if (length(parts) !== 4 || +parts[0] === 0 || +parts[0] === 127 || +parts[0] >= 224) continue;
+			let valid = true;
+			for (let k = 0; k < 4; k++) if (!match(parts[k], /^(0|[1-9][0-9]{0,2})$/) || +parts[k] > 255) valid = false;
+			if (valid) return address;
+		}
+	}
+	return null;
 }
 function input() {
 	let m = c.get_all('csqtt', 'main') || {}, subnets = [], net = network();
@@ -103,7 +167,7 @@ function client(main) {
 		else for (let j = 0; j < i; j++) if (hashes[i] === hashes[j]) die('Duplicate VK hash');
 	if (main.enabled === '1' && (!length(peer) || length(password) < 4 || !length(hashes)))
 		die('Enabled client needs peer, password and VK hashes');
-	let workers = integer(main.workers, 9, 9, 126, 'workers');
+	let workers = main.workers === 'auto' ? 9 : integer(main.workers, 9, 9, 126, 'workers');
 	if (workers % 9 || (length(hashes) && workers > length(hashes) * 27)) die('Workers must be a multiple of nine within hash capacity');
 	if (main.tun_device && main.tun_device !== 'csqtt0') die('TUN device must be csqtt0');
 	let cfg = { peer: peer, password: password, vk_hashes: hashes,
@@ -378,6 +442,7 @@ function status() {
 	let model = readjson(STATE + 'policy.json', { devices: [], groups: [] });
 	let ctx = health_context(false), public_health = health_public(readjson(ROOT + 'health-state.json', null), ctx);
 	return { core: core, running: running, enabled: c.get('csqtt', 'main', 'enabled') === '1',
+		platform: platform(),
 		health: public_health.health, recovery: public_health.recovery,
 		local_domain: local_domain(),
 		policies_active: length(model.devices || []) > 0 && !fs.stat(STATE + 'deactivated'),
@@ -531,6 +596,18 @@ if (mode === 'compile') {
 	let path = ARGV[1];
 	if (!match(path || '', /^\/var\/run\/csqtt\/apply\.[0-9]+$/)) die('Invalid staging path');
 	let data = input(), result = compile(data), cfg = client(data.main), previous = readjson(STATE + 'policy.json', null);
+	if (platform().backend === 'legacy-xtables') {
+		let legacy = compile_legacy(data);
+		save(path + '/policy.v4', legacy.ipv4); save(path + '/policy.v6', legacy.ipv6);
+		save(path + '/policy.ipset', legacy.ipset);
+		save(path + '/hold.v4', hold_legacy([previous, legacy.model], true, false));
+		save(path + '/hold.v6', hold_legacy([previous, legacy.model], true, true));
+		save(path + '/release.v4', hold_legacy([], false, false));
+		save(path + '/release.v6', hold_legacy([], false, true));
+		save(path + '/hold.guard.nft', legacy_guard([previous, legacy.model], true));
+		save(path + '/release.guard.nft', legacy_guard([legacy.model], false));
+		result.dns = legacy.dns;
+	}
 	save(path + '/policy.nft', result.nft);
 	save(path + '/hold.nft', hold([previous, result.model], true));
 	save(path + '/release.nft', hold([], false));
@@ -551,12 +628,24 @@ if (mode === 'compile') {
 		if (includes(macs, devs[i].mac) && match(devs[i].ip, /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/)) push(addresses, devs[i].ip);
 	save(path + '/flush.ips', join('\n', addresses) + '\n');
 } else if (mode === 'firewall-on') firewall(true);
+else if (mode === 'render-legacy') {
+	let data = input(), result = compile_legacy(data), previous = readjson(STATE + 'policy.json', null);
+	output({ ipv4: result.ipv4, ipv6: result.ipv6, ipset: result.ipset, dns: result.dns,
+		guard: legacy_guard([result.model], false), hold_guard: legacy_guard([previous, result.model], true),
+		hold_ipv4: hold_legacy([previous, result.model], true, false), hold_ipv6: hold_legacy([previous, result.model], true, true),
+		release_ipv4: hold_legacy([], false, false), release_ipv6: hold_legacy([], false, true) });
+}
 else if (mode === 'firewall-off') firewall(false);
 else if (mode === 'firewall-hold') firewall_hold();
 else if (mode === 'status') output(status());
+else if (mode === 'platform') output(platform());
+else if (mode === 'platform-backend') { let backend = platform().backend; if (!includes(['fw4-nft', 'legacy-xtables'], backend)) exit(1); printf('%s\n', backend); }
+else if (mode === 'platform-check') { if (platform().state !== 'qualified') exit(1); }
+else if (mode === 'helper-address') { let address = helper_address(); if (!address) exit(1); printf('%s\n', address); }
 else if (mode === 'devices') output({ devices: devices() });
 else if (mode === 'diagnostics') {
 	let s = status(), model = readjson(STATE + 'policy.json', { groups: [] }), checks = [];
+	push(checks, { name: 'platform', ok: s.platform.state === 'qualified', detail: s.platform.state === 'qualified' ? 'Platform qualified' : 'Platform activation is blocked' });
 	push(checks, { name: 'policy', ok: !length(s.policy_error), detail: s.policy_error || 'Policy configuration loaded' });
 	push(checks, { name: 'tun', ok: s.running && s.core.state === 'connected' && !s.core.error_code,
 		detail: s.core.error_code || s.core.state || 'stopped' });

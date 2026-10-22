@@ -6,7 +6,8 @@
 
 var checks = {
 	config: ['Настройки подключения', 'Проверьте адрес сервера, пароль, хеши и число потоков.'],
-	dnsmasq: ['DNS с поддержкой nftset', 'Нужен пакет dnsmasq-full с поддержкой nftset.'],
+	dnsmasq: ['DNS групп', 'Проверьте выбранный DNS-компонент и запуск службы csqtt-dns.'],
+	platform: ['Совместимость платформы', 'Эта прошивка или набор сетевых компонентов ещё не прошли приёмку CSQTT. Активация заблокирована.'],
 	dnsmasq_nftset: ['DNS с поддержкой nftset', 'Нужен пакет dnsmasq-full с поддержкой nftset.'],
 	tun: ['Интерфейс TUN', 'Проверьте установку kmod-tun и состояние соединения.'],
 	transport: ['Клиент туннеля', 'Проверьте настройки и состояние соединения.'],
@@ -23,6 +24,12 @@ function summary(result) {
 		['Соединение', model.stateLabel(core.state)],
 		['Защита политик', status.policies_active === true ? 'Включена' : 'Не активна']
 	];
+	if (status.platform) {
+		var platform = status.platform;
+		rows.push(['Платформа', platform.state === 'qualified' ? 'Совместимость подтверждена' : 'Совместимость не подтверждена']);
+		rows.push(['Профиль потоков', platform.worker_profile === 'automatic_conservative' ? 'Автоматически — 9 потоков' : 'Ручной выбор']);
+		rows.push(['DNS групп', platform.dns_mode === 'private' ? 'Отдельный компонент CSQTT' : 'Системный компонент']);
+	}
 	(Array.isArray(result.checks) ? result.checks : []).forEach(function(check) {
 		var entry = Object.prototype.hasOwnProperty.call(checks, check.name) ? checks[check.name] :
 			(typeof check.name === 'string' && /^dns_[A-Za-z0-9_]+$/.test(check.name) ? ['DNS группы', 'Проверьте запуск DNS для групп в службе csqtt-dns.'] : null);

@@ -13,7 +13,10 @@ case "$APK" in /*) ;; *) die 'Pass an absolute SDK apk path.' ;; esac
 [ "$(id -u)" = 0 ] || die 'Run this isolated native check as root in the Linux CI job.'
 PACKAGE_DIR=$(cd "$2" && pwd -P)
 ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
-for TOOL in openssl python3 sha256sum cp find grep cmp qemu-aarch64; do command -v "$TOOL" >/dev/null || die "Missing host tool: $TOOL"; done
+PACKAGE_ARCH=${CSQTT_PACKAGE_ARCH:-aarch64_cortex-a53}
+EMULATOR=${CSQTT_EMULATOR:-qemu-aarch64}
+case "$PACKAGE_ARCH:$EMULATOR" in aarch64_cortex-a53:qemu-aarch64|x86_64:qemu-x86_64) ;; *) die 'Unsupported package ABI/emulator tuple.' ;; esac
+for TOOL in openssl python3 sha256sum cp find grep cmp "$EMULATOR"; do command -v "$TOOL" >/dev/null || die "Missing host tool: $TOOL"; done
 set -- "$PACKAGE_DIR"/*.apk
 [ "$#" -eq 3 ] || die 'Expected exactly three compiled SDK APKs.'
 TMP=$(mktemp -d /tmp/csqtt-native-apk.XXXXXX)
@@ -69,11 +72,12 @@ done
 [ -n "$CORE" ] && [ -n "$CAPTCHA" ] && [ -n "$LUCI" ] || die 'Missing SDK package kind.'
 sha256sum "$PACKAGE_DIR"/*.apk > "$TMP/sdk-after.sha256"
 cmp "$TMP/sdk-before.sha256" "$TMP/sdk-after.sha256"
-python3 - "$TMP/extracted" "$ROOT" <<'NATIVE_APK_PAYLOAD'
-import json, pathlib, re, stat, sys
-extracted, source = map(pathlib.Path, sys.argv[1:])
+python3 - "$TMP/extracted" "$ROOT" "$PACKAGE_ARCH" <<'NATIVE_APK_PAYLOAD'
+import json, os, pathlib, re, stat, sys
+extracted, source = map(pathlib.Path, sys.argv[1:3])
+package_arch = sys.argv[3]
 packages = {
-    'core': ('csqtt', 'aarch64_cortex-a53', {
+    'core': ('csqtt', package_arch, {
         'kmod-tun', 'ip-full', 'firewall4', 'nftables-json', 'dnsmasq-full',
         'ucode', 'ucode-mod-fs', 'ucode-mod-uci', 'ucode-mod-ubus', 'jsonfilter', 'conntrack',
     }, {
@@ -87,7 +91,7 @@ packages = {
         'usr/share/csqtt/policy.uc': 0o644, 'usr/share/csqtt/runtime.uc': 0o644,
         'usr/share/licenses/csqtt/LICENSE': 0o644,
     }),
-    'captcha': ('csqtt-captcha', 'aarch64_cortex-a53', {'csqtt', 'ca-bundle'}, {
+    'captcha': ('csqtt-captcha', package_arch, {'csqtt', 'ca-bundle'}, {
         'usr/bin/csqtt-captcha': 0o755, 'etc/init.d/csqtt-captcha': 0o755,
         'etc/hotplug.d/iface/91-csqtt-captcha': 0o755,
     }),
@@ -101,6 +105,10 @@ packages = {
            for asset in ('api.js', 'model.js', 'style.css')},
     }),
 }
+if os.environ.get('CSQTT_PRIVATE_DNS') == '1':
+    packages['core'][2].discard('dnsmasq-full')
+    packages['core'][3]['usr/libexec/csqtt/dnsmasq'] = 0o755
+packages['core'][3]['usr/libexec/csqtt/platform-probe'] = 0o755
 for kind, (name, architecture, dependencies, files) in packages.items():
     info = json.loads((extracted / (kind + '.json')).read_text())['info']
     assert info['name'] == name and info['arch'] == architecture, name + ': metadata mismatch'
@@ -118,8 +126,13 @@ assert (extracted / 'core/usr/share/licenses/csqtt/LICENSE').read_bytes() == (so
 assert (extracted / 'core/etc/config/csqtt').read_bytes() == (source / 'openwrt/csqtt/files/csqtt.config').read_bytes(), 'Default private UCI configuration mismatch'
 print('native APK: required payloads, permissions, architecture, dependencies and upstream license passed.')
 NATIVE_APK_PAYLOAD
-python3 "$ROOT/scripts/test-arm64.py" "$TMP/extracted/core/usr/bin/csqtt-client" "$TMP/extracted/captcha/usr/bin/csqtt-captcha"
-python3 "$ROOT/scripts/test-arm64-tun.py" "$TMP/extracted/core/usr/bin/csqtt-client"
+if [ -n "${CSQTT_PLATFORM_PROFILE:-}" ]; then
+    python3 "$ROOT/scripts/test-platform.py" --profile "$CSQTT_PLATFORM_PROFILE" "$TMP/extracted/core/usr/bin/csqtt-client" "$TMP/extracted/captcha/usr/bin/csqtt-captcha"
+    python3 "$ROOT/scripts/test-arm64-tun.py" "$TMP/extracted/core/usr/bin/csqtt-client" --profile "$CSQTT_PLATFORM_PROFILE"
+else
+    python3 "$ROOT/scripts/test-arm64.py" "$TMP/extracted/core/usr/bin/csqtt-client" "$TMP/extracted/captcha/usr/bin/csqtt-captcha"
+    python3 "$ROOT/scripts/test-arm64-tun.py" "$TMP/extracted/core/usr/bin/csqtt-client"
+fi
 # These synthetic packages exercise the same conflict, dependency and cache
 # mechanics as the installer. No architecture-specific payload is executed.
 mkdir -p "$TMP/payloads/old/usr/share/csqtt-native-test" "$TMP/payloads/full/usr/share/csqtt-native-test" "$TMP/payloads/dependency/usr/share/csqtt-native-test" "$TMP/payloads/app/usr/share/csqtt-native-test"
@@ -145,7 +158,7 @@ make_fixture() {
     else
         set -- --sign-key "$TMP/signing.pem" mkpkg "$@"
     fi
-    tools_apk --compression none "$@" --output "$TMP/repo/$name-1.0-r1.apk" --files "$TMP/payloads/$payload" --info "name:$name" --info version:1.0-r1 --info arch:aarch64_cortex-a53 --info license:MIT --info 'description:isolated native APK fixture' --script "post-install:$TMP/post-install"
+    tools_apk --compression none "$@" --output "$TMP/repo/$name-1.0-r1.apk" --files "$TMP/payloads/$payload" --info "name:$name" --info version:1.0-r1 --info "arch:$PACKAGE_ARCH" --info license:MIT --info 'description:isolated native APK fixture' --script "post-install:$TMP/post-install"
     if [ "$unsigned" = 1 ]; then
         if tools_apk verify "$TMP/repo/$name-1.0-r1.apk" > "$TMP/original-unsigned.txt" 2>&1; then die 'The original DNS fixture unexpectedly has a trusted standalone signature.'; fi
     else
@@ -213,19 +226,19 @@ root_apk() {
     root=$1
     shift
     case "$root" in "$TMP/"*) ;; *) die 'APK root escaped the disposable directory.' ;; esac
-    "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-scripts "$@"
+    "$APK" --root "$root" --arch "$PACKAGE_ARCH" --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-scripts "$@"
 }
 root_read_apk() {
     root=$1
     shift
     case "$root" in "$TMP/"*) ;; *) die 'Read-only APK root escaped the disposable directory.' ;; esac
-    "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk "$@"
+    "$APK" --root "$root" --arch "$PACKAGE_ARCH" --keys-dir etc/apk/keys --cache-dir var/cache/apk "$@"
 }
 root_query() {
     root=$1
     case "$root" in "$TMP/"*) ;; *) die 'Query root escaped the disposable directory.' ;; esac
     # Unlike info, query requires a selection term; no arguments return [].
-    "$APK" --root "$root" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network query --installed --all-matches --fields name,version,status --format json '*'
+    "$APK" --root "$root" --arch "$PACKAGE_ARCH" --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network query --installed --all-matches --fields name,version,status --format json '*'
 }
 # OpenWrt signs its index rather than individual DNS APKs. Cache the signed
 # index and its authenticated package identity before any DNS replacement.
@@ -243,7 +256,7 @@ fetch_original() {
     fetch_version=$1
     fetch_output=$2
     shift 2
-    "$APK" --root "$FETCH_ROOT" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --repositories-file "$FETCH_ROOT/etc/apk/repositories" fetch "$@" --output "$fetch_output" "csqtt-native-old=$fetch_version"
+    "$APK" --root "$FETCH_ROOT" --arch "$PACKAGE_ARCH" --keys-dir etc/apk/keys --cache-dir var/cache/apk --repositories-file "$FETCH_ROOT/etc/apk/repositories" fetch "$@" --output "$fetch_output" "csqtt-native-old=$fetch_version"
 }
 # An unconstrained name distinguishes a missing index from the separate
 # name=version matching bug in the ordinary APK 3.0.5 query.
@@ -349,7 +362,7 @@ cmp "$TMP/baseline.json" "$TMP/baseline-after-guards.json"
 cmp "$TMP/original-world" "$BASE/etc/apk/world"
 echo 'native APK: unsigned DNS metadata and payload corruption rejected before replacement; original installed state and world preserved.'
 # Exercise the installer's read-only preflight command against the real CLI.
-"$APK" --root "$BASE" --arch aarch64_cortex-a53 --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network info --from installed > "$TMP/installed-names.txt"
+"$APK" --root "$BASE" --arch "$PACKAGE_ARCH" --keys-dir etc/apk/keys --cache-dir var/cache/apk --no-network info --from installed > "$TMP/installed-names.txt"
 [ "$(cat "$TMP/installed-names.txt")" = csqtt-native-old ] || die 'Installed-package name query differs from installer assumptions.'
 if root_apk "$BASE" add --simulate "$TMP/repo/csqtt-native-broken-1.0-r1.apk" > "$TMP/missing-dependency.txt" 2>&1; then die 'An unsatisfied dependency was accepted.'; fi
 if root_apk "$BASE" add --simulate "$TMP/app.apk" csqtt-native-full > "$TMP/conflict.txt" 2>&1; then die 'DNS provider conflict was not detected.'; fi

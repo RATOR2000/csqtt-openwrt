@@ -1,0 +1,175 @@
+name: Candidate platform SDK checks
+on:
+  push:
+    branches: [codex/csqtt-openwrt]
+    paths:
+      - platforms/**
+      - scripts/platforms.py
+      - scripts/build-sdk.sh
+      - scripts/binary_abi.py
+      - scripts/platform-probe.sh
+      - scripts/private-runtime.py
+      - scripts/build-private-runtime.sh
+      - scripts/test-platform.py
+      - scripts/test-native-*.py
+      - scripts/test-native-*.sh
+      - scripts/test-arm64-tun.py
+      - tests/platforms/**
+      - tests/firmware/**
+      - tests/installer/**
+      - tests/policy/**
+      - openwrt/**
+      - vendor/csqtt/rust-client/**
+      - .github/workflows/portability-build.yml
+      - scripts/resource-report.py
+      - scripts/measure-resources.sh
+      - scripts/release_schema.py
+      - scripts/release-manifest.py
+      - scripts/verify-release.py
+      - scripts/catalogue.py
+      - install.sh
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.8'
+          cache: false
+      - name: Platform and installer contracts
+        run: |
+          python3 tests/platforms/platforms_test.py
+          python3 tests/firmware/firmware_test.py
+          python3 tests/firmware/resources_test.py
+          python3 tests/release/release_test.py
+          python3 tests/installer/installer_test.py
+          node --test tests/policy/*.test.* tests/luci/*.test.*
+          bash -n scripts/build-sdk.sh
+          bash -n scripts/build-private-runtime.sh
+          sh -n scripts/test-native-apk.sh
+          sh -n scripts/measure-resources.sh
+      - name: Existing broker regression checks
+        working-directory: captcha-broker
+        run: |
+          go test -race ./...
+          go vet ./...
+  native-policy:
+    needs: contracts
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: portability-native-policy-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Native policy dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libjson-c-dev libnftables-dev pkg-config nftables iproute2 iptables ipset conntrack
+          git init .work/ucode
+          git -C .work/ucode remote add origin https://github.com/jow-/ucode.git
+          git -C .work/ucode fetch --depth=1 origin 85922056ef7abeace3cca3ab28bc1ac2d88e31b1
+          git -C .work/ucode checkout --detach FETCH_HEAD
+          cmake -S .work/ucode -B .work/ucode/build -DFS_SUPPORT=ON -DUBUS_SUPPORT=OFF -DUCI_SUPPORT=OFF -DULOOP_SUPPORT=OFF -DNL80211_SUPPORT=OFF -DRTNL_SUPPORT=OFF -DRESOLV_SUPPORT=OFF -DZLIB_SUPPORT=OFF -DDIGEST_SUPPORT=OFF -DLOG_SUPPORT=OFF
+          cmake --build .work/ucode/build -j2
+          curl --fail --location --retry 3 https://thekelleys.org.uk/dnsmasq/dnsmasq-2.93.tar.xz -o .work/dnsmasq.tar.xz
+          echo '0c00d4e5c97c8306e5fb932b348b34269c9c29a0e7df0e8e82958b407092bc19  .work/dnsmasq.tar.xz' | sha256sum -c -
+          tar -xf .work/dnsmasq.tar.xz -C .work
+          make -C .work/dnsmasq-2.93 -j2 COPTS=-DHAVE_NFTSET
+      - name: Existing native runtime and firewall regression
+        run: bash scripts/test-native-policy.sh
+      - name: Native legacy renderer and independent guard checks
+        run: bash scripts/test-native-legacy.sh
+  private-runtime-experiment:
+    needs: contracts
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: private-runtime-experiment-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Experimental userspace build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake gawk gettext git libncurses-dev libssl-dev python3 python3-setuptools qemu-user rsync swig unzip zlib1g-dev file wget xz-utils pkg-config
+      - name: Pinned private loader and ucode module experiment
+        run: bash scripts/build-private-runtime.sh
+      - name: Compress experimental diagnostics
+        if: always()
+        run: |
+          for log in .work/private-runtime/*.log; do
+            [ ! -f "$log" ] || gzip -f "$log"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unqualified-private-runtime-experiment
+          path: |
+            dist/glinet-4.11-arm64-private-runtime-experiment/**
+            .work/private-runtime/*.log.gz
+  sdk:
+    needs: contracts
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: portability-${{ github.ref }}-${{ matrix.profile }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        profile:
+          - official-24.10.8-mediatek-filogic-aarch64_cortex-a53
+          - official-24.10.8-x86-64-x86_64
+          - official-25.12.6-mediatek-filogic-aarch64_cortex-a53
+          - official-25.12.6-x86-64-x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.8'
+          cache: false
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang cmake ninja-build gawk gettext git iproute2 kmod libncurses-dev libssl-dev python3 python3-setuptools qemu-user rsync swig unzip zlib1g-dev file wget zstd
+          sudo modprobe tun
+          test -c /dev/net/tun
+          rustup toolchain install 1.97.1 --profile minimal
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            .work/cargo/${{ matrix.profile }}
+          key: portability-cargo-${{ runner.os }}-${{ matrix.profile }}-1.97.1-${{ hashFiles('vendor/csqtt/rust-client/Cargo.lock') }}
+      - name: Candidate SDK package, static ISA and isolated TUN checks
+        env:
+          CSQTT_PROFILE: ${{ matrix.profile }}
+          CSQTT_PACKAGE_RELEASE: '1'
+        run: bash scripts/build-sdk.sh
+      - name: Compress SDK diagnostics
+        if: always()
+        run: |
+          for log in .work/sdk/*.log; do
+            [ ! -f "$log" ] || gzip -f "$log"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: candidate-${{ matrix.profile }}
+          path: |
+            dist/${{ matrix.profile }}/*.apk
+            dist/${{ matrix.profile }}/*.ipk
+            dist/${{ matrix.profile }}/*manifest.json
+            dist/${{ matrix.profile }}/SHA256SUMS
+            .work/sdk/*.log.gz
+      # These unsigned artifacts are build evidence only. This workflow has no
+      # release/signing permissions, activation step or qualification mutation.

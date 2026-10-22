@@ -35,13 +35,35 @@ The actual image reports OpenWrt21.02-SNAPSHOT r15812+1095-46b6ee7ffc,
 mediatek/mt7986/aarch64_cortex-a53 and kernel
 5.4.238-1-d4a7d36962bb6218ebd94bf040ac560e. It ships fw3, iptables1.8.7,
 ipset7.6, dnsmasq-full2.92-7, kmod-tun, OpenSSL1.1.1t and signed-index opkg
-configuration. No installed ucode, firewall4, nftables or LuCIbase;27 LuCI IPKs
+configuration. No installed ucode, firewall4 or LuCIbase;27 LuCI IPKs
 are bundled separately. Exact matching SDK/private runtime remains a build gate.
+CORRECTION after complete variant enumeration: `nftables-nojson0.9.6-3`, nft
+binary and kmod-nft-core ARE present. The initial exact-name package lookup
+missed the nojson variant. This enables investigating an independent nft safety
+table surviving fw3's xtables flush; it does not prove syntax/kernel semantics.
 
 Vendor DNS and firewall are integrated with the GL panel. Hardware acceleration
 uses mtkhnat with `/sys/kernel/debug/hnat/hook_toggle` and interface hooks;
 ordinary fw4 flow-offload settings alone cannot establish fail-closed routing.
 Installing official OpenWrt25 firewall/modules/libraries on this image is forbidden.
+
+## Resource measurements
+
+`scripts/measure-resources.sh PID SCENARIO [SAMPLES [SECONDS]]` is a manual,
+read-only router tool for the owner after migration or a separate test device.
+It verifies the installed client executable and unchanged kernel process start
+time. Output is bounded JSONL containing RSS/HWM, raw process/host CPU ticks,
+available RAM and boot time. It never reads command lines, generates traffic,
+starts authorization, causes recovery or changes configuration. Scenario names
+`idle`, `auth`, `traffic`, `recovery` describe owner-controlled experiments.
+Capture exit status as well as output; a partial file is not a completed run.
+
+Use `scripts/resource-report.py FILE...` to reject counter resets, PID reuse,
+sample gaps and impossible values and produce per-scenario peaks. CPU fraction
+is relative to all host CPUs, not a single core. This report cannot establish
+throughput, workload coverage or native safety qualification on its own.
+The current automatic worker profile remains the existing minimum9 until real
+measurements justify additional tiers; no claimed RAM minimum is inferred.
 
 ## Required acceptance
 

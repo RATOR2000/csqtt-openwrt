@@ -1,11 +1,40 @@
 # Development status — resume here
 
-Updated 2026-10-20. Read this first, then IMPLEMENTATION.md.
+Updated 2026-10-22. Read this first, then IMPLEMENTATION.md.
 Files, Git and current router evidence are authoritative. Preserve owner settings.
 Older detailed history is retained in Git at c509a1d1ad8d2126b86c2a1e502e46840b92cf86:
 https://github.com/RATOR2000/csqtt-openwrt/blob/c509a1d1ad8d2126b86c2a1e502e46840b92cf86/docs/STATUS.md
 
-## First unfinished action — portable installer and GL.iNet Stable
+## First unfinished action — official OpenWrt one-command preview
+
+USER APPROVED replacement plan2026-10-22: official OpenWrt24.10/25.12 only,
+no board lock; ARM64/x86_64 thenARMv7, MIPS remains a distinct feasibility gate.
+ONE README command installs dependencies/client/LuCI; first setup in browser.
+GLvendor firmware priority CANCELLED. Preserve its unfinished experiments in
+checkpoint/history; exclude vendor private-runtime/legacy stack from new release.
+Owner will personally install the published release: NO remote install/update,
+reboot, activation, faults or service/config changes. New SSH alias is `router`;
+only agreed readonly inspections allowed. NO Codex scheduled tasks.
+
+Readonly inventory22Oct: GL-MT6000, official25.12.6, mediatek/filogic,
+aarch64_cortex-a53, kernel6.12.112, APK; LuCI/firewall4/plain dnsmasq present,
+CSQTT and kmod-tun absent, no /etc/glversion. Old72h collector directory absent
+after owner's firmware reinstall. Old72h is INCOMPLETE/UNVERIFIED, neverPASS.
+Do not run old reader through `openwrt-router` or silently start a new window.
+GitHub default main README currently only2lines; user docs live on dev branch.
+
+Baseline HEAD735b9cc(local ahead1), remote6276190. Preserve ALL unfinished
+portable source as explicitly untested checkpoint before further changes.
+Audit found actual blockers: preinstalled-only verifier/dependency bootstrap,
+no dependency closure production, forbidden even exact-kernel TUN bundle,
+no persisted interruption recovery/schema1r9 migration, all profiles unqualified,
+unsigned candidate-only publication, missing portable tests/generated consistency,
+workflow wrong catalogue path/missing nativelegacy script. No new CI run yet.
+Next: finish official-only installer and signed dependency path, LuCI wizard,
+native clean OpenWrt24/25 tests, signed preview publication and main README.
+Never certify a profile just by changing qualification booleans.
+
+## Historical2026-10-20 vendor work — superseded, retained as checkpoint
 
 USER APPROVED portability plan 2026-10-20: first latest global/US Stable Flint2
 and subsequent qualified firmware updates, then official OpenWrt24.10/25.12 on
@@ -20,7 +49,11 @@ Baseline clean1add9ff. Offline official4.11.0 image inspected without execution:
 OpenWrt21.02-SNAPSHOT r15812+1095-46b6ee7ffc; mediatek/mt7986;
 aarch64_cortex-a53; kernel5.4.238-1-d4a7d36962bb6218ebd94bf040ac560e.
 fw3/iptables1.8.7/ipset7.6, dnsmasq-full2.92-7 and kmod-tun installed;
-ucode/fw4/nftables/LuCIbase NOT installed.27 LuCIipks bundled in factory image.
+ucode/fw4/LuCIbase NOT installed.27 LuCIipks bundled in factory image.
+CORRECTION after variant enumeration: nftables-nojson0.9.6-3 and nft binary plus
+kmod-nft-core ARE installed. Initial exact-name lookup missed the nojson variant.
+Legacy firewall remains fw3. Investigate an independent nft safetytable because
+fw3flush may remove xtables-only guards. Source/native qualification still held.
 mtkhnat acceleration enabled; vendor hooks can change packet path.
 This is image evidence, NOT native compatibility/installation/traffic proof.
 Reproducible audit: scripts/inspect-glinet-firmware.py and
@@ -41,8 +74,18 @@ Image audit milestone: exact digest re-read through the inspector;5/5 offline
 evidence/security tests PASS (tests/firmware/firmware_test.py): metadata ambiguity,
 shell-as-data rejection, oversized input before read, wrong digest before parse,
 and no native qualification inferred from the reference image. No router access.
+Audit/contract checkpoint pushed62761908840f4e425f33c198ec2bbace6767a3a8
+through GitHub connector; credential-free fetch/local tree equality verified.
+Manual resource collector/report source added;4/4 resource evidence tests PASS
+(PIDreuse/gaps/counterreset/impossiblemetrics/noautomaticqualification), shell
+syntax PASS. No actual measurements: owner forbids touching the main router.
 
-## Parallel observation — actual72h, manual only and router untouched
+## Historical72h observation — interrupted/unverified after owner reflash
+
+The paragraphs below describe Oct18–20 evidence, NOT current live state.
+On22Oct the router has a fresh25.12.6 image, noCSQTT and no oldcollector directory.
+Deadline passing does not prove acceptance. Preserve source/evidence without
+declaring72PASS, enabling defaultauto1 or restarting the old observation.
 
 Signed preview.9 is published, installed and passed native smoke acceptance.
 72H IS RUNNING, NOT COMPLETE. Do not reinstall or repeat completed fault/Stop tests.

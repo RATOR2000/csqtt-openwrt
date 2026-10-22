@@ -16,7 +16,8 @@ MAX_IMAGE = 256 * 1024 * 1024
 MAX_METADATA = 2 * 1024 * 1024
 PACKAGES = (
     'kernel', 'libc', 'firewall', 'firewall4', 'iptables', 'ip6tables', 'ipset',
-    'nftables', 'nftables-json', 'ucode', 'libucode', 'ucode-mod-fs',
+    'nftables', 'nftables-json', 'nftables-nojson', 'libnftnl11', 'libmnl0',
+    'kmod-nft-core', 'ucode', 'libucode', 'ucode-mod-fs',
     'ucode-mod-uci', 'ucode-mod-ubus', 'dnsmasq', 'dnsmasq-full', 'kmod-tun',
     'ip-full', 'conntrack', 'rpcd', 'luci-base', 'openssl-util', 'usign',
     'gl-sdk4-firewall', 'gl-sdk4-dns',
@@ -127,7 +128,7 @@ def inspect(image, expected_sha256=None):
     firewall = read('/etc/init.d/firewall')
     capabilities = {name: exists(path) for name, path in {
         'fw3': '/sbin/fw3', 'fw4': '/sbin/fw4', 'iptables': '/usr/sbin/iptables',
-        'ipset': '/usr/sbin/ipset', 'ucode': '/usr/bin/ucode',
+        'ipset': '/usr/sbin/ipset', 'nft': '/usr/sbin/nft', 'ucode': '/usr/bin/ucode',
         'mtk_hnat_service': '/etc/init.d/mtkhnat',
         'mtk_hnat_post_hook': '/etc/init.d/mtk-hwnat-post',
         'luci_bundled': '/etc/luci_ipks',

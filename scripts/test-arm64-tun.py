@@ -20,6 +20,9 @@ import sys
 import tempfile
 import time
 
+from binary_abi import emulator_command, validate_elf
+from platforms import load_registry, select_profile
+
 
 class CheckFailure(Exception):
     pass
@@ -185,15 +188,14 @@ def check_schema_regressions():
 def main():
     check_schema_regressions()
     require(sys.platform == 'linux' and os.geteuid() == 0, 'requires Linux root and network namespaces')
-    require(len(sys.argv) == 2, 'usage: test-arm64-tun.py SDK_CLIENT')
+    require(len(sys.argv) in (2, 4), 'usage: test-arm64-tun.py SDK_CLIENT [--profile PROFILE]')
+    require(len(sys.argv) == 2 or sys.argv[2] == '--profile', 'expected --profile')
+    profile = select_profile(load_registry(), sys.argv[3] if len(sys.argv) == 4 else None)
     binary = pathlib.Path(sys.argv[1]).resolve(strict=True)
-    with binary.open('rb') as stream:
-        header = stream.read(20)
-    require(header[:6] == b'\x7fELF\x02\x01' and len(header) == 20
-            and struct.unpack('<H', header[18:20])[0] == 183, 'expected ARM64 ELF')
-    qemu, ip = shutil.which('qemu-aarch64'), shutil.which('ip')
+    validate_elf(binary, profile)
+    qemu, ip = shutil.which(profile['emulator']['command']), shutil.which('ip')
     require(qemu and ip and pathlib.Path('/dev/net/tun').exists(),
-            'requires qemu-aarch64, iproute2 and /dev/net/tun')
+            'requires selected QEMU emulator, iproute2 and /dev/net/tun')
     namespace = 'csqtt-arm64-' + secrets.token_hex(5)
     owned_namespace = False
     processes = []
@@ -253,8 +255,8 @@ def main():
                 down_marker.unlink(missing_ok=True)
                 with (root / 'output').open('w+b') as output:
                     os.chmod(output.name, 0o600)
-                    process = subprocess.Popen([ip, 'netns', 'exec', namespace, qemu,
-                                                '-cpu', 'cortex-a53', str(binary),
+                    process = subprocess.Popen([ip, 'netns', 'exec', namespace,
+                                                *emulator_command(profile, binary),
                                                 '--config-file', str(config)],
                                                stdin=subprocess.DEVNULL, stdout=output, stderr=output,
                                                env=environment, start_new_session=True)

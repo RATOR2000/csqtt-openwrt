@@ -19,8 +19,8 @@ class ReleaseTest(unittest.TestCase):
             (self.root / f'{role}-0.1.0-r1.apk').write_bytes(b'fixture package bytes')
         self.assertEqual(self.command('release-manifest.py').returncode, 0)
 
-    def command(self, script):
-        return subprocess.run([sys.executable, str(REPO / 'scripts' / script), str(self.root)],
+    def command(self, script, *args):
+        return subprocess.run([sys.executable, str(REPO / 'scripts' / script), str(self.root), *map(str,args)],
                               capture_output=True, text=True)
 
     def change_manifest(self, change):
@@ -50,6 +50,54 @@ class ReleaseTest(unittest.TestCase):
             self.assertEqual(self.command('release-manifest.py').returncode, 0)
             self.change_manifest(change)
             self.assertNotEqual(self.command('verify-release.py').returncode, 0)
+
+    def portable_registry(self, fmt='apk', **changes):
+        profile={'id':'official-24.10.8-x86-64-x86_64','family':'official','openwrt':'24.10.8','target':'x86/64',
+                 'architecture':'x86_64','package_manager':'apk' if fmt=='apk' else 'opkg','package_format':fmt,
+                 'backend':'fw4-nft','qualification':{'installation':False,'activation':False,'reason':'unverified'}}
+        profile.update(changes)
+        path=self.root/'registry.json'
+        path.write_text(json.dumps({'schema':1,'profiles':[profile]}))
+        return profile,path
+
+    def test_portable_apk_and_ipk_exact_tuple_assets(self):
+        profile,registry=self.portable_registry()
+        result=self.command('release-manifest.py','--profile',profile['id'],'--registry',registry)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(self.command('verify-release.py').returncode,0)
+        manifest=json.loads((self.root/'manifest.json').read_text())
+        self.assertEqual(manifest['schema'],2)
+        self.assertFalse(manifest['qualification']['activation'])
+        self.assertTrue(all(p['name'].startswith(profile['id']+'--') for p in manifest['packages']))
+        for file in self.root.glob('*.apk'): file.unlink()
+        for role in ['csqtt','csqtt-captcha','luci-app-csqtt']:
+            (self.root/f'{role}_0.1.0-r2_x86_64.ipk').write_bytes(b'ipk fixture')
+        profile,registry=self.portable_registry('ipk')
+        result=self.command('release-manifest.py','--profile',profile['id'],'--registry',registry)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(self.command('verify-release.py').returncode,0)
+
+    def test_qualification_cannot_be_invented_without_evidence_and_kernel(self):
+        profile,registry=self.portable_registry(qualification={'installation':True,'activation':True})
+        self.assertNotEqual(self.command('release-manifest.py','--profile',profile['id'],'--registry',registry).returncode,0)
+        profile,registry=self.portable_registry(qualification={'installation':True,'activation':True,'evidence':['fixture']})
+        self.assertNotEqual(self.command('release-manifest.py','--profile',profile['id'],'--registry',registry).returncode,0)
+
+    def test_duplicate_json_keys_are_rejected(self):
+        path=self.root/'manifest.json'
+        path.write_text(path.read_text().replace('"schema": 1','"schema": 1, "schema": 1'))
+        self.assertNotEqual(self.command('verify-release.py').returncode,0)
+
+    def test_catalogue_requires_unique_scoped_manifests_and_signature_assets(self):
+        profile,registry=self.portable_registry()
+        self.assertEqual(self.command('release-manifest.py','--profile',profile['id'],'--registry',registry).returncode,0)
+        manifest=self.root/(profile['id']+'-manifest.json')
+        self.assertNotEqual(self.command('release-catalogue.py',manifest).returncode,0)
+        manifest.with_suffix('.sig').write_bytes(b'fixture detached signature')
+        self.assertEqual(self.command('release-catalogue.py',manifest).returncode,0)
+        catalogue=json.loads((self.root/'catalogue.json').read_text())
+        self.assertEqual(catalogue['profiles'][0]['profile_id'],profile['id'])
+        self.assertNotEqual(self.command('release-catalogue.py',manifest,manifest).returncode,0)
 
 
 if __name__ == '__main__':

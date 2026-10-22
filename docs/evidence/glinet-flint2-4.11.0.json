@@ -8,6 +8,7 @@
     "luci_bundled": true,
     "mtk_hnat_post_hook": true,
     "mtk_hnat_service": true,
+    "nft": true,
     "ucode": false
   },
   "evidence_kind": "offline_factory_image",
@@ -94,6 +95,12 @@
       "Status": "install user installed",
       "Version": "5.4.238-1-d4a7d36962bb6218ebd94bf040ac560e"
     },
+    "kmod-nft-core": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "kernel (= 5.4.238-1-d4a7d36962bb6218ebd94bf040ac560e), kmod-nfnetlink, kmod-nf-reject, kmod-nf-reject6, kmod-nf-conntrack6, kmod-nf-nat",
+      "Status": "install user installed",
+      "Version": "5.4.238-1"
+    },
     "kmod-tun": {
       "Architecture": "aarch64_cortex-a53",
       "Depends": "kernel (= 5.4.238-1-d4a7d36962bb6218ebd94bf040ac560e)",
@@ -106,10 +113,28 @@
       "Status": "install hold installed",
       "Version": "1.1.24-3"
     },
+    "libmnl0": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc",
+      "Status": "install user installed",
+      "Version": "1.0.4-2"
+    },
+    "libnftnl11": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, libmnl0",
+      "Status": "install user installed",
+      "Version": "1.1.8-2"
+    },
     "libucode": null,
     "luci-base": null,
     "nftables": null,
     "nftables-json": null,
+    "nftables-nojson": {
+      "Architecture": "aarch64_cortex-a53",
+      "Depends": "libc, kmod-nft-core, libnftnl11",
+      "Status": "install user installed",
+      "Version": "0.9.6-3"
+    },
     "openssl-util": {
       "Architecture": "aarch64_cortex-a53",
       "Depends": "libc, libopenssl1.1, libopenssl-conf",

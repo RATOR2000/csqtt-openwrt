@@ -11,7 +11,7 @@ define Package/csqtt
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CSQTT native client and guarded device policies
-  DEPENDS:=+kmod-tun +ip-full +firewall4 +nftables-json +dnsmasq-full +ucode +ucode-mod-fs +ucode-mod-uci +ucode-mod-ubus +jsonfilter +conntrack
+  DEPENDS:=+kmod-tun +ip-full +firewall4 +nftables-json $(if $(CSQTT_DNSMASQ_BINARY),+libubus +libubox +libnftnl +libmnl,+dnsmasq-full) $(if $(CSQTT_RUNTIME_DIR),,+ucode +ucode-mod-fs +ucode-mod-uci +ucode-mod-ubus) +jsonfilter +conntrack
 endef
 
 define Package/csqtt/conffiles
@@ -24,6 +24,9 @@ define Build/Prepare
 	test -n "$(CSQTT_BINARY)"
 	test -f "$(CSQTT_BINARY)"
 	$(CP) $(CSQTT_BINARY) $(PKG_BUILD_DIR)/csqtt-client
+	$(CP) $(if $(CSQTT_PLATFORM_PROBE),$(CSQTT_PLATFORM_PROBE),./files/platform-probe) $(PKG_BUILD_DIR)/platform-probe
+	$(if $(CSQTT_DNSMASQ_BINARY),test -f "$(CSQTT_DNSMASQ_BINARY)" && $(CP) "$(CSQTT_DNSMASQ_BINARY)" $(PKG_BUILD_DIR)/dnsmasq,true)
+	$(if $(CSQTT_RUNTIME_DIR),test -x "$(CSQTT_RUNTIME_DIR)/usr/libexec/csqtt/ucode" && test -d "$(CSQTT_RUNTIME_DIR)/usr/libexec/csqtt/ucode-runtime",true)
 endef
 
 define Build/Compile
@@ -33,6 +36,10 @@ define Package/csqtt/install
 	$(INSTALL_DIR) $(1)/usr/bin $(1)/usr/libexec/csqtt $(1)/usr/share/csqtt $(1)/usr/share/licenses/csqtt $(1)/etc/config $(1)/etc/init.d $(1)/etc/csqtt $(1)/etc/hotplug.d/iface
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/csqtt-client $(1)/usr/bin/csqtt-client
 	$(INSTALL_BIN) ./files/manage $(1)/usr/libexec/csqtt/manage
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/platform-probe $(1)/usr/libexec/csqtt/platform-probe
+	$(if $(CSQTT_DNSMASQ_BINARY),$(INSTALL_BIN) $(PKG_BUILD_DIR)/dnsmasq $(1)/usr/libexec/csqtt/dnsmasq,true)
+	$(if $(CSQTT_RUNTIME_DIR),$(INSTALL_BIN) "$(CSQTT_RUNTIME_DIR)/usr/libexec/csqtt/ucode" $(1)/usr/libexec/csqtt/ucode,true)
+	$(if $(CSQTT_RUNTIME_DIR),$(CP) "$(CSQTT_RUNTIME_DIR)/usr/libexec/csqtt/ucode-runtime" $(1)/usr/libexec/csqtt/,true)
 	$(INSTALL_DATA) ./files/lifecycle.sh $(1)/usr/libexec/csqtt/lifecycle.sh
 	$(INSTALL_BIN) ./files/monitor $(1)/usr/libexec/csqtt/monitor
 	$(INSTALL_BIN) ./files/tun-hook $(1)/usr/libexec/csqtt/tun-hook

@@ -11,7 +11,7 @@ const git = process.platform === 'win32' ? execFileSync('where.exe', ['git'], { 
 const shell = process.platform === 'win32' ? ['../bin/sh.exe', '../usr/bin/sh.exe']
   .map(p => path.resolve(path.dirname(git), p)).find(p => fs.existsSync(p)) : '/bin/sh';
 
-function reload({ enabled = '1', running = true, previous = '{"workers":9}', next = previous, applyFails = false, stopFails = false } = {}) {
+function reload({ enabled = '1', running = true, previous = '{"workers":9}', next = previous, applyFails = false, stopFails = false, platformFails = false } = {}) {
   assert.ok(shell && fs.existsSync(shell), 'A POSIX shell is required for service reload behavior tests');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'csqtt-reload-')).replaceAll('\\', '/');
   const shellBin = path.dirname(shell).replaceAll('\\', '/').replace(/^([a-zA-Z]):/, (_, drive) => '/' + drive.toLowerCase());
@@ -37,6 +37,7 @@ csqtt_operation_cleanup() { :; }
 uci() { printf '%s\\n' '${enabled}'; }
 manage() {
   record "$1"
+  if [ "$1" = check-platform ]; then [ '${platformFails ? '1' : '0'}' = 0 ]; return; fi
   [ "$1" = apply ] || return 98
   # The old config snapshot must be private before any apply writes occur.
   for file in run/reload-client.*; do
@@ -108,7 +109,7 @@ test('changed effective transport config restarts after apply without repeating 
   assert.equal(out.result, 0);
   assert.notEqual(out.after, out.before);
   assert.notEqual(out.after, '');
-  assert.deepEqual(out.events, ['apply', 'stop', 'register', 'start']);
+  assert.deepEqual(out.events, ['apply', 'stop', 'register', 'check-platform', 'start']);
   assert.deepEqual(out.snapshots, []);
 });
 
@@ -136,7 +137,7 @@ test('missing or stopped transport starts from the already applied config', () =
     const out = reload({ running: false, previous, next: '{"workers":9}' });
     assert.equal(out.result, 0);
     assert.notEqual(out.after, '');
-    assert.deepEqual(out.events, ['apply', ...(previous == null ? [] : ['running-check']), 'stop', 'register', 'start']);
+    assert.deepEqual(out.events, ['apply', ...(previous == null ? [] : ['running-check']), 'stop', 'register', 'check-platform', 'start']);
     assert.deepEqual(out.snapshots, []);
   }
 });
@@ -147,4 +148,12 @@ test('stop failure does not register a competing transport process', () => {
   assert.equal(out.after, out.before);
   assert.deepEqual(out.events, ['apply', 'stop']);
   assert.deepEqual(out.snapshots, []);
+});
+
+test('a changed unqualified platform cannot register a client from an earlier prepared config', () => {
+  const out = reload({ next: '{"workers":18}', platformFails: true });
+  assert.equal(out.result, 1);
+  assert.equal(out.after, '');
+  assert.equal(out.guard, true);
+  assert.deepEqual(out.events, ['apply', 'stop', 'register', 'check-platform']);
 });

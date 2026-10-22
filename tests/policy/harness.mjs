@@ -17,7 +17,7 @@ export const globals = {
 const source = fs.readFileSync(path.join(root, 'openwrt/csqtt/files/policy.uc'), 'utf8');
 export function compiler() {
   const context = vm.createContext({ ...globals });
-  vm.runInContext(source.replaceAll('export function', 'function') + '\nthis.api = {validate, compile, hold};', context);
+  vm.runInContext(source.replaceAll('export function', 'function') + '\nthis.api = {validate, compile, hold, compile_legacy, hold_legacy, legacy_guard};', context);
   return context.api;
 }
 export const fixture = JSON.parse(fs.readFileSync(path.join(root, 'tests/policy/fixture.json'), 'utf8'));

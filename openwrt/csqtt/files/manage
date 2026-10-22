@@ -5,6 +5,10 @@ umask 077
 RUN=/var/run/csqtt
 STATE=/etc/csqtt
 RUNTIME=/usr/share/csqtt/runtime.uc
+UCODE=ucode
+if [ -x /usr/libexec/csqtt/ucode ]; then UCODE=/usr/libexec/csqtt/ucode; fi
+DNSMASQ=dnsmasq
+if [ -x /usr/libexec/csqtt/dnsmasq ]; then DNSMASQ=/usr/libexec/csqtt/dnsmasq; fi
 . /usr/libexec/csqtt/lifecycle.sh
 mkdir -p "$RUN" "$STATE" /var/lock
 chmod 0700 "$RUN" "$STATE"
@@ -40,7 +44,15 @@ csqtt_extra_cleanup() {
 		rmdir /var/lock/csqtt-policy 2>/dev/null || true
 	fi
 }
-runtime() { ucode "$RUNTIME" "$@"; }
+runtime() { "$UCODE" "$RUNTIME" "$@"; }
+refresh_platform() {
+	local temporary
+	[ -x /usr/libexec/csqtt/platform-probe ] || return 1
+	temporary=$(mktemp "$RUN/platform-probe.XXXXXX") || return 1
+	if /usr/libexec/csqtt/platform-probe > "$temporary" 2>/dev/null; then
+		mv "$temporary" "$RUN/platform-probe.json"
+	else rm -f "$temporary"; return 1; fi
+}
 fingerprint() {
 	local temporary
 	temporary=$(mktemp "$RUN/health-config.XXXXXX") || return 1
@@ -127,7 +139,7 @@ conflicts() {
 		fi
 	done
 	[ "$(uci -q get pbr.config.enabled || true)" != 1 ] || error 'An incompatible pbr configuration is enabled'
-	dnsmasq --version 2>/dev/null | grep -Eq '(^|[[:space:]])nftset([[:space:]]|$)' || error 'dnsmasq-full with nftset support is required'
+	"$DNSMASQ" --version 2>/dev/null | grep -Eq '(^|[[:space:]])nftset([[:space:]]|$)' || error 'Group DNS with nftset support is required'
 }
 flush_clients() {
 	[ -f "$1" ] || return 0
@@ -138,6 +150,10 @@ flush_clients() {
 }
 apply_policy() {
 	lock
+	# Qualification and actual capabilities are rechecked before any network
+	# mutation; a changed firmware never inherits a stale installation grant.
+	refresh_platform || error 'Cannot inspect platform compatibility'
+	runtime platform-check >/dev/null 2>&1 || error 'Platform is not qualified; inspect compatibility diagnostics'
 	stage="$RUN/apply.$$"
 	mkdir "$stage"
 	# Compile and validate everything before changing live policy. Keep rejected
@@ -148,7 +164,7 @@ apply_policy() {
 	if [ "$active" = 1 ]; then conflicts; fi
 	for conf in "$stage"/dns-*.conf; do
 		[ -f "$conf" ] || continue
-		dnsmasq --test --conf-file="$conf" >"$RUN/dns-test.log" 2>&1 || error 'Group DNS configuration validation failed'
+		"$DNSMASQ" --test --conf-file="$conf" >"$RUN/dns-test.log" 2>&1 || error 'Group DNS configuration validation failed'
 	done
 	# Persist the closed state before loading it. A firewall reload or reboot
 	# during a failed transaction must not reopen affected clients.
@@ -277,6 +293,8 @@ case "${1:-}" in
 			sleep 1
 		done
 		[ "$stopped" = 1 ] ;;
-	status|devices|diagnostics) runtime "$1" ;;
+	status|diagnostics|platform) refresh_platform || rm -f "$RUN/platform-probe.json"; runtime "$1" ;;
+	devices|helper-address) runtime "$1" ;;
+	check-platform) refresh_platform && runtime platform-check ;;
 	*) printf 'Usage: manage start|stop|restart|apply|deactivate|status|diagnostics|devices\n' >&2; exit 2 ;;
 esac

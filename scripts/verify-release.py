@@ -1,31 +1,15 @@
 #!/usr/bin/env python3
-"""Check an already authenticated manifest against the downloaded package bytes."""
-import hashlib
-import json
+"""Check already authenticated schema1/schema2 metadata and all exact bytes."""
+import argparse
 import pathlib
-import re
-import sys
+from release_schema import load, validate
 
-root = pathlib.Path(sys.argv[1])
-manifest = json.loads((root / 'manifest.json').read_text(encoding='utf-8'))
-expected = {'schema': 1, 'openwrt': '25.12.5', 'target': 'mediatek/filogic',
-            'architecture': 'aarch64_cortex-a53', 'upstream': 'amurcanov/csqtt@v2.1.9'}
-for key, value in expected.items():
-    if manifest.get(key) != value:
-        raise SystemExit(f'Unsupported manifest {key}')
-packages = manifest.get('packages')
-if not isinstance(packages, list) or len(packages) != 3:
-    raise SystemExit('Expected three router packages')
-seen = set()
-for package in packages:
-    name = package.get('name', '')
-    match = re.fullmatch(r'(csqtt-captcha|luci-app-csqtt|csqtt)-[0-9][A-Za-z0-9_.+~-]*\.apk', name)
-    if not match or match[1] in seen:
-        raise SystemExit('Invalid or duplicate package role')
-    seen.add(match[1])
-    data = (root / name).read_bytes()
-    if len(data) != package.get('size') or hashlib.sha256(data).hexdigest() != package.get('sha256'):
-        raise SystemExit(f'Package checksum or size mismatch: {name}')
-if {p.name for p in root.glob('*.apk')} != {p['name'] for p in packages}:
-    raise SystemExit('Package directory differs from manifest')
-print('Release package hashes and target verified')
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('directory', type=pathlib.Path)
+parser.add_argument('--manifest', default='manifest.json')
+args = parser.parse_args()
+try:
+    validate(load(args.directory / args.manifest), args.directory)
+except (ValueError, KeyError, OSError) as exc:
+    raise SystemExit(str(exc))
+print('Release package hashes and exact platform verified; signatures/acceptance are separate gates')
