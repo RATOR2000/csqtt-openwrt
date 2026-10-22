@@ -25,15 +25,55 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-Current dev SHA1697770c90396f8f31e764d17df79b7df3b52e4d,
-tree36c216d503a735736358b8cc3e5b7011a380948e. Connector push, credential-free
-fetch and exact local/remote tree equality confirmed. Build still79513c71c7763ffb7cfdf76d71bb5797bf3649f2.
+Current source/dev/build SHA9358c1fb33ebb3726526ef70482bf9b7df7c504b,
+treeb708f264dad1473192becbc0ee12743b7681419f. Connector push, credential-free
+fetch and exact local/remote tree equality confirmed. Both refs updated with leases.
 No release10 published.
 Default main remains unchanged; existing draft PR#1 is attached to this chat.
 
-CURRENT CI: official39836411862/build795; regression39838900146/dev169 IN PROGRESS.
-Current contracts/native-policy and regression checks/core/android/native-policy
-PASS on795; new169 regression pending. Both25.12.6 SDKs now FAILED during
+CURRENT CI: official39839530729 and regression39839535419 on9358 IN PROGRESS.
+Current9358 contracts/native-policy SUCCESS. Current
+regression39839535419 ALL5 SUCCESS: checks, core, Android, native-policy, reference
+OpenWrt SDK/native package checks. New private DNS SDK/VM gates remain pending.
+Both24.10.8 SDK jobs SUCCESS (x86120043219459, ARM120043219751).
+25.x SDKs FAILED at official dependency standalone APK verify (ca-bundle);
+confirmed120043219509/ARM25.6 and120043219845/x8625.5. Compilation,3projectAPK
+signatures, real privateDNSCPU/nftset,TUN/nativeAPK fixtures PASS first.
+Official upstream packages are unsigned payloads authenticated by signed
+packages.adb; apk-tools verifies index identity and all payload hashes on fetch.
+Release owner fixes producer with fresh empty native offline file:// fetch and
+exact signed index/key/name/version/bytes binding, no --link/allow-untrusted.
+Installer already uses dependency name=version through signed local indexes;
+independent apk_trust_review found no additional installer trust blocker.
+Producer fix READY/frozen: fresh empty native offline file:// fetch from exact
+signed index, only accepted official signer, exact row/name/version/bytes; no
+--link or allow-untrusted. Installer untouched. Dependency7/7,py_compile,shsyntax,
+diffPASS. New SAME-helper native unsigned/wrongkey/metadata/payload corruption
+regression added to test-native-apk.sh; actual native run still nextSDK pending.
+Final independent trust review PASS: native index adds its digest after reading
+raw APK info, so raw selfhash comparison was removed; exact raw name/version/arch
+and signed index digest/architecture remain, all payload hashes bound by native
+fetch. SAME-helper native fixture covers entire metadata+fetch chain. Root waits
+diagnostic VM to expose any
+storage/runtime blocker before freezing the next full source.
+Retrieved24.10.8 x86 candidate artifact12454216980
+to .work/preview.10/sdk24-x86.zip; digest matches GitHub a08884e212db2b4f8871facef8f0bf89537423f34a98bada1623411b54ebc027.
+74 files, full dependency bundle and GPL source archive present; ABI proof binds
+exact9358 source and all7 required checks incl real private-DNS CPU/nftset. This
+is SDK/selected-ABI evidence, not VM/public-command/physical acceptance.
+DIAGNOSTIC ONLY: separate branch codex/portable-preview.10-vm-probe atc6db8b12c118fd16cf741f423f15451e57a69be7
+run39845922812 executes existing9358 IPK artifact on a disposable24.10.8 VM.
+Probe differs from9358 only by its diagnostic workflow; exact local/remote tree
+359007d4b478b0d677d7e2a15f8cf3a5e10ecbcb verified. No release/provenance reuse:
+probe source differs, so its result cannot qualify9358. Purpose is to discover
+storage/runtime failures while APK trust fix runs. Final exact-source VMs remain
+mandatory. No owner router changes, GITHUB_SHA override or signing bypass.
+Superseded795 official39836411862 CANCELLED through GitHub UI to free workflow
+concurrency; GitHub API confirmed completed/cancelled. No draft/release published.
+Cancellation proof .work/preview.10/cancel-old-ci.png. Browser now shows new run.
+Prior official39836411862/build795 and regression39838900146/dev169 superseded.
+Historical795 contracts/native-policy and checks/core/android/native-policy
+PASS. Both25.12.6 SDKs FAILED during
 GPL source packaging: "Patched source does not match the selected SDK recipe
 version". Actual source directory dnsmasq-full/dnsmasq-2.93; build and source
 retention SUCCESS. Failed jobs120029184868/120029190948. Release owner fixed
@@ -59,8 +99,11 @@ Prior official39812818202 contracts/native-policy SUCCESS, ALL6 SDK jobs FAILED,
 VM/signing/release SKIPPED. Do not retry or claim acceptance of this source.
 Older398077*/398061* runs are superseded, not current checks.
 
-FIRST UNFINISHED ACTION: checkpoint/push the tested GPL recipe version fix,
-update BOTH dev/build refs to exact source and inspect fresh runs compactly.
+FIRST UNFINISHED ACTION: finish trust review and inspect diagnostic39845922812
+(failed logs only). Integrate any confirmed VM issue, then checkpoint/push tested
+APK trust fix to BOTH dev/build refs and record exact fresh SHA/run IDs.
+9358 is superseded for release eligibility. Final VM/signatures/public checks
+must bind the next source; never reuse diagnostic qualification.
 Do not publish superseded795 even if jobs pass. Failed logs only.
 DNS compilation now succeeds, but SDK CONFIG_AUTOREMOVE deletes src/dnsmasq and
 patched source/COPYING before binary discovery/GPL packaging. Failed logs show

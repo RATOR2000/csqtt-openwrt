@@ -140,6 +140,11 @@ for immutable prior releases. Separate opkg/IPK and APK transaction backends and
 SDK profiles. Before mutation, prove compatible kernel dependencies, authenticated
 complete downloads, adequate storage/staging RAM and offline package/config
 rollback. Never force dependency/architecture/kernel mismatch or unsigned trust.
+Official APK payloads may be unsigned while their index is signed. Authenticate
+their exact metadata and all payload hashes with native offline fetch from that
+immutable signed index and pinned official key, using a fresh empty output and
+never --link or allow-untrusted. Require the exact selected filename/version and
+bytes. Project APKs additionally require their own pinned package signatures.
 Unknown versions preserve settings and refuse unsafe activation. A compiled or
 emulated target is not native device qualification. Public diagnostic additions
 must preserve existing RPC fields and secret redaction.

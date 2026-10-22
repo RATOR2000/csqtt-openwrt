@@ -10,6 +10,7 @@ import importlib.util
 import json
 import pathlib
 import re
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -134,6 +135,49 @@ def authenticate(tool, fmt, index, signature, keys, work):
     return hashlib.sha256(accepted[0].read_bytes()).hexdigest()
 
 
+def authenticate_apk_payload(tool, architecture, row, package, index, keys, work):
+    """Let native APK extract/verify an unsigned package against its signed index.
+
+    Standalone APK signatures are not required by OpenWrt's index trust model.
+    fetch verifies the index identity and every payload hash. Its output MUST be
+    new and empty: APK otherwise skips verification for a same-size existing file.
+    """
+    require(token(row['name']) and token(row['version']) and token(row['filename']), 'Invalid native APK identity')
+    require(row.get('arch') in (architecture, 'noarch', 'all') and row.get('hashes'), 'Signed APK index lacks matching architecture/digest')
+    keyhash = index['key_sha256']
+    key = keys / keyhash
+    require(key.is_file() and hashlib.sha256(key.read_bytes()).hexdigest() == keyhash, 'Official signer key pin mismatch')
+    info = json.loads(subprocess.run([tool, 'adbdump', '--format', 'json', str(package)],
+                                    check=True, capture_output=True, timeout=30).stdout)['info']
+    require(all(info.get(field) == row.get(field) for field in ('name', 'version', 'arch')),
+            'APK identity differs from authenticated index')
+    # mkndx adds the index's hashes field after reading raw package info. A raw
+    # package cannot contain its own metadata digest. Native fetch below binds
+    # that index-added digest and then checks every file payload hash.
+    root = work / 'native-apk' / row['index'] / row['name']
+    require(not root.exists(), 'Native APK verification root must be fresh')
+    mirror, fetched, target = root / 'mirror', root / 'fetched', root / 'root'
+    for directory in (mirror, fetched, target / 'etc/apk/keys', target / 'var/cache/apk'):
+        directory.mkdir(parents=True, exist_ok=False)
+    (target / 'etc/apk/keys/source.pem').write_bytes(key.read_bytes())
+    shutil.copyfile(package, mirror / row['filename'])
+    shutil.copyfile(index['path'], mirror / 'packages.adb')
+    repositories = root / 'repositories'
+    repositories.write_text((mirror / 'packages.adb').as_uri() + '\n', encoding='utf-8')
+    # One authenticated source index has one unambiguous version for this name;
+    # closure() rejected version ambiguity already. Bare names avoid APK 3.0.5's
+    # ordinary name=version query bug without recursively fetching firmware.
+    subprocess.run([tool, '--root', str(target), '--arch', architecture,
+                    '--keys-dir', 'etc/apk/keys', '--cache-dir', 'var/cache/apk',
+                    '--repositories-file', str(repositories), '--no-network',
+                    'fetch', '--output', str(fetched), row['name']],
+                   check=True, capture_output=True, timeout=60)
+    expected = fetched / row['filename']
+    require(list(fetched.iterdir()) == [expected] and expected.is_file() and not expected.is_symlink(),
+            'Native authenticated APK fetch returned no exact package or ambiguous output')
+    require(expected.read_bytes() == package.read_bytes(), 'Native authenticated APK bytes differ from downloaded package')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--profile', required=True)
@@ -228,16 +272,13 @@ def main():
             if fmt == 'ipk':
                 require(path.stat().st_size == row['size'], 'Distribution package size mismatch')
             else:
-                # Both the package signature and its exact identity/metadata hash
-                # must match the authenticated source index.
-                keyhash = indexes[int(row['index'][4:])]['key_sha256']
-                one = work / 'package-key'
-                one.mkdir(exist_ok=True)
-                (one / 'source.pem').write_bytes((keys / keyhash).read_bytes())
-                subprocess.run([tool, '--keys-dir', str(one), 'verify', str(path)], check=True, capture_output=True, timeout=30)
-                info = json.loads(subprocess.run([tool, 'adbdump', '--format', 'json', str(path)],
-                                                check=True, capture_output=True, timeout=30).stdout)['info']
-                require(all(info.get(k) == row.get(k) for k in ('name', 'version', 'hashes', 'arch')), 'APK identity differs from authenticated index')
+                # OpenWrt signs the index; packages may legitimately be unsigned.
+                # Exact metadata equality is necessary but cannot verify payload
+                # contents by itself. Native fetch below verifies both through
+                # this same immutable signed source index and official key.
+                index = indexes[int(row['index'][4:])]
+                authenticate_apk_payload(tool, arch, row, path,
+                                         {**index, 'path': out / index['name']}, keys, work)
             entry = describe(path, package=row['name'], version=row['version'], index=row['index'], filename=row['filename'])
             if row['name'] == 'kmod-tun':
                 entry['kernel_package'] = kernel
