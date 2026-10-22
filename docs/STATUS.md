@@ -23,189 +23,108 @@ after owner's firmware reinstall. Old72h is INCOMPLETE/UNVERIFIED, neverPASS.
 Do not run old reader through `openwrt-router` or silently start a new window.
 GitHub default main README currently only2lines; user docs live on dev branch.
 
-Baseline HEAD735b9cc(local ahead1), remote6276190. Preserve ALL unfinished
-portable source as explicitly untested checkpoint before further changes.
-Audit found actual blockers: preinstalled-only verifier/dependency bootstrap,
-no dependency closure production, forbidden even exact-kernel TUN bundle,
-no persisted interruption recovery/schema1r9 migration, all profiles unqualified,
-unsigned candidate-only publication, missing portable tests/generated consistency,
-workflow wrong catalogue path/missing nativelegacy script. No new CI run yet.
-Next: finish official-only installer and signed dependency path, LuCI wizard,
-native clean OpenWrt24/25 tests, signed preview publication and main README.
-Never certify a profile just by changing qualification booleans.
+## Current checkpoint and first unfinished action
 
-Implementation milestone22Oct (NOT a release): unfinished baseline checkpoint
-91285131ca77bdeee1813044b42ae7a24d4bf0c2 pushed through connector and localtree
-equality verified; owner settings/router unchanged. Root updated official-only
-AGENTS/contract/user docs and existing draftPR#1 title/body; PR attached to chat.
-Default main README must be updated only after verified new preview assets.
-Planned new tag v0.1.0-preview.10/r10; publiclateststill9, allolderassetsimmutable.
+Source/dev/build SHA48da4b07e149e1a722de0ac099e1b97ed64f2169,
+tree6dfd6be8675459a76fd80b9a49efa47cbb95d0af. Connector push, credential-free
+fetch and exact local/remote tree equality confirmed. No release10 published.
+Default main remains unchanged; existing draft PR#1 is attached to this chat.
 
-Active ownership (recheck liveness): installer_verify owns installer/bootstrap/
-journal/r9migration/probe/tests; release_finish owns SDK/dependencyclosure/evidence/
-VMdriver/signing/workflows; wizard_review owns runtime/pkgs/LuCI/guestsmoke/tests;
-root owns docs/Git/CIintegration/publication. Prior agents ended; do not assume
-their running test processes survived. ModernsourceNode127/127PASS reported,
-shellsyntax and nativeUCgenerator/renderPASS; no nativeUC/SDK/VMproof yet.
-LegacyGLproductionrenderer/backend/private-runtimebranches moved to experiments;
-officialruntime uses nativeucode. Wizard uses existing scopedRPC/UCI, no new
-arbitrary-command API, no configwrites until explicitfinish, bounded90s status
-poll, preservesconfigured/stoppedr9+manualworkers and auto_recover0.
+CURRENT CI: regression39812820727 ALL5 SUCCESS (Rust, Android build/tests,
+Node/Go/installer/release checks, native-policy, reference25.12.5 SDK).
+Official39812818202 contracts/native-policy SUCCESS, ALL6 SDK jobs FAILED,
+VM/signing/release SKIPPED. Do not retry or claim acceptance of this source.
+Older398077*/398061* runs are superseded, not current checks.
 
-Installer in progress: native-signed bootstrap and prefetch, exact-kernel TUN,
-durablejournal/offlinerollback/schema1migration. Both package-manager mock success
-paths pass; bootstrap interruption/badsignature inventory rollback being tightened.
-Readonly owner'sAPK3.0.5 --formatdefault query confirmed Name/Version output used
-before jsonfilter exists. No install/service/network mutation performed.
-Newcandidate workflow has4officialSDKtargets; official-preview pipeline then
-2cleanstockx86VMs, exactsource/packageproofs andP256signeddraft. Preview acceptance
-scope is ABI+cleanOpenWrtVM, neverphysical-device/VKcertification. Allprofileflags
-remainheld until realrunnerproof. NextsourceCIpushwaits installer generatedcheck/
-tests and finaldependency/licensehelpers; no newCIrun yet.
+FIRST UNFINISHED ACTION: push the now-fixed SDK source cleanup and inspect NEW CI.
+DNS compilation now succeeds, but SDK CONFIG_AUTOREMOVE deletes src/dnsmasq and
+patched source/COPYING before binary discovery/GPL packaging. Failed logs show
+the cleanup find/xargs immediately before "Expected exactly one SDK full dnsmasq
+binary" (jobs119945977529/x86.6,119945977656/x86.24,119945977751/ARM.6; same gate).
+Fix frozen: remove inherited assignment, append disabled CONFIG_AUTOREMOVE before
+defconfig and pass explicit CONFIG_AUTOREMOVE= to DNS/application make targets.
+SDK uses ifneq(nonempty), so 'n' would incorrectly keep deletion enabled. Exact
+binary/source/license checks retained. Focused SDKrecipe6 PASS,1 explicit local
+GNU Make SKIP (fixture runs in Linux CI), py_compile/diff PASS. Root owns STATUS/
+Git/CI integration. Recheck agent liveness; all owners frozen, no runtime changes.
 
-Continuation audit22Oct: source/doc checkpoint e16c108 is local, not pushed yet.
-All implementation files below it remain uncommitted pending coherent freeze.
-The first4 catalogue omitted25.12.5, making advertised r9 migration unreachable.
-Release owner is adding exact25.12.5 filogic+x86 SDK/dependency/VM evidence rather
-than substituting25.12.6 proof. Real-board migration remains distinct from native
-isolated package transactions. Root added missing luci-theme-bootstrap dependency
-for truly LuCI-absent firmware. Nonstandard fresh LAN discovery is being audited
-in installer/wizard; preserve existing explicit interface choices.
-Root ran sh -n on portable-install.sh, platform-probe.sh, test-openwrt-guest.sh
-and git diff --check successfully; Git sh runtime discovery differed between
-agent sessions, so any fresh test SKIP must be reported, never counted as PASS.
+After focused fix/checkpoint, push dev AND codex/portable-preview.10-build at the
+SAME exact source SHA using expected-head leases. Inspect NEW runs compactly;
+read bounded FAILED job logs only. No scheduled tasks. Keep acceptance strict.
+SDK Cargo restore/always-save now retains expensive compile outputs on failure.
 
-Source freeze22Oct for first full CI (NOT installation-ready): all owners frozen.
-129/129 Node policy+LuCI PASS; native-runtime fixture generation PASS (execution
-requires CI), platform9/release8/dependency4 PASS; legacy installer7/7 PASS.
-New focused installer lifecycle/LAN2/2 PASS: owner/ticks exported, competing Stop
-admitted only after cleanup; current lifecycle embedded in generated installer
-and held for the full transaction, including first install. Generated --check,
-POSIX syntax and diff-check PASS. Fresh full portable13-method suite and focused
-bootstrap/powerloss tests still running; old run invalidated by concurrent source
-and test-wrapper change is DISCARDED, not counted as passing or a product failure.
-Sources now cover6 exact SDK tuples (24.10.8/25.12.5/25.12.6 x filogic ARM64/x86),
-3 clean x86 VM checks and signed original ARM r9 native APK upgrade/rollback
-in an isolated root with package scripts disabled. All native results PENDING.
-Fresh LAN auto uses trusted static firewall/netifd scope, refuses unknown LAN;
-existing explicit lists unchanged. New guest fixture has separate static LAN.
-Next: connector push this checkpoint, inspect current CI, then run dedicated
-codex/portable-preview.10-build workflow for native VM/signing/draft publication.
-Never publish or update main README as ready until signed public assets and all
-required checks pass. Owner router untouched; no scheduled tasks.
+## Implemented source and verification scope
 
-Pre-push guard fix: bootstrap now proves removal of new verifier packages in
-the cloned native database restores the exact pre-bootstrap inventory before any
-live addition. Both PM orphan-pruning refusals covered;8 fresh negative scenarios
-PASS. Focused lifecycle/LAN2tests PASS. Full portable/resume checks continue.
-SDK matrix runs once via official-preview workflow (or manual portability run),
-not twice for identical dev/build branch pushes; existing PR CI remains intact.
-Fresh8 bootstrap/SIGKILL resume scenarios PASS for both PMs (288.3s), including
-interruption during bootstrap, completed bootstrap plus main install, and main
-transaction. Root caught connector exporter missing renamed-file deletions before
-ref update; --no-renames fixes export, tree equality remains a mandatory gate.
+- Official-only native signed verifier bootstrap; complete authenticated native
+  feed dependency cache, exact-kernel TUN, offline staged install AND rollback,
+  persistent journal/SIGKILL resume, immutable signed9 schema1 migration.
+- Installer holds shared lifecycle lease through package/script/service work;
+  APK --preserve-env carries owner/ticks. Bootstrap rollback hash-r prevents
+  POSIX shell stale command lookup. New verifier removal must reproduce exact
+  prior package inventory in staging before live changes.
+- Browser first-run wizard: no writes until explicit finish; nine connections,
+  disabled VPN/auto recovery until configured. Existing configuration, stopped
+  state/manual72/identity/budget retained. Helper/CAPTCHA action explicit.
+- New LAN auto resolves trusted static firewall/netifd scope, excludes WAN;
+  manual interfaces unchanged. No board allowlist. Private DNS keeps stock DHCP/
+  DNS and management. Complete LuCI+Russian locale+bootstrap theme dependencies.
+- Six exact SDK tuples: 24.10.8/25.12.5/25.12.6 x filogic aarch64_cortex-a53 and
+  x86/64 x86_64. ARMv7 registry candidates remain held; MIPS separate adaptation.
+- SDK recipe now selected from real Source-Makefile metadata (feed/classic),
+  shared by compilation and GPL corresponding source packager. Private DNS uses
+  nftset; unused DNS conntrack disabled, external conntrack/guards preserved.
+- Each extracted APK/IPK private DNS must execute with selected QEMU CPU and
+  matching SDK musl/libraries, exact nftset token and managed config --test.
+  Two mandatory ABI evidence checks added; no daemon/network mutation by smoke.
+- Pipeline:6SDK/3clean x86 VMs then exact-source/package evidence and pinned P256
+  signed draft10. Actual public signed ARM9→10→9 native APK transaction required
+  for original tuple; scripts disabled, not proof of physical ARM services/VK.
+  GL vendor experiments preserved in experiments/glinet and older checkpoints.
 
-CI started22Oct: source checkpoint6d21a10773946d899ee268266ee926c88db9dc6e
-pushed via connector; credential-free fetch and exact tree equality confirmed
-(aebae0209c29968db4d13dfd13071ba3b70ac408). Local HEAD aligned, no owner changes.
-Dedicated branch codex/portable-preview.10-build at the SAME source SHA.
-Current runs: official preview39806158401; existing regression39806085162.
-Initial Rust core job SUCCESS; contract checks/native-policy/Android still running.
-Next first unfinished action: inspect these CURRENT run jobs compactly, read only
-failed job logs as needed, fix source with checkpoints, and move BOTH dev/build
-refs to the exact corrected source when required. Never inspect old CI as current.
-No new release yet. Keep README preparation warning and main unchanged until all
-release gates and public assets pass. Old9/tag/assets remain immutable.
-Public signed ARM9 native APK migration intentionally disables scripts; physical
-r9 service/VK/long-duration proof is not inferred from it or from x86 VM scripts.
+Local source checks: Node129/129 PASS; platform13/13 PASS (4 new private-DNS
+boundary/extraction cases); release8/dependency4/SDKrecipe5/public-command6/
+published-verifier3 PASS. Native-runtime fixture generation, Python compilation,
+generated installer --check, shell syntax and diff-check PASS. Portable13/13
+Windows full run PASS but source evolved during that run; final focused native-
+environment/lock/bootstrap tests plus actual Windows/MSYS dash resumes passed.
+Frozen Linux contracts subsequently PASS. Actual new SDK/QEMU private DNS, VM,
+signature publication/public command remain PENDING; never infer them from mocks.
+Logs .work/portable-final-v2.log, portable-apk-env.log, portable-dash-resume.log.
 
-CURRENT BLOCKER from first CI: official39806158401 contracts FAILED; SDK/VM/release
-skipped, nothing published. Both PM bootstrap_powerloss second-run scenarios
-returned127; other portable groups passed. Likely POSIX dash/ash stale command
-hash after rollback removes verifier executables: clear hash before recomputing
-bootstrap needs, verify on CI. Local Bash resume PASS alone is insufficient.
-Installer owner also found APK3.0.5 deliberately strips script environment unless
---preserve-env; live add/del must carry lifecycle owner/ticks to avoid upgrade
-prerm deadlock. Minimal fix+mock/environment checks in progress, no guard bypass.
-Existing regression core/native-policy SUCCESS; current checks failed same cases.
-On exact corrected source checkpoint, push dev and update build ref using leases;
-rerun full current CI, do not retry the known-bad source. Full local portablev2
-run still readonly but cannot supersede the native Linux CI failure.
-Disposable VM resource audit: pinned25.12.6 image root104MiB/free75.629MiB before
-bootstrap. If actual installer resource guard refuses, expand ONLY disposable VM
-disk, preserve firmware files, and explicitly bind resize metadata in evidence;
-do not lower installation space requirements or claim stock storage qualified.
+## Publication and final delivery gates
 
-Corrective source freeze22Oct: hash -r after verifier rollback fixes stale command
-cache before needs recomputation. Harness now executes selected SH for BOTH
-initial/retry, not hardcoded inner sh. Both PM powerloss resumes PASS using actual
-bundled usr/bin/dash.exe on Windows/MSYS; Linux CI remains authoritative.
-All4 live APK mutations use --preserve-env so maintainer scripts inherit the
-exact lifecycle owner/ticks; mocked native environment behavior now requires it.
-Fresh targeted3 methods (APK environment/lock, both PM install, bootstrap refusal)
-PASS93.8s; generated/syntax/diff-check PASS. No guard or signature checks weakened.
-Next: push this corrective checkpoint to dev AND build refs, inspect NEW CI only.
+Keep published preview9/tag/assets immutable. New tag10/package revision10 only.
+README dev uses exact-tag HTTPS tempfile command, conditional availability notice
+and exact target/version table; no unconditional all-routers claim. Main README
+currently only2lines; update through existing PR#1 only when verified release ready.
 
-Corrective checkpoint pushed+fetched with exact tree equality: source
-6d83ac2237e3280a977fe0667b378972a273d5f3, tree8c1786c83af7670753c503158a9daac3f18fa547.
-Both dev/build refs now at this SHA; OLD39806158401/39806085162 are superseded.
-CURRENT official39807723601 and regression39807727948 IN PROGRESS.
-First unfinished action is compact inspection of THESE runs, failed logs only.
-Local portable13/13 PASS1074.4s reported, but source evolved during that Windows
-run; final targeted tests and actual selected dash augment it, frozen Linux CI
-remains mandatory. No active installer test processes or remaining source edits.
+After private VM/signing gates, inspect signed draft, publish, then independently
+verify public assets with scripts/verify-published-release.py --tag
+v0.1.0-preview.10 --source-commit <exact candidate SHA> --output
+.work/preview.10/public. Host verifier uses Node crypto (Windows OpenSSL absent),
+bounded TLS, pinned P256, signed sizes/hashes, actual tag commit and installer
+equality with tagged/qualified source. Candidate metadata .work/preview.10/candidate.json.
 
-CURRENT milestone: official39807723601 candidate/contracts SUCCESS on exact
-6d83ac2; native Linux installer/powerloss regressions now PASS.6 SDK jobs and
-native-policy launched/queued. Regression39807727948 core/native-policy/Android
-SUCCESS; checks finishing. Native SDK/VM/signing/publication still PENDING.
-Independent tests-only follow-up owned release_finish: public-command helper+
-workflow after publication, leaving candidate6d83 product immutable. Current VM
-uses private authenticated HTTP fixture seam; it must NOT be counted as actual
-public README HTTPS command acceptance. New disposable VMs will verify exact
-published signatures/installer/tag, remove preinstalled LuCI/OpenSSL tool/TUN
-normally if needed, run literal README command, native guest smoke, repeat+remove.
-Root must run public-command acceptance before advertising readiness/merging main.
+Then push tests-only branch codex/portable-preview.10-public-check to run
+public-command-check.yml (24.10.8 and25.12.6). This checks literal tagged README
+HTTPS command on disposable VMs with LuCI/OpenSSL-tool/TUN removed normally,
+tagged native guest smoke, repeat/manual18 preservation and actual removal of
+three application packages with four configs/LAN/LuCI/system DNS preserved.
+Private HTTP CI fixture checks do NOT count as literal public command acceptance.
+No secrets/signing key in public-check jobs; never overwrite failed public assets.
 
-SDK BLOCKER after Linux contracts PASS: official39807723601 job119929294664
-(25.12.5 x86) FAILED: no make target package/network/services/dnsmasq/compile in
-SDK. SDK source recipes are feed-installed; compile target and corresponding-
-source recipe path must be discovered/validated, not assume full buildroot layout.
-release_finish owns targeted fix plus restore/always-save Cargo cache so later
-packaging failures do not discard expensive compiled dependencies. Other current
-SDKs may reveal additional failures; read failed logs only. No draft/tag created.
-Public acceptance tests-only source now ready/uncommitted: test-public-command.py,
-public-command-check.yml, public_command_test.py (6host boundary PASS). Root added
-verify-published-release.py +published_test.py (3PASS): bounded TLS downloads,
-pinned P256, signed hashes, exact actual tag/source/installer; no router access.
-These complement frozen product checks; run the public workflow only AFTER actual
-publication. Public check fixture removes LuCI/OpenSSL-tool/TUN normally, then
-literal HTTPS command, repeat/manual18, native uninstall and management/DNS checks.
+VM disk audit: stock root104MiB/free75.629MiB before bootstrap. If actual space
+guard fails, expand ONLY disposable VM root disk and record resize explicitly in
+evidence; keep firmware files and resource checks. Stock storage not certified by
+an expanded disk. Physical device/VK/Android/live r9 services/long duration and
+boot7 remain separate gates. Owner installs personally; never SSH-install.
 
-SDK fix source checkpoint (native result PENDING): sdk_recipe.py selects the exact
-dnsmasq-full Source-Makefile from SDK metadata (feed/classic); build and GPL source
-packager share it, require SDK-contained source/license/version/upstream hash.
-sdk_recipe5 tests PASS; public_command6 and published3 PASS; py_compile/diff PASS.
-Cargo restore/always-save retains compile cache even if later packaging fails.
-Unused private dnsmasq conntrack feature disabled after official recipe inspection;
-external conntrack utility/flush logic preserved. README warning is now conditional
-on actual publication (so immutable tag will not forever say 'still preparing');
-exact versions/targets listed, no unverified broad support claim. Main unchanged.
-Active read-only owner dns_abi_audit examines missing selected-CPU startup coverage
-for the separate dynamic DNS payload; core/Go tests alone must not be called proof
-that ARM private DNS executed. Recheck liveness before delegation; other owners
-frozen. Next product-source push waits that focused audit and any minimal check.
+Git pushes MUST use GitHub connector (normal git push opens GCM OAuth).
+scripts/export-github-tree.py exports committed delta with --no-renames. Reassemble
+UTF8 parts, create_tree on origin tree, verify exact HEAD tree, create_commit and
+leased update_ref; fetch credential-free and align local branch without reset.
+Deletion tree entries need mode100644,type blob,sha null. Preserve checkpoints.
 
-Audit closed in source: actual private DNS extracted from each APK/IPK now runs
-with selected QEMU CPU and matching verified SDK musl/target libraries; --version
-must contain exact nftset token and --test must parse managed nftset/source DNS
-configuration. No daemon/services/network mutation. Two ABI evidence requirements
-added only after successful packaged-payload gate. Platform13/13 focused host
-tests PASS (4new negative/extraction binding cases), py_compile/syntax/diff PASS;
-actual Linux QEMU/SDK execution still pending. Legacy reference mode preserved.
-Package metadata also lists GPL-2.0 for the optional separately bundled DNS binary;
-actual COPYING/NOTICE and corresponding source remain required. All source frozen
-for next full6SDK/3VM attempt; do not publish prior failed candidate.
 
 ## Historical2026-10-20 vendor work — superseded, retained as checkpoint
 

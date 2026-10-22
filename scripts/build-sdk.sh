@@ -75,7 +75,11 @@ run_logged feeds-update ./scripts/feeds update -a
 run_logged feeds-install ./scripts/feeds install -a
 mkdir -p package/csqtt-local
 rsync -a --delete "$ROOT/openwrt/" package/csqtt-local/
+# The SDK defaults to deleting build trees after compile. Retain the actual
+# patched GPL source and DNS binary; a literal "n" is truthy to package.mk.
+sed -i '/^CONFIG_AUTOREMOVE=/d; /^# CONFIG_AUTOREMOVE is not set$/d' .config
 cat >> .config <<'EOF'
+# CONFIG_AUTOREMOVE is not set
 CONFIG_PACKAGE_csqtt=m
 CONFIG_PACKAGE_csqtt-captcha=m
 CONFIG_PACKAGE_luci-app-csqtt=m
@@ -98,7 +102,7 @@ if [[ -n "${CSQTT_PROFILE:-}" ]]; then
     # Dependencies stay ordinary matching-firmware packages; the binary itself
     # lives only below /usr/libexec/csqtt.
     DNS_COMPILE_TARGET=$(python3 "$ROOT/scripts/sdk_recipe.py" --sdk "$SDK" --field target)
-    run_logged private-dns make "$DNS_COMPILE_TARGET" -j2 V=s
+    run_logged private-dns make "$DNS_COMPILE_TARGET" -j2 V=s CONFIG_AUTOREMOVE=
     mapfile -t DNS_BINARIES < <(find build_dir -type f -path '*/dnsmasq-full/dnsmasq-*/src/dnsmasq')
     [[ "${#DNS_BINARIES[@]}" = 1 ]] || { echo 'Expected exactly one SDK full dnsmasq binary' >&2; exit 1; }
     DNS_SOURCE=$(dirname "$(dirname "$SDK/${DNS_BINARIES[0]}")")
@@ -115,6 +119,7 @@ fi
 # LuCI depends on both other local packages. One leaf target compiles all three
 # once; separate top-level targets repeat SDK dependency/kernel compilation.
 run_logged packages make package/csqtt-local/luci-app-csqtt/compile -j2 V=s \
+    CONFIG_AUTOREMOVE= \
     CSQTT_BINARY="$CORE" CSQTT_CAPTCHA_BINARY="$OUT/csqtt-captcha" CSQTT_PACKAGE_RELEASE="$PACKAGE_RELEASE" \
     CSQTT_FIREWALL_BACKEND="$FIREWALL_BACKEND" CSQTT_PLATFORM_PROBE="$ROOT/scripts/platform-probe.sh" "${PRIVATE_DNS_ARGS[@]}"
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then printf 'sdk_ready=true\n' >> "$GITHUB_OUTPUT"; fi

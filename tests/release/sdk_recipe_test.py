@@ -2,6 +2,7 @@
 """SDK recipe targets and GPL source archive follow actual package metadata."""
 import hashlib
 import pathlib
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -56,6 +57,22 @@ class SdkRecipeTest(unittest.TestCase):
         path.write_text('PKG_NAME:=other\n', encoding='utf-8')
         with self.assertRaises(ValueError):
             dnsmasq_recipe(self.sdk)
+
+    def test_build_retains_source_with_unset_config_and_empty_make_override(self):
+        build = (ROOT / 'scripts/build-sdk.sh').read_text(encoding='utf-8')
+        self.assertIn("sed -i '/^CONFIG_AUTOREMOVE=/d; /^# CONFIG_AUTOREMOVE is not set$/d' .config", build)
+        self.assertIn('# CONFIG_AUTOREMOVE is not set\nCONFIG_PACKAGE_csqtt=m', build)
+        self.assertIn('run_logged private-dns make "$DNS_COMPILE_TARGET" -j2 V=s CONFIG_AUTOREMOVE=', build)
+        self.assertIn('run_logged packages make package/csqtt-local/luci-app-csqtt/compile -j2 V=s \\\n    CONFIG_AUTOREMOVE= \\', build)
+        self.assertNotIn('CONFIG_AUTOREMOVE=n', build)
+
+    @unittest.skipUnless(shutil.which('make'), 'GNU Make fixture runs in Linux CI; no local make executable')
+    def test_gnu_make_empty_disables_cleanup_but_literal_n_enables_it(self):
+        fixture = ROOT / 'tests/release/fixtures/sdk-autoremove.mk'
+        for flag, expected in (('', 'source-preserved'), ('n', 'cleanup-enabled'), ('y', 'cleanup-enabled')):
+            result = subprocess.run(['make', '--no-print-directory', '-f', str(fixture),
+                                     'CONFIG_AUTOREMOVE=' + flag, 'check'], check=True, capture_output=True, text=True)
+            self.assertEqual(result.stdout.strip(), expected)
 
     def test_corresponding_source_includes_exact_recipe_license_and_source(self):
         recipe = self.recipe('package/feeds/base/dnsmasq')
