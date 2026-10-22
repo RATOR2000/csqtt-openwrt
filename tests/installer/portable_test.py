@@ -151,7 +151,7 @@ class PortableTest(unittest.TestCase):
             script=base/'install.sh';script.write_text(source,newline='\n')
             env={**os.environ,'CSQTT_FAKE_ROOT':str(root),'CSQTT_FAKE_SCENARIO':scenario,'CSQTT_WRAPPER_PATH':posix(bindir),'CSQTT_WRAPPER_SCRIPT':posix(script),'MSYS2_ENV_CONV_EXCL':'APK_CONFIG'}
             arg='--check' if check else '--portable fixture'
-            invocation=[SH,'-c','PATH="$CSQTT_WRAPPER_PATH"; export PATH; exec /usr/bin/sh "$CSQTT_WRAPPER_SCRIPT" '+arg]
+            invocation=[SH,'-c','PATH="$CSQTT_WRAPPER_PATH"; export PATH; exec "'+posix(SH)+'" "$CSQTT_WRAPPER_SCRIPT" '+arg]
             if scenario=='operation_lock':
                 running=subprocess.Popen(invocation,env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
                 deadline=time.monotonic()+80
@@ -172,7 +172,7 @@ class PortableTest(unittest.TestCase):
                 journal=root/('etc/csqtt/installer-bootstrap' if scenario=='bootstrap_powerloss' else 'etc/csqtt/installer-transaction')
                 self.assertTrue(journal.exists(),'Power loss must leave a persistent journal')
                 if scenario!='bootstrap_powerloss': self.assertEqual((journal/'phase').read_text().strip(),'installing')
-                result=subprocess.run([SH,'-c','PATH="$CSQTT_WRAPPER_PATH"; export PATH; exec /usr/bin/sh "$CSQTT_WRAPPER_SCRIPT" '+arg],env=env,capture_output=True,text=True,timeout=100)
+                result=subprocess.run(invocation,env=env,capture_output=True,text=True,timeout=100)
             if os.environ.get('CSQTT_INSTALLER_DEBUG') and result.returncode:
                 for debug in (root/'tmp').glob('csqtt-portable.*/packages-*'):
                     print(debug.name, debug.read_text())

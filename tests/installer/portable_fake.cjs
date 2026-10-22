@@ -58,6 +58,9 @@ else if (command.startsWith('service:')) {
   const base = staged ? native(opt(args.includes('--root') ? '--root' : '--offline-root')) : root;
   const dbfile = path.join(base, command === 'apk' ? 'lib/apk/db/installed' : 'usr/lib/opkg/fixture.json');
   const action = args.find(a => ['query','verify','add','del','install','remove','status','list-installed','update'].includes(a));
+  // Native APK 3 defaults maintainer scripts to PATH alone. The installer must
+  // explicitly retain its verified lifecycle owner for script/init children.
+  if(command==='apk' && !staged && ['add','del'].includes(action) && !args.includes('--preserve-env')) fail('APK would strip lifecycle ownership from maintainer scripts');
   if (action === 'update') {
     if(scenario === 'bootstrap_signature') fail('Native feed signature rejected');
     process.exit(0);

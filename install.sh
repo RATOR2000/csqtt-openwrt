@@ -197,13 +197,16 @@ csqtt_bootstrap_rollback() {
         set -- "$@" "$CS_BNAME"
     done < "$CS_BOOT/remove"
     if [ "$#" -gt 0 ]; then
-        if [ "$CS_PM" = apk ]; then apk --repositories-file /dev/null --no-network del "$@" > "$CS_BOOT/recover.log" 2>&1
+        if [ "$CS_PM" = apk ]; then apk --preserve-env --repositories-file /dev/null --no-network del "$@" > "$CS_BOOT/recover.log" 2>&1
         else OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_BOOT/offline.conf" remove "$@" > "$CS_BOOT/recover.log" 2>&1; fi || return 1
     fi
     csqtt_inventory - > "$CS_BOOT/recovered" || return 1
     csqtt_exact_packages "$CS_BOOT/before" "$CS_BOOT/recovered" || return 1
     [ "$CS_PM" != apk ] || cp "$CS_BOOT/world" /etc/apk/world || return 1
     rm -rf "$CS_BOOT"
+    # ash/dash may retain command-v hits for executables just removed by the
+    # rollback. Recompute bootstrap needs from the actual filesystem.
+    hash -r
 }
 csqtt_bootstrap() {
     CS_NEED=
@@ -274,7 +277,7 @@ csqtt_bootstrap() {
     printf 'installing\n' > "$CS_BOOT/phase.new"; mv "$CS_BOOT/phase.new" "$CS_BOOT/phase"; sync
     if [ "$CS_PM" = apk ]; then
         set --; while read -r CS_BNAME CS_BVER; do set -- "$@" "$CS_BNAME=$CS_BVER"; done < "$CS_BOOT/new"
-        apk --repositories-file "$CS_BOOT/repositories" --keys-dir "$CS_BOOT/keys" --cache-dir "$CS_BOOT/cache" --no-network add "$@" > "$CS_BOOT/install.log" 2>&1 || csqtt_portable_die 'Установка средств проверки прервана; повторите ту же команду для восстановления'
+        apk --preserve-env --repositories-file "$CS_BOOT/repositories" --keys-dir "$CS_BOOT/keys" --cache-dir "$CS_BOOT/cache" --no-network add "$@" > "$CS_BOOT/install.log" 2>&1 || csqtt_portable_die 'Установка средств проверки прервана; повторите ту же команду для восстановления'
     else
         set --; for CS_BFILE in "$CS_BOOT/cache/"*.ipk; do [ ! -f "$CS_BFILE" ] || set -- "$@" "$CS_BFILE"; done
         [ "$#" -gt 0 ] || csqtt_portable_die 'Отсутствует автономный кэш средств проверки'
@@ -459,7 +462,9 @@ csqtt_pm_install() {
         CS_REPOSITORIES="$CS_PM_BUNDLE/repositories"
         [ "$CS_PM_DOWNGRADE" = 0 ] || CS_REPOSITORIES="$CS_TMP/empty-repositories"
         if [ "$CS_PM_ROOT" = - ]; then
-            apk --repositories-file "$CS_REPOSITORIES" --keys-dir "$CS_TMP/keys" --no-network add "$@"
+            # APK otherwise strips the lifecycle owner/ticks from maintainer
+            # scripts, whose direct init calls would wait on their own parent.
+            apk --preserve-env --repositories-file "$CS_REPOSITORIES" --keys-dir "$CS_TMP/keys" --no-network add "$@"
         else
             apk --root "$CS_PM_ROOT" --arch "$CS_ARCH" --repositories-file "$CS_REPOSITORIES" --keys-dir etc/apk/keys --no-network --no-scripts add "$@"
         fi
@@ -561,7 +566,7 @@ csqtt_remove() {
     CS_DEL_ROOT=$1; shift
     [ "$#" -gt 0 ] || return 0
     if [ "$CS_PM" = apk ]; then
-        if [ "$CS_DEL_ROOT" = - ]; then apk --repositories-file "$CS_TMP/empty-repositories" --keys-dir "$CS_TMP/keys" --no-network del "$@"
+        if [ "$CS_DEL_ROOT" = - ]; then apk --preserve-env --repositories-file "$CS_TMP/empty-repositories" --keys-dir "$CS_TMP/keys" --no-network del "$@"
         else apk --root "$CS_DEL_ROOT" --arch "$CS_ARCH" --repositories-file "$CS_TMP/empty-repositories" --keys-dir etc/apk/keys --no-network --no-scripts del "$@"; fi
     elif [ "$CS_DEL_ROOT" = - ]; then csqtt_opkg remove "$@"
     else csqtt_opkg --offline-root "$CS_DEL_ROOT" remove "$@"; fi

@@ -105,6 +105,47 @@ interruption during bootstrap, completed bootstrap plus main install, and main
 transaction. Root caught connector exporter missing renamed-file deletions before
 ref update; --no-renames fixes export, tree equality remains a mandatory gate.
 
+CI started22Oct: source checkpoint6d21a10773946d899ee268266ee926c88db9dc6e
+pushed via connector; credential-free fetch and exact tree equality confirmed
+(aebae0209c29968db4d13dfd13071ba3b70ac408). Local HEAD aligned, no owner changes.
+Dedicated branch codex/portable-preview.10-build at the SAME source SHA.
+Current runs: official preview39806158401; existing regression39806085162.
+Initial Rust core job SUCCESS; contract checks/native-policy/Android still running.
+Next first unfinished action: inspect these CURRENT run jobs compactly, read only
+failed job logs as needed, fix source with checkpoints, and move BOTH dev/build
+refs to the exact corrected source when required. Never inspect old CI as current.
+No new release yet. Keep README preparation warning and main unchanged until all
+release gates and public assets pass. Old9/tag/assets remain immutable.
+Public signed ARM9 native APK migration intentionally disables scripts; physical
+r9 service/VK/long-duration proof is not inferred from it or from x86 VM scripts.
+
+CURRENT BLOCKER from first CI: official39806158401 contracts FAILED; SDK/VM/release
+skipped, nothing published. Both PM bootstrap_powerloss second-run scenarios
+returned127; other portable groups passed. Likely POSIX dash/ash stale command
+hash after rollback removes verifier executables: clear hash before recomputing
+bootstrap needs, verify on CI. Local Bash resume PASS alone is insufficient.
+Installer owner also found APK3.0.5 deliberately strips script environment unless
+--preserve-env; live add/del must carry lifecycle owner/ticks to avoid upgrade
+prerm deadlock. Minimal fix+mock/environment checks in progress, no guard bypass.
+Existing regression core/native-policy SUCCESS; current checks failed same cases.
+On exact corrected source checkpoint, push dev and update build ref using leases;
+rerun full current CI, do not retry the known-bad source. Full local portablev2
+run still readonly but cannot supersede the native Linux CI failure.
+Disposable VM resource audit: pinned25.12.6 image root104MiB/free75.629MiB before
+bootstrap. If actual installer resource guard refuses, expand ONLY disposable VM
+disk, preserve firmware files, and explicitly bind resize metadata in evidence;
+do not lower installation space requirements or claim stock storage qualified.
+
+Corrective source freeze22Oct: hash -r after verifier rollback fixes stale command
+cache before needs recomputation. Harness now executes selected SH for BOTH
+initial/retry, not hardcoded inner sh. Both PM powerloss resumes PASS using actual
+bundled usr/bin/dash.exe on Windows/MSYS; Linux CI remains authoritative.
+All4 live APK mutations use --preserve-env so maintainer scripts inherit the
+exact lifecycle owner/ticks; mocked native environment behavior now requires it.
+Fresh targeted3 methods (APK environment/lock, both PM install, bootstrap refusal)
+PASS93.8s; generated/syntax/diff-check PASS. No guard or signature checks weakened.
+Next: push this corrective checkpoint to dev AND build refs, inspect NEW CI only.
+
 ## Historical2026-10-20 vendor work — superseded, retained as checkpoint
 
 USER APPROVED portability plan 2026-10-20: first latest global/US Stable Flint2
