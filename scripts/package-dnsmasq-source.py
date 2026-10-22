@@ -9,7 +9,7 @@ import tarfile
 
 from platforms import load_registry, select_profile
 from release_schema import describe, require
-from sdk_recipe import dnsmasq_recipe
+from sdk_recipe import dnsmasq_recipe, dnsmasq_source_identity
 
 
 def main():
@@ -29,11 +29,9 @@ def main():
     require(upstream.is_file(), 'Exact upstream source archive unavailable')
     sha = hashlib.sha256(upstream.read_bytes()).hexdigest()
     compile_target, recipe = dnsmasq_recipe(args.sdk)
-    recipe_text = (recipe / 'Makefile').read_text(encoding='utf-8')
-    recipe_version = re.search(r'^PKG_VERSION\s*:?=\s*([0-9][0-9.]+)\s*$', recipe_text, re.MULTILINE)
-    require(recipe_version and recipe_version[1] == version, 'Patched source does not match the selected SDK recipe version')
-    recipe_hash = re.search(r'^PKG_HASH\s*:?=\s*([0-9a-f]{64})\s*$', recipe_text, re.MULTILINE)
-    require(recipe_hash and recipe_hash[1] == sha, 'Upstream source archive does not match the selected SDK recipe hash')
+    recipe_version, recipe_hash = dnsmasq_source_identity(recipe)
+    require(recipe_version == version, 'Patched source does not match the selected SDK recipe upstream version')
+    require(recipe_hash == sha, 'Upstream source archive does not match the selected SDK recipe hash')
     name = profile['id'] + '--dnsmasq-corresponding-source.tar.gz'
     archive = args.output / name
     with tarfile.open(archive, 'w:gz') as output:

@@ -25,14 +25,25 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-Source/dev/build SHA79513c71c7763ffb7cfdf76d71bb5797bf3649f2,
-treefac4bb0d95e96a29ac9f1d7745fba55180dcacb3. Connector push, credential-free
-fetch and exact local/remote tree equality confirmed. No release10 published.
+Current dev SHA1697770c90396f8f31e764d17df79b7df3b52e4d,
+tree36c216d503a735736358b8cc3e5b7011a380948e. Connector push, credential-free
+fetch and exact local/remote tree equality confirmed. Build still79513c71c7763ffb7cfdf76d71bb5797bf3649f2.
+No release10 published.
 Default main remains unchanged; existing draft PR#1 is attached to this chat.
 
-CURRENT CI: official39836411862 and regression39836416971 IN PROGRESS.
+CURRENT CI: official39836411862/build795; regression39838900146/dev169 IN PROGRESS.
 Current contracts/native-policy and regression checks/core/android/native-policy
-PASS; six SDK builds and reference SDK still running. No new failed jobs.
+PASS on795; new169 regression pending. Both25.12.6 SDKs now FAILED during
+GPL source packaging: "Patched source does not match the selected SDK recipe
+version". Actual source directory dnsmasq-full/dnsmasq-2.93; build and source
+retention SUCCESS. Failed jobs120029184868/120029190948. Release owner fixed
+exact recipe version resolution with strict version/hash/source/license checks.
+Official recipe uses literal PKG_UPSTREAM_VERSION2.93 but PKG_VERSION contains
+Make subst normalization. Read only upstream literal identity (legacy literal
+PKG_VERSION fallback), exact PKG_SOURCE mapping and literal PKG_HASH; never
+evaluate Make/shell. New real modern-recipe and legacy GPLarchive tests PASS,
+version/hash/mapping/unsafe-expression refusal retained. SDKrecipe7PASS/1local
+GNUmakeSKIP, py_compile/diffPASS. Same795 failure confirmed24.10.8 ARM120029184688.
 READONLY release audit found native VM remote commands lacked fail-fast shell:
 a failed repeat installer could be masked by successful final config hashes.
 Fixed run_remote uses set-eu; mocked SSH executes a real POSIX shell to prove
@@ -48,7 +59,9 @@ Prior official39812818202 contracts/native-policy SUCCESS, ALL6 SDK jobs FAILED,
 VM/signing/release SKIPPED. Do not retry or claim acceptance of this source.
 Older398077*/398061* runs are superseded, not current checks.
 
-FIRST UNFINISHED ACTION: inspect these NEW current runs compactly, failed logs only.
+FIRST UNFINISHED ACTION: checkpoint/push the tested GPL recipe version fix,
+update BOTH dev/build refs to exact source and inspect fresh runs compactly.
+Do not publish superseded795 even if jobs pass. Failed logs only.
 DNS compilation now succeeds, but SDK CONFIG_AUTOREMOVE deletes src/dnsmasq and
 patched source/COPYING before binary discovery/GPL packaging. Failed logs show
 the cleanup find/xargs immediately before "Expected exactly one SDK full dnsmasq

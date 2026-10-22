@@ -11,7 +11,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from sdk_recipe import dnsmasq_recipe
+from sdk_recipe import dnsmasq_recipe, dnsmasq_source_identity
 
 
 class SdkRecipeTest(unittest.TestCase):
@@ -25,7 +25,7 @@ class SdkRecipeTest(unittest.TestCase):
     def recipe(self, relative):
         path = self.sdk / relative / 'Makefile'
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text('PKG_NAME:=dnsmasq\nPKG_VERSION:=2.93\n', encoding='utf-8')
+        path.write_text('PKG_NAME:=dnsmasq\nPKG_VERSION:=2.93\nPKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz\n', encoding='utf-8')
         (self.sdk / 'tmp/.packageinfo').write_text('Source-Makefile: ' + relative + '/Makefile\nPackage: dnsmasq\nPackage: dnsmasq-full\n', encoding='utf-8')
         return path
 
@@ -57,6 +57,21 @@ class SdkRecipeTest(unittest.TestCase):
         path.write_text('PKG_NAME:=other\n', encoding='utf-8')
         with self.assertRaises(ValueError):
             dnsmasq_recipe(self.sdk)
+
+    def test_modern_upstream_source_version_is_distinct_from_normalized_package_version(self):
+        recipe = self.recipe('package/feeds/base/dnsmasq')
+        modern = ('PKG_NAME:=dnsmasq\nPKG_UPSTREAM_VERSION:=2.93\n'
+                  'PKG_VERSION:=$(subst test,~~test,$(subst rc,~rc,$(PKG_UPSTREAM_VERSION)))\n'
+                  'PKG_SOURCE:=$(PKG_NAME)-$(PKG_UPSTREAM_VERSION).tar.xz\nPKG_HASH:=' + 'a' * 64 + '\n')
+        recipe.write_text(modern, encoding='utf-8')
+        self.assertEqual(dnsmasq_source_identity(recipe.parent), ('2.93', 'a' * 64))
+        for bad in (modern.replace('PKG_UPSTREAM_VERSION:=2.93', 'PKG_UPSTREAM_VERSION:=$(shell unexpected)'),
+                    modern + 'PKG_UPSTREAM_VERSION:=2.92\n',
+                    modern.replace('PKG_SOURCE:=$(PKG_NAME)-$(PKG_UPSTREAM_VERSION).tar.xz', 'PKG_SOURCE:=different.tar.xz'),
+                    modern.replace('PKG_HASH:=' + 'a' * 64, 'PKG_HASH:=$(shell unexpected)')):
+            recipe.write_text(bad, encoding='utf-8')
+            with self.assertRaises(ValueError):
+                dnsmasq_source_identity(recipe.parent)
 
     def test_build_retains_source_with_unset_config_and_empty_make_override(self):
         build = (ROOT / 'scripts/build-sdk.sh').read_text(encoding='utf-8')
@@ -97,6 +112,14 @@ class SdkRecipeTest(unittest.TestCase):
             self.assertIn('patched-source/COPYING', names)
             self.assertIn('patched-source/source.c', names)
             self.assertIn('upstream/dnsmasq-2.93.tar.xz', names)
+        legacy = recipe.read_text(encoding='utf-8')
+        modern = legacy.replace('PKG_VERSION:=2.93', 'PKG_UPSTREAM_VERSION:=2.93\nPKG_VERSION:=$(subst test,~~test,$(subst rc,~rc,$(PKG_UPSTREAM_VERSION)))')
+        modern = modern.replace('$(PKG_NAME)-$(PKG_VERSION).tar.xz', '$(PKG_NAME)-$(PKG_UPSTREAM_VERSION).tar.xz')
+        recipe.write_text(modern, encoding='utf-8')
+        subprocess.run(args, check=True, capture_output=True)
+        recipe.write_text(modern.replace('PKG_UPSTREAM_VERSION:=2.93', 'PKG_UPSTREAM_VERSION:=2.92'), encoding='utf-8')
+        self.assertNotEqual(subprocess.run(args, capture_output=True).returncode, 0)
+        recipe.write_text(modern, encoding='utf-8')
         upstream.write_bytes(b'changed source')
         self.assertNotEqual(subprocess.run(args, capture_output=True).returncode, 0)
 
