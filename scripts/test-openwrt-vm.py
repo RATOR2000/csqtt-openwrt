@@ -45,6 +45,33 @@ def free_port():
         return bound.getsockname()[1]
 
 
+def run_remote(ssh, command, timeout=600, check=True):
+    result = subprocess.run(ssh + ['set -eu; ' + command], capture_output=True, text=True, timeout=timeout)
+    # Private native diagnostics never enter public evidence/logs.
+    if check and result.returncode:
+        print(f'OpenWrt VM failure: stage={PHASE} exit={result.returncode}', flush=True)
+        # Capture only bounded private diagnostics into host memory;
+        # emit fixed enums, never package logs or configuration text.
+        diagnostics = subprocess.run(ssh + [
+            'for f in /tmp/csqtt-native/*.private.log; do [ ! -f "$f" ] || tail -c 8192 "$f"; done'],
+            capture_output=True, text=True, timeout=15)
+        private = diagnostics.stdout
+        markers = re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private)
+        if markers:
+            print('OpenWrt guest substage: ' + markers[-1], flush=True)
+        reasons = {
+            'signature_rejected': ('UNTRUSTED signature', 'BAD signature', 'Verification failure', 'подпись'),
+            'dependency_solver': ('unable to select packages', 'unsatisfiable', 'Неполный набор зависимостей', 'не прошла в изолированной базе'),
+            'resource_limit': ('Недостаточно', 'No space left'),
+            'network_fetch': ('Connection failed', 'Failed to download', 'не удалось скачать', 'Не удалось скачать'),
+            'kernel_abi': ('ядра не совпадает', 'kernel mismatch'),
+        }
+        for reason, needles in reasons.items():
+            if any(needle in private for needle in needles):
+                print('OpenWrt guest reason: ' + reason, flush=True)
+        raise ValueError('Disposable guest command failed; native acceptance was not granted')
+    return result
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', type=pathlib.Path, required=True)
@@ -124,32 +151,7 @@ def main():
             ssh = ['ssh', '-i', str(private_key), '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes',
                    '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=' + str(work / 'known_hosts'),
                    '-o', 'ConnectTimeout=3', '-p', str(port), 'root@127.0.0.1']
-            def remote(command, timeout=600, check=True):
-                result = subprocess.run(ssh + [command], capture_output=True, text=True, timeout=timeout)
-                # Private native diagnostics never enter public evidence/logs.
-                if check and result.returncode:
-                    print(f'OpenWrt VM failure: stage={PHASE} exit={result.returncode}', flush=True)
-                    # Capture only bounded private diagnostics into host memory;
-                    # emit fixed enums, never package logs or configuration text.
-                    diagnostics = subprocess.run(ssh + [
-                        'for f in /tmp/csqtt-native/*.private.log; do [ ! -f "$f" ] || tail -c 8192 "$f"; done'],
-                        capture_output=True, text=True, timeout=15)
-                    private = diagnostics.stdout
-                    markers = re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private)
-                    if markers:
-                        print('OpenWrt guest substage: ' + markers[-1], flush=True)
-                    reasons = {
-                        'signature_rejected': ('UNTRUSTED signature', 'BAD signature', 'Verification failure', 'подпись'),
-                        'dependency_solver': ('unable to select packages', 'unsatisfiable', 'Неполный набор зависимостей', 'не прошла в изолированной базе'),
-                        'resource_limit': ('Недостаточно', 'No space left'),
-                        'network_fetch': ('Connection failed', 'Failed to download', 'не удалось скачать', 'Не удалось скачать'),
-                        'kernel_abi': ('ядра не совпадает', 'kernel mismatch'),
-                    }
-                    for reason, needles in reasons.items():
-                        if any(needle in private for needle in needles):
-                            print('OpenWrt guest reason: ' + reason, flush=True)
-                    raise ValueError('Disposable guest command failed; native acceptance was not granted')
-                return result
+            remote = functools.partial(run_remote, ssh)
             deadline = time.monotonic() + 90
             while remote('true', timeout=6, check=False).returncode:
                 require(time.monotonic() < deadline, 'Disposable VM SSH readiness timed out')

@@ -22,6 +22,7 @@ from release_schema import artifact, describe, load, require, token, validate
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REPOSITORY = 'RATOR2000/csqtt-openwrt'
+RELEASE_METADATA_LIMIT = 4 * 1024 * 1024
 PHASE = 'public_metadata'
 
 
@@ -76,7 +77,7 @@ def public_bundle(tag, profile, source, directory):
     key = ROOT / 'release/csqtt-public.pem'
     require(key.read_bytes() == (source / 'release/csqtt-public.pem').read_bytes(), 'Release public key differs from the pinned key')
     command = readme_command((source / 'README.md').read_text(encoding='utf-8'), tag)
-    release = json.loads(download('https://api.github.com/repos/' + REPOSITORY + '/releases/tags/' + tag, 262144))
+    release = json.loads(download('https://api.github.com/repos/' + REPOSITORY + '/releases/tags/' + tag, RELEASE_METADATA_LIMIT))
     require(release.get('tag_name') == tag and release.get('draft') is False and release.get('published_at'),
             'Release is not publicly published')
     assets = {}

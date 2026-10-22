@@ -3,6 +3,7 @@
 import copy
 import hashlib
 import importlib.util
+import io
 import json
 import pathlib
 import subprocess
@@ -73,7 +74,11 @@ class PublicCommandTest(unittest.TestCase):
         if mutate_release:
             mutate_release(release)
         def downloaded(url, maximum=67108864):
-            return json.dumps(release).encode() if '/releases/tags/' in url else self.files[url.removeprefix(BASE)]
+            body = json.dumps(release).encode() if '/releases/tags/' in url else self.files[url.removeprefix(BASE)]
+            if '/releases/tags/' in url:
+                self.release_size, self.release_limit = len(body), maximum
+            public.require(len(body) <= maximum, 'Mock HTTP response exceeds the real download bound')
+            return body
         def git(args, **unused):
             return subprocess.CompletedProcess(args, 0, stdout=(TAG if 'describe' in args else SHA) + '\n')
         with mock.patch.object(public, 'download', side_effect=downloaded), \
@@ -125,6 +130,28 @@ class PublicCommandTest(unittest.TestCase):
             network.assert_not_called()
         with self.assertRaises(ValueError):
             public.public_bundle('v0.1.0-preview.9', PROFILE, self.source, self.output)
+
+    def test_large_release_metadata_is_accepted_but_four_mib_limit_is_enforced(self):
+        def many_assets(release):
+            for i in range(500):
+                name = f'extra-public-{i}.json'
+                release['assets'].append({'name': name, 'size': 99, 'label': 'public asset metadata ' * 30,
+                                          'browser_download_url': BASE + name})
+        self.run_bundle(many_assets)
+        self.assertGreater(self.release_size, 262144)
+        self.assertEqual(self.release_limit, 4 * 1024 * 1024)
+        url = 'https://api.github.com/repos/RATOR2000/csqtt-openwrt/releases/tags/' + TAG
+        class Response(io.BytesIO):
+            pass
+        for size, accepted in ((public.RELEASE_METADATA_LIMIT, True), (public.RELEASE_METADATA_LIMIT + 1, False)):
+            response = Response(b'x' * size)
+            response.url = url
+            with mock.patch.object(public.urllib.request, 'urlopen', return_value=response):
+                if accepted:
+                    self.assertEqual(len(public.download(url, public.RELEASE_METADATA_LIMIT)), size)
+                else:
+                    with self.assertRaises(ValueError):
+                        public.download(url, public.RELEASE_METADATA_LIMIT)
 
 
 if __name__ == '__main__':

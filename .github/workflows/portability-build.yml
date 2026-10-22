@@ -31,6 +31,8 @@ jobs:
           python3 tests/installer/portable_test.py
           python3 tests/release/dependency_test.py
           python3 tests/release/sdk_recipe_test.py
+          python3 tests/release/public_command_test.py
+          python3 tests/release/vm_acceptance_test.py
           python3 scripts/assemble-installer.py --check
           node --test tests/policy/*.test.* tests/luci/*.test.*
           bash -n scripts/build-sdk.sh

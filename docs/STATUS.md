@@ -25,18 +25,30 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-Source/dev/build SHA48da4b07e149e1a722de0ac099e1b97ed64f2169,
-tree6dfd6be8675459a76fd80b9a49efa47cbb95d0af. Connector push, credential-free
+Source/dev/build SHA79513c71c7763ffb7cfdf76d71bb5797bf3649f2,
+treefac4bb0d95e96a29ac9f1d7745fba55180dcacb3. Connector push, credential-free
 fetch and exact local/remote tree equality confirmed. No release10 published.
 Default main remains unchanged; existing draft PR#1 is attached to this chat.
 
-CURRENT CI: regression39812820727 ALL5 SUCCESS (Rust, Android build/tests,
+CURRENT CI: official39836411862 and regression39836416971 IN PROGRESS.
+Current contracts/native-policy and regression checks/core/android/native-policy
+PASS; six SDK builds and reference SDK still running. No new failed jobs.
+READONLY release audit found native VM remote commands lacked fail-fast shell:
+a failed repeat installer could be masked by successful final config hashes.
+Fixed run_remote uses set-eu; mocked SSH executes a real POSIX shell to prove
+intermediate failure cannot produce acceptance. Public GitHub release metadata
+bound raised from256KiB to4MiB for six complete bundles, with large-response and
+exact upper-bound tests. Local VM1/1/public-command7/7, py_compile/diff PASS.
+These acceptance fixes MUST be pushed as a new source before publishing;795 is
+superseded for release eligibility even if its jobs succeed. Let SDK caches
+complete, then build the exact new source. Never publish an old795 draft.
+Prior regression39812820727 ALL5 SUCCESS (Rust, Android build/tests,
 Node/Go/installer/release checks, native-policy, reference25.12.5 SDK).
-Official39812818202 contracts/native-policy SUCCESS, ALL6 SDK jobs FAILED,
+Prior official39812818202 contracts/native-policy SUCCESS, ALL6 SDK jobs FAILED,
 VM/signing/release SKIPPED. Do not retry or claim acceptance of this source.
 Older398077*/398061* runs are superseded, not current checks.
 
-FIRST UNFINISHED ACTION: push the now-fixed SDK source cleanup and inspect NEW CI.
+FIRST UNFINISHED ACTION: inspect these NEW current runs compactly, failed logs only.
 DNS compilation now succeeds, but SDK CONFIG_AUTOREMOVE deletes src/dnsmasq and
 patched source/COPYING before binary discovery/GPL packaging. Failed logs show
 the cleanup find/xargs immediately before "Expected exactly one SDK full dnsmasq
@@ -48,9 +60,9 @@ binary/source/license checks retained. Focused SDKrecipe6 PASS,1 explicit local
 GNU Make SKIP (fixture runs in Linux CI), py_compile/diff PASS. Root owns STATUS/
 Git/CI integration. Recheck agent liveness; all owners frozen, no runtime changes.
 
-After focused fix/checkpoint, push dev AND codex/portable-preview.10-build at the
-SAME exact source SHA using expected-head leases. Inspect NEW runs compactly;
-read bounded FAILED job logs only. No scheduled tasks. Keep acceptance strict.
+Fix checkpoint now pushed to dev AND codex/portable-preview.10-build at the SAME
+exact source SHA with expected-head leases and tree equality. Inspect NEW runs
+compactly; read bounded FAILED logs only. No scheduled tasks. Keep acceptance strict.
 SDK Cargo restore/always-save now retains expensive compile outputs on failure.
 
 ## Implemented source and verification scope
