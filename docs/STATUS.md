@@ -31,54 +31,68 @@ not a guaranteed percentage/date. Asked to conserve5h quota. Fresh app snapshot:
 and completed, not assumed correct. diagnostics_finish completed/froze console helper/drivers/contracts. No active
 subagent ownership; other old agents completed/errored. Recheck liveness.
 
-Current dev1223a8abbcca4654bfd2a9b9a1526c0f95fda19e,
-tree062a8f18eb9be0c96abd3ea8cbdc3cae39564c2e. Source checkpoint pushed through
+Current devc9565fe052b39d01fe02f01265a32ffdb7cd2686,
+tree89e76e7c291d91910bb564129f6f075497ca582c. Source checkpoint pushed through
 connector, credential-free fetch and tree equality PASS. Build still4f21dbf
 (failed/superseded candidate). Preview10 NOT published; preview9/tag/assets
 immutable. Main README remains2lines; existing attached draft PR#1 is future
 delivery, no duplicate PR/schedule. Owner installs personally, no SSH mutation.
 
-FIRST UNFINISHED ACTION: launch/read diagnostic13 from
-.work/preview.10/probe-workflow-v13.yml after this checkpoint/push. Two parallel
-clean VMs:24.10.8 old9358 SDK fixture run39839530729/artifact12454216980 and
-25.12.6 old4f21 SDK fixture run39946222767/artifact12499657002 (15,311,357bytes,
-ZIP SHA687d9fc0f616f1c6901b4381e8b340da52d500f4d6661a8237655475a5669024).
-This tests BOTH PM bootstrap paths before another expensive6SDK rebuild; no
-project binaries rebuilt and diagnostic source/package mismatch NEVER qualifies
-release. No GITHUB_SHA override. Migration9 already PASS; do not repeat it here.
+FIRST UNFINISHED ACTION: freeze/push this source checkpoint as one exact
+qualification SHA (no skip-ci), update dev and existing build branch with leases,
+run fresh6SDK/3VM+5regression. Focused module transaction test PASS:12subcases
+across both PMs,342.992s; log .work/preview.10/modules-focused.log. No process left.
+New module cache is necessary: old diagnostic artifacts cannot pass complete
+install; do not endlessly rerun or promote them. No GITHUB_SHA override. Native
+final gates remain mandatory. Once dispatched record source/tree/run IDs in
+.work/preview.10/candidate.json and STATUS. User5h quota83% at last snapshot;
+save resumable checkpoint, no schedules/new agents or physical router mutations.
 
-Diagnostic12 run39990760246/source49f610f5ae07d9ae9f4d58c15095d53a0f6802f3,
-job120541593877 FAILED native opkg bootstrap solver (portable source118 at12).
-Actual Linux BusyBox16/image6/disk17/VM30/public7 host contracts PASS. Actual
-24.10.8 boot/UID0/network/SSH, checked private reader, package inventory including
-held entries and signed official feed update PASS; strict project signature
-rejection NOT reached and therefore not counted. Native source confirmed opkg
-always prefixes lists_dir with offline_root (opkg_conf.c541-545):
-https://lxr.openwrt.org/source/opkg-lede/libopkg/opkg_conf.c
-Existing update wrote outside that root. Copy only already authenticated lists
-into root/tmp/csqtt-bootstrap-lists, pass rootrelative lists_dir to offline solver.
-Focused actual-shell fixture bootstrap SUCCESS, deliberately old list argument
-FAILS before live mutation with exact inventory preserved. Native result awaits13.
-No trust/inventory/lifecycle checks weakened. Generated installer synced.
+Diagnostic13 run39993383309/sourcea92a3f429016e1ed4cd7b521407824327abdfa1e:
+-25.12.6 job120550565871: bootstrap + exact wrong-project-signature rejection
+ PASS; firstinstall stopped at portable673 missing required dependency. Old
+ verified artifact12499657002 manifest lacks kmod-nf-conntrack-netlink in cache.
+ Producer closure skipped all kmods exceptTUN even when their signed-index rows
+ existed; reproduced directly. No project installation occurred.
+-24.10.8 job120550566248: signed feed/native staged solver nowPASS after listpath
+ fix; stopped at portable132 bootstrap removal proof. Native opkg source processes
+ operands in order; alphabetic libopenssl3 before openssl-util blocks removal.
+ Full source references: official opkg_conf.c541-545, opkg_cmd.c862+, pkg.c
+ pkg_run_script noaction/offlineroot guards at https://git.openwrt.org/project/opkg-lede/.
+ Existing signed9 migration diagnostic9 PASS; don't repeat for these edits.
 
-Private VM diagnostic now reads the exact bootstrap/solver.log only after that
-fixed error: current-phase/source-line CS_TMP assignment exactlyonce, strict
-6alnum temp basename,<=1MiB discovery, symlink refusal, checked8KiB byte tail.
-Only fixed solver enums and two source-known package names print, or unavailable.
-LF/CRLF discovery checked; no rawpaths/logs/URLs/config/keys. Windows VM34tests
-32PASS/2explicitnative-dd/symlinkskips, public7PASS, shell/assemble/diffPASS.
+Implemented source, native results still pending:
+- Producer traverses ALL required modules/transitive deps. EACH selected module
+ proves its own exactly one positive kernel=ABI dependency in signed metadata;
+ reject missing/nonexact/duplicate/conflicting declarations and duplicate-feed
+ ambiguity. Record kernel_package on each module; selectedTUN still mandatory.
+ Firmware/kernel/DNS/firewall/procd/netifd exclusions unchanged. Schema/installer
+ require every module ABI equal manifest AND current probe kernel. All signatures,
+ native package checks and unchanged-inventory proofs remain mandatory.
+- Rollback allows modules only if present exactlyonce in the verified transaction
+ bundle with matching ABI AND absent from original package snapshot. Both staged
+ and journal-resume paths pass this context. Bootstrap still forbids all modules.
+- opkg removals use native --noaction per exact target, then checked actual remove.
+ Retry only blocked readonly plans after another selected removal succeeded;
+ zero progress fails, actual write error aborts. No autoremove/force/nodeps.
+ This handles dependency order without removing baseline packages. APK unchanged.
+ Mock now models dependent libopenssl3/openssl-util and nonmutating --noaction.
+ Focused opkg bootstrap_success + bad-project-signature full inventory restore PASS;
+ earlier old offline listpath correctly fails before live writes. Native pending.
+- Private VM also now requires no pending bootstrap/project journal and preserved
+ system config after invalid-project-signature rollback, before valid installation.
 
-BusyBox parser differences fixed with dynamic regexp STRINGS for all4allowlists;
-opkg validates raw controls before field splitting. Actual readonly router awk
-16feedcases PASS (no files/service/config writes); Linux BB boundaries PASS12.
-Probe11 had caught unwanted backslash admission and hidden CR; those refusals
-remain tested. Original metadata failure isolated10 (GNU awk had accepted it).
-First Windows root test run caught runner PATH issue; resolved AWK wrapper PASS.
-No owner install/config/network/service changes. All agents frozen/completed.
-User quota snapshot17:00UTC:48%5h used/52%remaining, weekly39%; reset21:20UTC.
-Conserve by focused diagnostics and no unchanged/full log reads. No schedules.
-After both clean-install/nativeguest/repeat proofs, freeze exactsource candidate,
-final6SDK/3VM +5regression, then signed/public/literal README/main PR gates below.
+Checks: dependency12/12, release10/10, VM34=32PASS/2explicitWindowsnative skips,
+public7/7, platform16=15PASS/1WindowsBBskip (actual Linux BB PASS12/13), generated
+installer/shell syntax/nodecheck/diffPASS. New module transaction test12subcases PASS342.992s: both PMs new/existing,
+wrong/missing ABI, failed-service rollback and SIGKILL/resume. Private nested diagnostics remain bounded/redacted.
+Readonly actual router awk16feedcases PASS earlier; NO owner installation, reboot,
+service/config/network changes. Router is personal-install-only. No schedules.
+User requested quota economy: snapshot17:00UTC48%5h used; later83%5h/45%weekly,
+reset21:20UTC. Save coherent checkpoint before quota exhaustion, no new agents.
+All agent edits frozen; architecture/module producer agent completed focused
+checks, root owns installer integration/test/final Git. Recheck agents on resume.
+Preview10 NOT published/ready; rough estimate70%done/30%remaining, not guarantee.
 
 Diagnostic9 native migration already PASS; do not repeat for console-only edits.
 Both are diagnostic ONLY, old binaries differ from current source: NEVER release

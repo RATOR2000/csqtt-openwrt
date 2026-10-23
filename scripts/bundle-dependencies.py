@@ -69,6 +69,17 @@ def dep_identity(value):
     return match[2], match[3], match[4], bool(match[1])
 
 
+def module_kernel(row):
+    """Use this module's authenticated dependency metadata, never its version."""
+    declarations = [dependency for dependency in map(dep_identity, split_deps(row.get('depends', [])))
+                    if dependency[0] == 'kernel']
+    require(len(declarations) == 1, 'Kernel module requires one exact kernel ABI: ' + row['name'])
+    _, operator, version, conflict = declarations[0]
+    require(not conflict and operator == '=' and token(version),
+            'Kernel module requires one exact kernel ABI: ' + row['name'])
+    return version
+
+
 def closure(rows, roots):
     """Select exact identities; conflicting constraints fail before downloads.
 
@@ -93,10 +104,10 @@ def closure(rows, roots):
         if conflict or name in {'csqtt', 'csqtt-captcha', 'luci-app-csqtt'}:
             continue
         if name == 'kernel':
-            require(operator == '=' and version, 'TUN requires exact kernel ABI')
+            require(operator == '=' and token(version), 'Kernel dependency requires exact ABI')
             require(kernel in (None, version), 'Conflicting kernel ABIs')
             kernel = version
-        if name in FIRMWARE or (name.startswith('kmod-') and name != 'kmod-tun'):
+        if name in FIRMWARE:
             required.add(name)
             continue
         row = names.get(name)
@@ -109,10 +120,17 @@ def closure(rows, roots):
                     'Exact dependency version mismatch: ' + name)
         if row['name'] in selected:
             continue
+        if row['name'].startswith('kmod-'):
+            abi = module_kernel(row)
+            require(all(module_kernel(candidate) == abi for candidate in rows if candidate['name'] == row['name']),
+                    'Ambiguous feed kernel ABI: ' + row['name'])
+            require(kernel in (None, abi), 'Conflicting kernel ABIs')
+            kernel = abi
+            row = {**row, 'kernel_package': abi}
         selected[row['name']] = row
         require(len(selected) <= 64, 'Dependency closure exceeds bound')
-        pending.extend(row.get('depends', []))
-    require(kernel is not None, 'Missing exact kmod-tun kernel dependency')
+        pending.extend(split_deps(row.get('depends', [])))
+    require('kmod-tun' in selected and kernel is not None, 'Missing exact kmod-tun kernel dependency')
     return sorted(selected.values(), key=lambda r: r['name']), sorted(required), kernel
 
 
@@ -280,8 +298,8 @@ def main():
                 authenticate_apk_payload(tool, arch, row, path,
                                          {**index, 'path': out / index['name']}, keys, work)
             entry = describe(path, package=row['name'], version=row['version'], index=row['index'], filename=row['filename'])
-            if row['name'] == 'kmod-tun':
-                entry['kernel_package'] = kernel
+            if row['name'].startswith('kmod-'):
+                entry['kernel_package'] = row['kernel_package']
             packages.append(entry)
         bundle = {'indexes': indexes, 'packages': packages,
                   'requirements': {'kernel_package': kernel, 'packages': sorted(set(required) | {r['name'] for r in selected})}}

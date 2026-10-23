@@ -131,6 +131,56 @@ class DependencyTest(unittest.TestCase):
         self.assertEqual({r['name'] for r in result}, {'kmod-tun', 'luci-base', 'ucode-mod-fs', 'libubus2025'})
         self.assertEqual(required, ['firewall4', 'kernel', 'libc', 'procd'])
         self.assertEqual(kernel, '6.12.112~abcd-r1')
+        self.assertEqual(next(row for row in result if row['name'] == 'kmod-tun')['kernel_package'], kernel)
+
+    def test_conntrack_modules_are_cached_transitively_with_their_own_exact_kernel(self):
+        abi = '6.12.112~abcd-r1'
+        rows = [{'name': 'kmod-tun', 'version': '1-r1', 'depends': ['kernel=' + abi]},
+                {'name': 'conntrack', 'version': '1-r1', 'depends': ['kmod-nf-conntrack-netlink']},
+                {'name': 'kmod-nf-conntrack-netlink', 'version': '2-r1',
+                 'depends': ['kernel (= ' + abi + ')', 'kmod-nf-netlink']},
+                {'name': 'kmod-nf-netlink', 'version': '3-r1', 'depends': ['kernel=' + abi, 'libc']}]
+        result, required, kernel = bundle.closure(rows, ['kmod-tun', 'conntrack', 'firewall4'])
+        self.assertEqual({row['name'] for row in result},
+                         {'kmod-tun', 'conntrack', 'kmod-nf-conntrack-netlink', 'kmod-nf-netlink'})
+        self.assertEqual(required, ['firewall4', 'kernel', 'libc'])
+        self.assertEqual(kernel, abi)
+        for row in result:
+            if row['name'].startswith('kmod-'):
+                self.assertEqual(row['kernel_package'], abi)
+        self.assertTrue(all('kernel_package' not in row for row in rows), 'Do not rewrite authenticated feed rows')
+
+    def test_every_module_requires_one_own_exact_abi_even_when_tun_is_valid(self):
+        abi = '6.12.112~abcd-r1'
+        for dependencies in ([], ['kernel'], ['kernel>=1'], ['kernel='], ['!kernel=' + abi],
+                             ['kernel=' + abi, 'kernel=' + abi],
+                             ['kernel=' + abi, 'kernel=6.12.112~other-r1'],
+                             ['kernel=6.12.112~other-r1']):
+            rows = [{'name': 'kmod-tun', 'version': '1-r1', 'depends': ['kernel=' + abi]},
+                    {'name': 'kmod-nf-conntrack-netlink', 'version': '1-r1', 'depends': dependencies}]
+            for roots in (['kmod-tun', 'kmod-nf-conntrack-netlink'],
+                          ['kmod-nf-conntrack-netlink', 'kmod-tun']):
+                with self.subTest(dependencies=dependencies, roots=roots), self.assertRaises(ValueError):
+                    bundle.closure(rows, roots)
+
+    def test_firmware_stays_required_only_and_another_module_cannot_replace_tun(self):
+        abi = '6.12.112~abcd-r1'
+        rows = [{'name': 'kmod-tun', 'version': '1-r1', 'depends': ['kernel=' + abi]},
+                *({'name': name, 'version': '1-r1'} for name in bundle.FIRMWARE)]
+        selected, required, _ = bundle.closure(rows, ['kmod-tun', *sorted(bundle.FIRMWARE - {'kernel'})])
+        self.assertEqual([row['name'] for row in selected], ['kmod-tun'])
+        self.assertEqual(set(required), bundle.FIRMWARE)
+        with self.assertRaises(ValueError):
+            bundle.closure([{'name': 'kmod-other', 'version': '1-r1', 'depends': ['kernel=' + abi]}], ['kmod-other'])
+
+    def test_same_version_duplicate_feed_module_cannot_hide_another_kernel_abi(self):
+        abi = '6.12.112~abcd-r1'
+        rows = [{'name': 'kmod-tun', 'version': '1-r1', 'depends': ['kernel=' + abi]},
+                {'name': 'kmod-extra', 'version': '1-r1', 'depends': ['kernel=' + abi]},
+                {'name': 'kmod-extra', 'version': '1-r1', 'depends': ['kernel=6.12.112~other-r1']}]
+        for ordered in (rows, list(reversed(rows))):
+            with self.subTest(reverse=ordered is not rows), self.assertRaises(ValueError):
+                bundle.closure(ordered, ['kmod-tun', 'kmod-extra'])
 
     def test_missing_ambiguous_conflicting_and_nonexact_kernel_refuse(self):
         for rows, roots in [([], ['missing']),

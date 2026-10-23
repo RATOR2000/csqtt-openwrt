@@ -100,6 +100,60 @@ class ReleaseTest(unittest.TestCase):
         profile,registry=self.portable_registry(qualification={'installation':True,'activation':True,'evidence':['fixture']})
         self.assertNotEqual(self.command('release-manifest.py','--profile',profile['id'],'--registry',registry).returncode,0)
 
+    def test_additional_modules_keep_exact_abi_through_apk_and_ipk_manifest_production(self):
+        sys.path.insert(0, str(REPO / 'scripts'))
+        from release_schema import describe, validate
+        abi = '6.12.112~abcd-r1'
+        for fmt in ('apk', 'ipk'):
+            with self.subTest(format=fmt):
+                case = self.root / fmt
+                case.mkdir()
+                profile, registry = self.portable_registry(fmt)
+                for role in ('csqtt', 'csqtt-captcha', 'luci-app-csqtt'):
+                    name = role + ('-0.1.0-r1.apk' if fmt == 'apk' else '_0.1.0-r1_x86_64.ipk')
+                    (case / name).write_bytes(b'public project package fixture')
+                index = case / (profile['id'] + '--feed1.' + ('adb' if fmt == 'apk' else 'Packages'))
+                index.write_bytes(b'public signed-index fixture; no native signature proof')
+                entry = describe(index, id='feed1', format='apk-adb' if fmt == 'apk' else 'opkg',
+                                 repository='https://downloads.openwrt.org/releases/24.10.8/targets/x86/64/kmods/6.6.123-abcd-1',
+                                 key_sha256='a' * 64)
+                if fmt == 'ipk':
+                    signature = index.with_suffix('.sig')
+                    signature.write_bytes(b'public signature fixture; not a real signature')
+                    entry['signature'] = describe(signature)
+                modules = []
+                for name in ('kmod-tun', 'kmod-nf-conntrack-netlink'):
+                    filename = name + ('-1-r1.apk' if fmt == 'apk' else '_1-r1_x86_64.ipk')
+                    package = case / (profile['id'] + '--dep--' + filename)
+                    package.write_bytes(b'public module payload fixture')
+                    modules.append(describe(package, package=name, version='1-r1', filename=filename,
+                                            index='feed1', kernel_package=abi))
+                dependencies = case / 'dependencies.json'
+                dependencies.write_text(json.dumps({'indexes': [entry], 'packages': modules,
+                    'requirements': {'kernel_package': abi, 'packages': ['kernel', 'kmod-tun', 'kmod-nf-conntrack-netlink']}}))
+                result = subprocess.run([sys.executable, str(REPO / 'scripts/release-manifest.py'), str(case),
+                                         '--profile', profile['id'], '--registry', str(registry),
+                                         '--dependencies', str(dependencies)], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                manifest = json.loads((case / 'manifest.json').read_text())
+                validate(manifest, case)
+                self.assertEqual([dep['kernel_package'] for dep in manifest['dependency_bundle']['packages']], [abi, abi])
+                for index in range(2):
+                    for changed in (None, '6.12.112~different-r1'):
+                        invalid = json.loads(json.dumps(manifest))
+                        dep = invalid['dependency_bundle']['packages'][index]
+                        if changed is None:
+                            dep.pop('kernel_package')
+                        else:
+                            dep['kernel_package'] = changed
+                        with self.assertRaises(ValueError):
+                            validate(invalid, case)
+                for protected in ('kernel', 'procd', 'netifd', 'dnsmasq-full', 'firewall4'):
+                    invalid = json.loads(json.dumps(manifest))
+                    invalid['dependency_bundle']['packages'][1]['package'] = protected
+                    with self.assertRaises(ValueError):
+                        validate(invalid, case)
+
     def test_duplicate_json_keys_are_rejected(self):
         path=self.root/'manifest.json'
         path.write_text(path.read_text().replace('"schema": 1','"schema": 1, "schema": 1'))

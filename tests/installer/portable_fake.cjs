@@ -51,7 +51,7 @@ else if (command === 'jsonfilter') {
   }
 } else if (command === 'dnsmasq') out('Compile time options: IPv6 ipset nftset');
 else if (command.startsWith('service:')) {
-  if (scenario === 'service_failure' && command === 'service:csqtt-health' && args[0] === 'restart') fail('Service failed');
+  if (['service_failure','module_failure'].includes(scenario) && command === 'service:csqtt-health' && args[0] === 'restart') fail('Service failed');
 } else if (command === 'apk' || command === 'opkg') {
   if (args.some(a => ['--allow-untrusted','--nodeps','--force-depends','--force-checksum','--force-signature'].includes(a))) fail('Trust/dependency bypass');
   const staged = args.includes('--root') || args.includes('--offline-root');
@@ -114,6 +114,10 @@ else if (command.startsWith('service:')) {
         const cache=native(opt('--cache-dir') || opt('--cache'));
         fs.mkdirSync(cache,{recursive:true});
         fs.writeFileSync(path.join(cache,file+'-1.'+(command === 'apk'?'apk':'ipk')),JSON.stringify(metadata));
+        if(command==='opkg' && file==='openssl-util') {
+          db['libopenssl3']='1';
+          fs.writeFileSync(path.join(cache,'libopenssl3-1.ipk'),JSON.stringify({package:'libopenssl3',version:'1'}));
+        }
         continue;
       }
       const metadata = JSON.parse(fs.readFileSync(native(file), 'utf8'));
@@ -133,13 +137,18 @@ else if (command.startsWith('service:')) {
     if (!staged && scenario.startsWith('bootstrap')) {
       for(const [pkg,cmd] of [['openssl-util','openssl'],['jsonfilter','jsonfilter']]) if(db[pkg]) fs.copyFileSync(path.join(root,cmd+'-wrapper'),path.join(native(process.env.CSQTT_WRAPPER_PATH),cmd));
     }
-    const interruption=['powerloss','bootstrap_powerloss_main'].includes(scenario) && packages.some(p=>p.includes('0.1.0')) || scenario === 'bootstrap_powerloss' && bootstrap;
+    const interruption=['powerloss','bootstrap_powerloss_main','module_powerloss'].includes(scenario) && packages.some(p=>p.includes('0.1.0')) || scenario === 'bootstrap_powerloss' && bootstrap;
     if (!staged && interruption && !fs.existsSync(path.join(root,'powerloss-triggered'))) {
       fs.writeFileSync(path.join(root,'powerloss-triggered'),'once');
       process.exit(77);
     }
     if (!staged && scenario === 'install_failure' && packages.some(p => p.includes('0.1.0'))) fail('Partial install failure');
   } else if (['del','remove'].includes(action)) {
+    if(command==='opkg') {
+      const selected=args.slice(args.indexOf(action)+1);
+      if(selected.includes('libopenssl3') && db['openssl-util']) fail('Package libopenssl3 is depended upon by openssl-util');
+      if(args.includes('--noaction')) process.exit(0);
+    }
     for (const name of args.slice(args.indexOf(action)+1)) delete db[name];
     if(staged && scenario==='bootstrap_orphan') delete db['ip-full'];
     save();

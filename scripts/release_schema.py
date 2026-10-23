@@ -118,10 +118,10 @@ def validate(manifest, root=None):
             artifact(dep, root)
             require(token(dep.get('package')) and token(dep.get('version')) and token(dep.get('filename')), 'Invalid dependency identity')
             require(dep['package'] not in dep_names and dep['package'] not in ROLES, 'Duplicate dependency package')
-            if dep['package'] == 'kmod-tun':
-                require(token(r.get('kernel_package')) and dep.get('kernel_package') == r['kernel_package'], 'TUN package requires exact running kernel ABI')
+            if dep['package'].startswith('kmod-'):
+                require(token(r.get('kernel_package')) and dep.get('kernel_package') == r['kernel_package'], 'Kernel module requires exact running kernel ABI')
             else:
-                require(dep['package'] not in ('kernel', 'procd', 'netifd') and not dep['package'].startswith(('kmod-', 'dnsmasq', 'firewall')), 'Kernel/DNS/firewall/services must come from the running firmware')
+                require(dep['package'] not in ('kernel', 'procd', 'netifd') and not dep['package'].startswith(('dnsmasq', 'firewall')), 'Kernel/DNS/firewall/services must come from the running firmware')
             require(dep.get('index') in by_id and dep['filename'].endswith('.' + fmt), 'Dependency index or filename mismatch')
             dep_names.add(dep['package'])
             all_names.add(dep['name'])
