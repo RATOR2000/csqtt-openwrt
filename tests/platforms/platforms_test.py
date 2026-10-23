@@ -70,9 +70,9 @@ class PlatformMetadataTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='csqtt-metadata-') as temporary:
             directory = pathlib.Path(temporary)
             data, executed = directory / 'metadata', directory / 'must-not-execute'
-            accepted = ('24.10.8', '25.12.6', 'x86/64', 'mediatek/filogic', 'aarch64_cortex-a53',
+            accepted = ('24.10.8', '25.12.6', '/', 'x86/64', 'mediatek/filogic', 'aarch64_cortex-a53',
                         'glinet,gl-mt6000', 'fixture:scope/path,board@slot-1', 'x' * 160)
-            rejected = ('bad value', 'bad"value', 'bad\\value', 'bad;value', 'bad$value', '\u0100',
+            rejected = ('bad value', 'bad"value', '\\', 'bad\\value', 'bad;value', 'bad$value', '\u0100',
                         'x' * 161, '$(touch ' + executed.as_posix() + ')', '`touch ' + executed.as_posix() + '`')
             for function in ('csqtt_release_value', 'csqtt_metadata_line'):
                 for value in accepted + rejected:
@@ -97,7 +97,8 @@ class PlatformMetadataTest(unittest.TestCase):
         good = prefix + 'packages/x86_64/base/packages.adb'
         punctuation = prefix + 'fixture_name.+:~-'
         invalid = ('https://foreign.invalid/feed', prefix.replace('25.12.6', '24.10.8') + 'feed',
-                   prefix + 'feed?query', prefix + 'feed\r', prefix + 'feed\x01', prefix + '\u0100', prefix + '$(command)')
+                   prefix + 'feed?query', prefix + 'feed\r', prefix + 'feed\f', prefix + 'feed\v',
+                   prefix + 'feed\\suffix', prefix + 'feed\x01', prefix + '\u0100', prefix + '$(command)')
         for index, program in enumerate(programs):
             def feed(url):
                 return url if index == 0 else 'src/gz base_fixture-1 ' + url
@@ -114,7 +115,8 @@ class PlatformMetadataTest(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
                     self.assertEqual(result.stdout, '')
             if index:
-                for malformed in ('src base ' + good, 'src/gz bad/name ' + good, 'src/gz base ' + good + ' extra'):
+                for malformed in ('src base ' + good, 'src/gz bad/name ' + good, 'src/gz base ' + good + ' extra',
+                                  *('src/gz base' + control + ' ' + good for control in ('\r', '\f', '\v'))):
                     result = subprocess.run(awk + ['-v', 'prefix=' + prefix, program], input=malformed + '\n',
                                             encoding='utf-8', capture_output=True, timeout=10)
                     self.assertNotEqual(result.returncode, 0)

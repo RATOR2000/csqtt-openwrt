@@ -38,29 +38,33 @@ connector, credential-free fetch and tree equality PASS. Build still4f21dbf
 immutable. Main README remains2lines; existing attached draft PR#1 is future
 delivery, no duplicate PR/schedule. Owner installs personally, no SSH mutation.
 
-FIRST UNFINISHED ACTION: launch/read VM-only diagnostic11 using
-.work/preview.10/probe-workflow-v11.yml after this BusyBox fix checkpoint/push.
+FIRST UNFINISHED ACTION: launch/read VM-only diagnostic12 using
+.work/preview.10/probe-workflow-v12.yml after this parser checkpoint/push.
+Diagnostic11 run39990262937/source ed0d08d85b72e2ccbd013ba77efeeae8f83bf66c,
+job120539909201 FAILED the new actual BusyBox host test: escaped slash inside
+literal classes also admitted BACKSLASH on BusyBox; opkg field splitting hid
+trailing CR. This caught real parser differences before any VM installation.
+All four filters now use dynamic regexp STRINGS (same exact allowlists, no slash
+literal lexer ambiguity); opkg additionally validates raw line after removing
+only permitted spaces/tabs, so CR/FF/VT cannot disappear during field splitting.
+Readonly native router awk verification (stdin only, no files/services/config
+writes): dynamic token accepts x86/64/rejects backslash; dynamic feed likewise;
+16 exact production feed cases PASS, stderr empty (valid official + foreign/
+backslash/CR/FF/VT/control/query refusals, both PM formats). Windows full platform
+16tests15PASS/1explicitBBskip; Linux BB mandatory. Generated installer synced.
 Diagnostic10 run39988985205/source d32ff26cad287a459131b079b8e33da2533e26bb,
-job120535521156 FAILED before signature validation. Boot/UID0/provision/SSH and
-checked bounded private log reader all actually PASS; early source trace81 was
-csqtt_release_value awk. Linux image/disk/30VM/public command host tests PASS.
-Actual readonly ssh router (no files/services/config writes) isolated the cause:
-BusyBox awk rejects unescaped / inside these character classes; GNU awk accepts.
-Original tokenregex exit1; escapedregex exit0. Fixed both platform metadata and
-both signed official-feed allowlists, generated install.sh regenerated. Actual
-readonly BusyBox fixed helper returns0/nonempty, both official feed cases0 and
-foreign cases1, stderr empty. No settings/network/service changes or install.
-Platform16 tests15PASS/1explicitWindowsBBskip; actual BusyBox mandatory on Linux,
-installed before tests in general/portable/probe workflows. First root rerun
-caught test runner's missing bareawk PATH (exit127); wrapper now uses resolved
-executable and corrected complete suite PASS. Shell/assemble/diff checks PASS.
-Diagnostic11 includes BB tests before actual guest installer; old9358 SDK24
-artifact only as fixture. No Rust/SDK/migration rebuild. Diagnostic9 migration
-already PASS; do not repeat for parser-only edits. Diagnostic-only old binaries
-NEVER release qualification; no GITHUB_SHA override. After actual clean-install/
-native guest/repeat proof freeze exactsource candidate, final6SDK/3VM +5regression,
-then signatures/draft/public downloads/literal README checks/main PR below.
-No owner router/network changes. No schedules. All agents completed/frozen.
+job120535521156: boot/UID0/provision/SSH/bounded private reader and Linux image/
+disk/30VM/publiccommand host tests PASS; failed early metadata parser, source81.
+Original BusyBox literal regex failure proved by readonly router tests; local
+GNU awk accepted it. First root Windows test rerun caught absent bareawk PATH
+(exit127); test wrapper now uses resolved AWK, complete rerun PASS. No install,
+config, network or service changes on owner router. No secrets printed.
+Diagnostic12 runs BB boundary tests then actual clean guest installer using old
+9358 SDK24 artifact only as fixture. No Rust/SDK/migration rebuild. Diagnostic9
+migration already PASS. These old binaries NEVER release qualification; no
+GITHUB_SHA override. After clean-install/native guest/repeat proof freeze exact
+source candidate, final6SDK/3VM +5regression; then signatures/draft/public assets/
+literal README command/main PR gates below. No scheduled tasks. Agents frozen.
 
 Diagnostic9 native migration already PASS; do not repeat for console-only edits.
 Both are diagnostic ONLY, old binaries differ from current source: NEVER release
@@ -80,7 +84,7 @@ after22s, installer never ran. Same handshake passed probes7/8; exact cause not
 proven. Current console fix retries only readonly UID0 nonce probes under180s/
 90attempt bounds and prints leading LF before every result marker, so output
 cannot join a prompt without a newline. Provisioning stays checked/one-shot.
-Diagnostic10 passed console and bounded read; proceed with BusyBox fix11;
+Diagnostic10 passed console/bounded read; proceed with strict BusyBox fix12;
 do not rerun already-passed migration simply for this console-only edit.
 
 Exact local metadata .work/preview.10/{candidate,probe}.json; probe-workflow-v9.yml
@@ -117,7 +121,7 @@ Current implemented fixes, remaining native gates:
   decode; read failure emits unavailable. Private sh-x returns only known source
   functionnames and numeric lines beforecleanup, never rawcommands/logs/keys/URLs.
   Public-command workflow unchanged. Actual corrected transport/trace awaits
-  diagnostic11;10 isolated actual BusyBox metadata regex incompatibility.
+  diagnostic12;10/11 isolated actual BusyBox parser differences.
 - Real stock24.10.8 DB has171 install-ok +4 install-hold records. Shared production
   opkg parser now includes supported ok/hold/user installed records, rejects
   duplicates/unknown installed flags atomically, excludes partial states. Every
