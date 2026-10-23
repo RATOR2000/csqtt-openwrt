@@ -38,11 +38,29 @@ requires a fresh candidate after diagnostic proof; STATUS alone never does.
 Exact metadata: .work/preview.10/candidate.json; source/package/evidence must bind
 to frozen SHA. No GITHUB_SHA override or old diagnostic proof promotion.
 
-FIRST UNFINISHED ACTION: read diagnostic17 remaining25job; run/read diagnostic18
-24-only missing-tool marker (.work/preview.10/probe-workflow-v18.yml), then
-run fresh exact-source qualification. Diagnostic reuses compiled06c packages;
+FIRST UNFINISHED ACTION (19:14UTC): correct test-only timeout availability on
+clean VM without weakening per-command bounds or inventing production deps;
+diagnose exact native APK staged command output (below), then fresh diagnostic
+and only after bothVM pass freeze/run6SDK+5regression. No CI watcher left active.
+Diagnostic reuses compiled06c packages;
 it MUST NOT qualify a release or override evidence source. No client rebuild
 needed to diagnose authenticated feed cache and both native VM transactions.
+LATEST dev456d725eed8f488405e6dac617944e15e7f5d2f4, tree
+77bc8f92bd9ff2d375ce3b9ad68d63d1472949bc; source/tests pushed and clean.
+Diagnostic17 remaining25job120600536738 FAILED at first_offline_install:
+checked stage.log readPASS, native APK failure unclassified_output; exact final
+source install.sh544 = apk --root "$CS_PM_ROOT" --arch "$CS_ARCH" ... --no-network
+--no-scripts add. Thus actual native command failed, not preceding shell/query.
+No missing-tool/shell-error class. Next diagnostic should capture only bounded
+native command output (beginning as well as tail, fixed classifications), because
+verbose help could hide its first error in current8192Btail. No forcedepends,
+allow-untrusted or solver bypass. Source trace functions endcsqtt_repositories.
+Diagnostic18 run40009117008/sourcedecdc35f5953221928b62b9639bc07cc32d89018
+job120604594219 FAILED runtimeprerequisites_tools; exact fixed missingtool timeout.
+Wrongsignature+actual24install passed again. timeout is absent in both pinned
+rootfs archives and used only guest harness. Supply verified test tooling or
+equivalent bounded harness execution, not unnecessary production dependencies.
+All running diagnostics nowcompleted; no full source qualification/public release.
 19:00UTC dev checkpointd28b73fa9c4fc5d3009b5aed35cc4e12950d7068,
 tree87d216aa86c584f1b6384c290e82cb5839fb8244. Local/fetch tree equality PASS.
 Diagnostic17 run40007934424/sourcea0ba424f57d63638cffd6cb155f7f2d3dec92a87
