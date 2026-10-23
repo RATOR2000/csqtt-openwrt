@@ -134,6 +134,15 @@ Wrong signature now requires nonzero AND exact signature error line; other early
 refusals cannot count. VMcontract17/17/public-command7/7/compile PASS. Owner
 qualification_review complete. Root pushing diagnostic8; production parser work
 by disk_finish remains separate/uncommitted until its own tests/freeze.
+Root added generated-install.sh numeric error line locations only (bounded to
+actual source lines, never raw variable/path); VMcontract now18/18 PASS.
+Diagnostic8 RUNNING39949386881 on1c8964733e477868afde00c5790a1beb7b0bc904.
+Dev88ae789145ec5f88193693c35975481b6e729610 checkpoint pushed/fetched with tree
+equality; build stays4f21. No new full cycle for diagnostic-only code.
+11:54UTC regression39946224573 ALL5 SUCCESS, including native reference APK
+job120391910853: corrected producer/native signed-index fixtures now truly pass.
+Official39946222767 contracts/policy +3SDK PASS;3SDK still compiling. Remaining
+portable install/VM/final-source qualification/public command gates still open.
 Independent concrete image finding:24.10.8 stock status has171 install-ok and4
 install-hold installed packages. Three production opkg parsers only accepted
 install-ok, so held package preservation proof was incomplete (not yet shown as
@@ -141,6 +150,15 @@ the early failure cause). disk_finish now owns ONLY portable-install.sh,
 focused installer tests and generated install.sh: include supported held/user
 installed records, reject partial and unknown-installed ambiguity, preserve
 all trust/rollback/lock guards. qualification_review owns VM driver/VMtest only.
+Held-package source now frozen: shared opkg parser includes ok/hold/user installed
+records in inventory/snapshot/live+staged version checks; excludes partial states,
+rejects unknown installed flags/duplicates atomically. All snapshot/inventory
+failures checked explicitly, including rollback invoked with errexit disabled.
+Focused OpkgInventoryTest6/6 PASS (real POSIX shell), final-source both-backend
+install PASS (51.425s), generated installer check/compile/shell/diff PASS.
+Signed bootstrap+SIGKILL-resume session60312 and independent opkg_state_review
+still PENDING; no full CI/public release acceptance implied. Checkpoint now;
+disk_finish retains ownership only for concrete follow-up findings/results.
 At11:36UTC fresh official contracts/native-policy and4regression nonSDK jobs
 SUCCESS;6SDK + reference SDK compiling. All new source/Git IDs above preserved.
 No owner router changes, scheduled tasks, reboot or WAN guard relaxation.
