@@ -102,7 +102,7 @@ csqtt_bootstrap() {
     if [ "$CS_PM" = apk ]; then
         for CS_BCONFIG in /etc/apk/repositories /etc/apk/repositories.d/*.list; do
             [ -f "$CS_BCONFIG" ] || continue
-            awk -v prefix="https://downloads.openwrt.org/releases/$CS_OPENWRT/" '/^[ \t]*($|#)/{next} {if(index($0,prefix)!=1 || $0~/[^A-Za-z0-9_./:+~-]/)exit 1;print}' "$CS_BCONFIG" >> "$CS_TMP/bootstrap/repositories" || csqtt_portable_die 'Средства проверки разрешены только из точных официальных репозиториев этой прошивки'
+            awk -v prefix="https://downloads.openwrt.org/releases/$CS_OPENWRT/" '/^[ \t]*($|#)/{next} {if(index($0,prefix)!=1 || $0~/[^A-Za-z0-9_.\/:+~-]/)exit 1;print}' "$CS_BCONFIG" >> "$CS_TMP/bootstrap/repositories" || csqtt_portable_die 'Средства проверки разрешены только из точных официальных репозиториев этой прошивки'
         done
         [ -s "$CS_TMP/bootstrap/repositories" ] || csqtt_portable_die 'Официальные репозитории OpenWrt не настроены'
         for CS_KEY_FILE in /lib/apk/keys/* /etc/apk/keys/*; do [ ! -f "$CS_KEY_FILE" ] || cp "$CS_KEY_FILE" "$CS_TMP/bootstrap/keys/"; done
@@ -111,7 +111,7 @@ csqtt_bootstrap() {
         printf 'dest root /\narch all 1\narch %s 10\noption check_signature 1\n' "$CS_ARCH" > "$CS_TMP/bootstrap/opkg.conf"
         for CS_BCONFIG in /etc/opkg/distfeeds.conf; do
             [ -f "$CS_BCONFIG" ] || continue
-            awk -v prefix="https://downloads.openwrt.org/releases/$CS_OPENWRT/" '/^[ \t]*($|#)/{next} {if(NF!=3 || $1!="src/gz" || $2!~/^[A-Za-z0-9_-]+$/ || index($3,prefix)!=1 || $3~/[^A-Za-z0-9_./:+~-]/)exit 1;print}' "$CS_BCONFIG" >> "$CS_TMP/bootstrap/opkg.conf" || csqtt_portable_die 'Неофициальные источники средств проверки запрещены'
+            awk -v prefix="https://downloads.openwrt.org/releases/$CS_OPENWRT/" '/^[ \t]*($|#)/{next} {if(NF!=3 || $1!="src/gz" || $2!~/^[A-Za-z0-9_-]+$/ || index($3,prefix)!=1 || $3~/[^A-Za-z0-9_.\/:+~-]/)exit 1;print}' "$CS_BCONFIG" >> "$CS_TMP/bootstrap/opkg.conf" || csqtt_portable_die 'Неофициальные источники средств проверки запрещены'
         done
         command -v usign >/dev/null || csqtt_portable_die 'В прошивке отсутствует usign для проверки официальных репозиториев'
         OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_TMP/bootstrap/opkg.conf" --lists-dir "$CS_TMP/bootstrap/lists" update > "$CS_TMP/bootstrap/update.log" 2>&1 || csqtt_portable_die 'Не прошла проверка подписанных репозиториев OpenWrt'

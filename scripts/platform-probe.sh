@@ -8,13 +8,13 @@ csqtt_release_value() {
         if (key != wanted) next;
         value=substr(line,p+1); gsub(/^[ \t]+|[ \t]+$/, "", value);
         if (value ~ /^\047.*\047$/ || value ~ /^".*"$/) value=substr(value,2,length(value)-2);
-        if (value ~ /^[A-Za-z0-9_.+:/,@-]+$/ && length(value)<=160) print value;
+        if (value ~ /^[A-Za-z0-9_.+:\/,@-]+$/ && length(value)<=160) print value;
         exit;
       }' "$1"
 }
 csqtt_metadata_line() {
     [ -r "$1" ] || return 0
-    awk 'NR==1 { sub(/\r$/, ""); if ($0 ~ /^[A-Za-z0-9_.+:/,@-]+$/ && length($0)<=160) print; exit }' "$1"
+    awk 'NR==1 { sub(/\r$/, ""); if ($0 ~ /^[A-Za-z0-9_.+:\/,@-]+$/ && length($0)<=160) print; exit }' "$1"
 }
 csqtt_has() { if command -v "$1" >/dev/null 2>&1; then printf true; else printf false; fi; }
 csqtt_free_kib() {
