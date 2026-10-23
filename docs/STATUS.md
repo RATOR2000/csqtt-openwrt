@@ -25,203 +25,106 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-23Oct11:28UTC. Frozen dev/build candidate:
-4f21dbf6f58b6c6fcac16eeb21c0be023b58f922,
-tree daed5516a673f062a6524b562f9b071df158c8e1.
-Connector push, credential-free fetch and exact tree equality PASS.
-Fresh official39946222767 PENDING; regression39946224573 RUNNING.
-Diagnostic6 run39946229202, source d4ab7c18cf1ccc067b6d0f020cabfc620346649d,
-tree differs by diagnostic-only workflow. It uses old9358 SDK24 artifact,
-NEVER release qualification. .work/preview.10/{candidate,probe}.json updated.
-Preview10 NOT published; preview9 immutable; main README remains2lines,
-existing attached draft PR#1 is the future main merge, no duplicate PR/schedule.
+23Oct16:33UTC. User resumed; rough release readiness estimate70% done/30% remains,
+not a guaranteed percentage/date. Asked to conserve5h quota. Fresh app snapshot:
+1% of5h used,32% weekly. Previous agents hit old quota; their edits were preserved
+and completed, not assumed correct. diagnostics_finish completed/froze console helper/drivers/contracts. No active
+subagent ownership; other old agents completed/errored. Recheck liveness.
 
-FIRST UNFINISHED ACTION: complete console provisioning fix owned by
-qualification_review (vm_console.py + VMacceptance test), then push diagnostic7;
-do NOT launch another6SDK cycle until actual diagnostic installation passes.
-Compact current CI/probe snapshot; failed jobs only logs.
-Official39946222767 waits for old39942392214 cancellation requested11:27UTC in
-browser (UI confirms request, screenshot .work/preview.10/cancel-superseded-4dd.png).
-Confirm old actually stops; do not mistake request for completed cancellation.
-Old39942392214 now confirmed canceled, including2ARM/native-VM/release jobs.
-Do not keep launching full SDK builds on diagnostic-only changes. If diagnostic6
-reveals a real installer fault, fix guarded source + tests/checkpoint, then freeze
-a new exact-source candidate. Successful diagnostic alone NEVER qualifies assets.
-When final6SDK/3VM and5regression pass, continue signature/draft/public-download/
-literal README-command gates below. Owner personally installs; no SSH mutation.
+Current dev8ae767e30c42d7fb7cd6819280d5fc27d2a225d6,
+tree bac8c904bbcde2402288e200c25ee19f77272e0d. Source checkpoint pushed through
+connector, credential-free fetch and tree equality PASS. Build still4f21dbf
+(failed/superseded candidate). Preview10 NOT published; preview9/tag/assets
+immutable. Main README remains2lines; existing attached draft PR#1 is future
+delivery, no duplicate PR/schedule. Owner installs personally, no SSH mutation.
 
-Failures resolved in current source, with honest remaining gates:
-- Earlier9358 official build rejected legitimate unsigned official APK payloads.
-  Producer now checks exact metadata + pinned official signed packages.adb and
-  fresh empty offline native APK fetch through private file:// mirror; exact output
-  filename/version/bytes mandatory, no --link/allow-untrusted. Installer already
-  used correct native name=version signed-index path. 9e604 regression fixture
-  falsely asserted raw info.hashes absent; removed only that assumption, retained
-  all signed-index/payload/wrong-key/metadata/corruption checks. Supports either
-  raw hash representation. Full corrected new candidate native SDK still pending.
-- Official24.10.8 image has valid34byte FWx0 trailer after gzip. Shared bounded
-  openwrt_image.py verifies whole compressed pin, gzip CRC/EOF/size and bounded
-  fwtool framing/CRC. Arbitrary tail/extra gzip members refuse. Framing CRC is NOT
-  cryptographic authentication; wholefile SHA is trust. Both actual24.10.8/25.12.6
-  decode126353408bytes. Old artifact12454216980/.work/preview.10/sdk24-x86.zip
-  ZIP SHA a08884e212db2b4f8871facef8f0bf89537423f34a98bada1623411b54ebc027.
-- Both helpers prepare explicit1GiB disposable regular-file root, native offline
-  e2fsck+resize2fs, preserve boot/partition1/root identity and atomic failure;
-  no physical device/mount/root/symlink/junction/hardlink boundary bypass.
-  image.test_disk discloses original/test bytes, expansion, physical_device=false.
-  Stock104MiB capacity is NOT certified; installer resource guards unchanged.
-  Native fixture initially omitted source.seek(0) after superblock read; fixed.
-  Corrected Linux image/disk CI step PASS on4dd and diagnostic4/5. Actual pinned
-  image expansion PASS in diagnostic4/5 before console. Native guest install not.
-- Diagnostic4(39942434054) failed generic boot TIMEOUT; diagnostic5(39944323508)
-  proved firmware actually boots: activation arrived19s, OpenWrt banner printed,
-  hardcoded root@OpenWrt prompt was not matched. Shared vm_console.py now requires
-  UID0 command response with split prefix/fresh128bit nonce, newline-anchored,
-  accepts LF/CRLF/CRCRLF. Echo/stale/partial text cannot prove root or provisioning.
-  set-eu prevents setup failure masked by ready echo. Distinct phases and bounded
-  final64KiB fixed enum diagnostics only; no raw console/keys/URLs/commands.
-  QEMU options/waits unchanged. This actual console fix awaits diagnostic6.
-  Reference docs: https://openwrt.org/docs/guide-user/virtualization/qemu
+FIRST UNFINISHED ACTION: read compact result of diagnostic9 run39987541352,
+source c797d1e8d5acbd72aedea31d30ea9efb4601c3b7 (diagnostic-only workflow).
+- VM job120530522383: corrected clean-image/console/SSH and bounded private
+  installer diagnostics; old9358 SDK24 artifact as fixture.
+- Native migration job120530522032: original25.12.5ARM artifact12499474417 from
+  failed4f21 run39946222767 plus pinned SDK host APK, NO Rust/project rebuild.
+  SDK SHAff4a38a397caa2cfe1c39e18f84ddede14878221b3593c3f2c4cfe24e3ec4c25.
+  No signing secret in migration job.
+Both are diagnostic ONLY, old binaries differ from current source: NEVER release
+qualification; no GITHUB_SHA override. Once they pass, freeze a new exact-source
+candidate and run final6SDK/3VM +5regression. Then signatures/draft/public downloads/
+literal README command checks below and main PR. Do not launch full6SDK on each
+diagnostic-only edit. No owner router/network changes. No scheduled follow-ups.
 
-Previous candidate4dd, official39942392214, is superseded, not accepted:
-contracts120376734801/native-policy120378461887 SUCCESS;24.10.8 ARM/x86 and
-25.12.5/25.12.6 x86 SDK SUCCESS; remaining2ARM were compiling at cancellation.
-Regression39942395478 checks/core/Android/native-policy SUCCESS; SDK120379197506
-was compiling, may be canceled by fresh regression concurrency. Never infer PASS.
-Older39847161011/39941510870 failures and probes1-3 are historical, do not poll.
+Diagnostic9 native migration job120530522032 SUCCESS: pinned SDK hostAPK present,
+actual signed r9->candidate->r9/offline-index transactions, complete inventory,
+full DNS provider,6synthetic owner files and originalworld preservation PASS.
+No Rust/project rebuild used. Still diagnostic-only source/package mismatch,
+so final exact-source ARM migration must rerun in final full candidate.
+VM job120530522383 FAILED at boot_root_check_wait after180s; banner reached
+after22s, installer never ran. Same handshake passed probes7/8; exact cause not
+proven. Current console fix retries only readonly UID0 nonce probes under180s/
+90attempt bounds and prints leading LF before every result marker, so output
+cannot join a prompt without a newline. Provisioning stays checked/one-shot.
+Run VM-only diagnostic10 next, including native Linux bounded-read contracts;
+do not rerun already-passed migration simply for this console-only edit.
 
-Focused local current checks: dependency8, image6, release9, public-command7,
-VMcontract10 PASS. Disk17:15PASS/2explicit Windows skips (real Linux e2fsprogs,
-symlink privilege); Linux CI and actual pinned image expansion separately above.
-VMcontract includes actual POSIX shell UID0/nonroot, setup failure, fresh nonce,
-echo/stale/partial/CR line ending and bounded privacy checks. Python compile,
-assemble-installer.py --check, native APK shell syntax, diff-check PASS.
-No local Rust/WSL/Docker. Agent disk_finish completed image disk module/tests;
-qualification_review completed shared console/drivers/tests, no active ownership
-assumed on resume. Root owns Git/release/integration. All source checkpointed.
+Exact local metadata .work/preview.10/{candidate,probe}.json; probe-workflow-v9.yml
+has both diagnostic jobs. Failed original ARM artifact12499474417 is complete,
+14,428,822bytes, ZIP SHAa14b6359eec963d7066b9700431144afa10a82ead3405ad03049da5ede085545.
+SDK tools require Linux; Windows has no Rust/Docker/WSL.
 
-Native installer/storage/runtime of portable release remain UNVERIFIED.
-Diagnostic6 FAILED39946229202/job120389455717 at boot_console_ready_wait:
-UID0 fresh response PASS, then set-e provisioning exited to askfirst console.
-Agent confirmed both actual pinned images lack stty in all binary directories;
-network config is generated on first boot. Remove unjustified stty dependency,
-wait boundedly for EXISTING UCI network.lan interface before mutation, then
-fixed phase + fresh nonce proof for each key/network/service preparation step.
-Never weaken fail-on-error or fabricate guest readiness. Current full4f21 cycle
-may fail old provisioning; do not misclassify as an application failure/pass.
-Provisioning fix source complete, diagnostic-only push next: no stty; bounded
-existing network.lan interface wait, key/DHCP/dropbear/network as separate fixed
-phases, each UID0 + fresh nonce OK/FAIL. Explicit && chains/checked exits prevent
-POSIX if/errexit masking. Actual shell tests cover first mkdir/UCI-set failure
-without later writes. VMcontract13/13 + public-command7/7 + pycompile PASS.
-Agent qualification_review finished those2files; root owns subsequent Git.
-Diagnostic7 RUNNING39948133378 on6386f8ce7664beae699f8de7a35fac186e838c96.
-Dev41db96d1a2419d18185c2ee6887ea036b9a909d8 is the skipci provisioning checkpoint;
-connector/fetch/tree equality PASS. Build stays4f21; no new6SDK cycle launched.
-Current metadata .work/preview.10/probe.json saved; .work/preview.10/candidate.json
-still describes4f21/full runs, not this diagnostic-only source. Keep them separate.
-Probe7 FAILED job120395721748: boot/UID0/all5SSHprovision steps PASS; actual
-installer first_offline_install returned1 in0.2s. Prior bad-signature nonzero
-also instant and could be generic preflight refusal, so NOT signature evidence.
-Root delegated ONLY test-openwrt-vm.py + VMacceptance test to qualification_review:
-safe static installer error-callsite/missing-known-tool enums and strengthen
-rejection to require actual expected signature error in bounded private log.
-No production-installer fix without concrete evidence; diagnostic8 next.
-Safe VM diagnostics complete: current fixed phase log only,8KiB bound; exact
-static installer failure literals map to integer source callsites, fixed known
-missing-tool/POSIX-shell enums, source-allowlisted guest stages. No raw logs.
-Wrong signature now requires nonzero AND exact signature error line; other early
-refusals cannot count. VMcontract17/17/public-command7/7/compile PASS. Owner
-qualification_review complete. Root pushing diagnostic8; production parser work
-by disk_finish remains separate/uncommitted until its own tests/freeze.
-Root added generated-install.sh numeric error line locations only (bounded to
-actual source lines, never raw variable/path); VMcontract now18/18 PASS.
-Diagnostic8 RUNNING39949386881 on1c8964733e477868afde00c5790a1beb7b0bc904.
-Dev88ae789145ec5f88193693c35975481b6e729610 checkpoint pushed/fetched with tree
-equality; build stays4f21. No new full cycle for diagnostic-only code.
-11:54UTC regression39946224573 ALL5 SUCCESS, including native reference APK
-job120391910853: corrected producer/native signed-index fixtures now truly pass.
-Official39946222767 contracts/policy +3SDK PASS;3SDK still compiling. Remaining
-portable install/VM/final-source qualification/public command gates still open.
-Independent concrete image finding:24.10.8 stock status has171 install-ok and4
-install-hold installed packages. Three production opkg parsers only accepted
-install-ok, so held package preservation proof was incomplete (not yet shown as
-the early failure cause). disk_finish now owns ONLY portable-install.sh,
-focused installer tests and generated install.sh: include supported held/user
-installed records, reject partial and unknown-installed ambiguity, preserve
-all trust/rollback/lock guards. qualification_review owns VM driver/VMtest only.
-Held-package source now frozen: shared opkg parser includes ok/hold/user installed
-records in inventory/snapshot/live+staged version checks; excludes partial states,
-rejects unknown installed flags/duplicates atomically. All snapshot/inventory
-failures checked explicitly, including rollback invoked with errexit disabled.
-Focused OpkgInventoryTest6/6 PASS (real POSIX shell), final-source both-backend
-install PASS (51.425s), generated installer check/compile/shell/diff PASS.
-Signed bootstrap+SIGKILL-resume session60312 and independent opkg_state_review
-still PENDING; no full CI/public release acceptance implied. Checkpoint now;
-disk_finish retains ownership only for concrete follow-up findings/results.
-At11:36UTC fresh official contracts/native-policy and4regression nonSDK jobs
-SUCCESS;6SDK + reference SDK compiling. All new source/Git IDs above preserved.
-No owner router changes, scheduled tasks, reboot or WAN guard relaxation.
+Current implemented fixes, remaining native gates:
+- Producer accepts legitimate unsigned official APK payloads only via exact
+  metadata + pinned official signed index + fresh offline native file:// fetch,
+  complete payload verification and exact output bytes; no --link/untrusted.
+  Native signed-index/wrong-key/metadata/payload fixtures really passed in full
+  regression39946224573 on4f21 ALL5 SUCCESS, SDK120391910853.
+- Full official39946222767 on4f21 FAILED:5SDK+contracts+native-policy SUCCESS;
+  original25.12.5ARM job120392335507 passed compile/privateDNS/ISA/TUN/signatures/
+  nativeAPK/index fixtures/50dependencycache, then failed r9 migration. No3VM/
+  publication gates ran. Other old runs/probes1-8 superseded; do not poll.
+- Shared image extraction checks whole compressed SHA, gzip CRC/EOF/size and
+  recognized bounded fwtool trailers (actual24.10.8 valid34byte trailer).
+  Framing CRC is not crypto authentication. Both pinned24.10.8/25.12.6 decode
+  126353408bytes. Actual Linux disk expansion passed in probes4-8: native offline
+  fsck/resize2fs, explicit1GiB disposable root, boot/partition1/UUID preserved,
+  no block devices/mount/root or symlink/junction/hardlink boundary escape.
+  image.test_disk disclosure required; stock104MiB capacity NOT qualified.
+- vm_console.py proves executing UID0 with fresh split128bit nonce markers,
+  hostname/ANSI/echo/stale/partial safe. Stock image has no stty, so none required.
+  Wait for existing generated network.lan; separate checked key/UCI/dropbear/
+  network steps. Boot and all SSH preparation really PASS in probes7/8.
+- Probe7 first installer exited1 in0.2s. Its earlier arbitrarynonzero signature
+  rejection was NOT evidence; now exact fixed signature-error line required.
+  Probe8 failed there with no reason. Old reader ignored tail/read return, so
+  no implicit-shell-failure cause established. Current driver checks only current
+  fixed phase log via wc/dd, <=8192rawbytes + checked sentinel/status BEFORE UTF8
+  decode; read failure emits unavailable. Private sh-x returns only known source
+  functionnames and numeric lines beforecleanup, never rawcommands/logs/keys/URLs.
+  Public-command workflow unchanged. Actual corrected transport/trace awaits
+  diagnostic10;9 stopped earlier at console.
+- Real stock24.10.8 DB has171 install-ok +4 install-hold records. Shared production
+  opkg parser now includes supported ok/hold/user installed records, rejects
+  duplicates/unknown installed flags atomically, excludes partial states. Every
+  inventory/snapshot failure checked explicitly, including rollback with errexit
+  disabled; generated install.sh synced. Focused6/6, final bothPM install PASS/
+  51.425s, signed bootstrap/SIGKILL selected2tests PASS/352.210s, independent review
+  NO BLOCKER. Native production installer/held parser still pending.
+- Migration harness incorrectly passed unsigned official dependencies as files
+  and did not root historical dnsmasq-full or prove complete cleanup. Fixed with
+  signed local indexes + pinned key lookup + native fresh verification + exact
+  missing dependency names. Seed real r9 full-DNS root, preserve all existing
+  nonproject packages and6synthetic owner files, remove introduced deps only,
+  require complete inventory + originalworld restoration. Scripts remain off.
+  Stale proof removed before attempt, fixed phase/error enums, no raw diagnostics.
+  Corrected exact hashed official-key filenames. Actual native diagnostic9 PASS;
+  final exact-source migration remains required.
 
-12:03UTC diagnostic8 FAILED39949386881/job120399845109 at strict signature
-rejection; boot and SSH preparation PASS. No static/missing-tool/shell diagnostics
-were emitted. Do NOT assume implicit shell failure yet: diagnostic reader ignored
-its own return/stderr and tail-c support may be absent. qualification_review now
-owns VMdriver+VMtest: prove bounded log-read success (fixed unavailable enum on
-failure; dd+wc bounded alternative if needed), then private sh-x with only fixed
-function names/line IDs emitted if still needed. Exact signature cause mandatory.
-Probe9 next; no new full SDK until diagnostic actual install succeeds.
-
-Held-package checkpoint d7286a4346159497a8fa1095dc33f0eeab69de06 pushed/fetched,
-exact tree equality PASS. Source/generated installer synced. All pending held
-checks finished: both-backend install and signed bootstrap/SIGKILL-resume selected
-2tests PASS/352.210s; final-source both-backend standalone PASS/51.425s;6new parser
-tests PASS. Independent opkg_state_review NO BLOCKER. disk_finish complete.
-No actual native held-parser/installer acceptance yet. Root owns further Git.
-
-12:07UTC full39946222767 completed FAILED:5SDK +contracts+native-policy SUCCESS,
-original25.12.5ARM job120392335507 failed ONLY native r9 migration after successful
-compile/privateDNS/ISA/TUN/nativeAPK/signed-index corruption fixtures/signatures
-and6signedindexes/50cacheddeps. No3VM/final release gates ran. Not accepted.
-disk_finish now owns ONLY test-r9-migration.py + focused migration tests: it adds
-unsigned official dependency APKs as explicitfiles, likely incompatible with
-signed-index-only trust model; use native authenticated offline index/exact names,
-preserve original r9 DNS provider/settings/identity/budget and source proof. Add
-fixed stage/error enums, no raw native logs. No production installer mutation
-unless separate concrete issue reported. Actual native migration rerun mandatory.
-
-User resumed and asked progress/5h economy: rough readiness70% done/30% remains,
-explicitly estimated by gates, not a guarantee/date. App usage snapshot newturn:
-5h1% used (weekly32%); previous agents errored quota mid-edit. Their source was
-preserved; root now owns migration, fresh diagnostics_finish owns VMdriver/test.
-No full SDK cycle until diagnostic native installation/migration pass.
-
-Migration harness fix completed by root from interrupted source: signed-index
-file:// repositories and exact missing dependency names, reused fresh native APK
-authentication, no unsigned explicit official payload operands. Rooted historical
-dnsmasq-full, preserve every nonproject baseline package, six synthetic owner
-files, remove only introduced dependencies on rollback and require full inventory
-and original world equality. Added safe fixed stages/errors, no raw native logs,
-scripts still disabled. Fixed official key filenames to exact SHA required by
-shared verifier; stale migration proof removed before each attempt. Host
-migration_test7/7 PASS, compile/installer-sync/diff PASS; actual native pending.
-Both general/portable contracts include migration_test.py.
-
-Artifact API confirms failed ARM build DID upload complete unqualified candidate
-12499474417 (14,428,822bytes, ZIPsha a14b6359eec963d7066b9700431144afa10a82ead3405ad03049da5ede085545)
-under run39946222767/name candidate-official-25.12.5-mediatek-filogic-aarch64_cortex-a53.
-Can download through Actions and use pinned25.12.5 SDK host APK (no Rust rebuild)
-for a standalone diagnostic migration job. Source differs, NEVER release proof.
-Diagnostic9 will run VM and that migration in parallel; no GITHUB_SHA override.
-
-Fresh diagnostics_finish completed and froze VMdriver/test: phase-only wc/dd
-reader checks success sentinel/status/exact8192-byte bound before UTF8 decoding;
-fixed unavailable on any readfailure. Private sh-x emits only source-allowlisted
-functionnames/line numbers before cleanup, never raw trace/arguments. Exact
-signatureerror still mandatory, public-command driver unchanged. VM25tests:
-24PASS/1Windows-skip(native dd), public-command7/7, compile/diff PASS. Root owns all.
-Next push diagnostic9 with these fixes and parallel migration on uploaded ARM
-candidate + pinned SDK host APK. No project rebuild/secret in migration job.
+Focused final host checks: migration7/7 PASS, VM30tests29PASS/1explicit Windows
+native-dd SKIP, public-command7/7, earlier dependency8/image6/release9 PASS.
+Disk17:15PASS/2Windows SKIP; actual Linux image/disk success separately above.
+Python compile, assemble-installer.py --check, shell and diff checks PASS.
+General/portable CI now include migration host contracts. Current source has NOT
+had final full CI/native/public command acceptance. Native installer readiness
+and release remain UNVERIFIED. Router25.12.6 untouched; old72h incomplete.
+Detailed preceding diagnostic history retained in8ae767e docs/STATUS.md.
 
 ## Implemented source and verification scope
 

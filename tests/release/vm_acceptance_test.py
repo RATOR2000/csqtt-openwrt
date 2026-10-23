@@ -21,6 +21,12 @@ native_vm = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(native_vm)
 import vm_console
 NONCE = 'a' * 32
+
+
+class ConsoleTimeout(Exception):
+    pass
+
+
 STEP_PHASES = ['boot_network_config_wait', 'boot_authorized_key', 'boot_network_uci',
                'boot_dropbear_restart', 'boot_network_restart']
 SH = shutil.which('sh')
@@ -303,7 +309,7 @@ class VmAcceptanceTest(unittest.TestCase):
         private = 'ssh-ed25519 public-key-fixture'
         with mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE) as nonce_source, \
                 contextlib.redirect_stdout(io.StringIO()) as output:
-            vm_console.prepare_guest_console(guest, private, phases.append)
+            vm_console.prepare_guest_console(guest, private, phases.append, timeout_error=ConsoleTimeout)
         self.assertEqual(nonce_source.call_args_list, [mock.call(16)] * 6)
         self.assertEqual(phases, ['boot_activation_wait', 'boot_console_activate',
                                  'boot_root_check', 'boot_root_check_wait', *STEP_PHASES])
@@ -312,7 +318,7 @@ class VmAcceptanceTest(unittest.TestCase):
         ok_pattern = r'(?m)^' + vm_console.STEP_OK + NONCE + r'\r*$'
         fail_pattern = r'(?m)^' + vm_console.STEP_FAIL + NONCE + r'\r*$'
         self.assertEqual(guest.expect.call_args_list,
-                         [mock.call(vm_console.ACTIVATION), mock.call(root_pattern),
+                         [mock.call(vm_console.ACTIVATION), mock.call(root_pattern, timeout=2),
                           *[mock.call([ok_pattern, fail_pattern], timeout=90) for _ in range(4)],
                           mock.call([ready_pattern, fail_pattern], timeout=90)])
         self.assertEqual(guest.sendline.call_args_list[0], mock.call(''))
@@ -334,6 +340,134 @@ class VmAcceptanceTest(unittest.TestCase):
             self.assertNotIn(vm_console.STEP_FAIL + NONCE, command)
         self.assertEqual(output.getvalue(), '')
 
+    def test_root_probe_recovers_two_lost_inputs_before_any_provisioning(self):
+        clock, phases = [0.0], []
+        class FakeGuest:
+            before = 'OpenWrt 24.10.8'
+            def __init__(self):
+                self.commands, self.root_waits, self.provision_waits = [], 0, 0
+            def sendline(self, command):
+                self.commands.append(command)
+                if len(self.commands) > 4:
+                    self_test.assertEqual(self.root_waits, 3)
+            def expect(self, pattern, **options):
+                if pattern == vm_console.ACTIVATION:
+                    return 0
+                if isinstance(pattern, list):
+                    self.provision_waits += 1
+                    return 0
+                self.root_waits += 1
+                self_test.assertEqual(options['timeout'], 2)
+                if self.root_waits <= 2:
+                    clock[0] += options['timeout']
+                    raise ConsoleTimeout('lost askfirst input')
+                self_test.assertRegex('\n' + vm_console.ROOT_MARKER + NONCE + '\r\n', pattern)
+                return 0
+        self_test, guest = self, FakeGuest()
+        with mock.patch.object(vm_console.time, 'monotonic', side_effect=lambda: clock[0]), \
+                mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE) as nonce_source:
+            vm_console.prepare_guest_console(guest, 'key-fixture', phases.append, timeout_error=ConsoleTimeout)
+        self.assertEqual(guest.commands[0], '')
+        self.assertEqual(guest.commands[1:4], [guest.commands[1]] * 3)
+        self.assertTrue(guest.commands[1].startswith('test "$(id -u)" = 0 && printf'))
+        self.assertNotIn(vm_console.ROOT_MARKER + NONCE, guest.commands[1])
+        self.assertEqual(guest.provision_waits, 5)
+        self.assertEqual(nonce_source.call_args_list, [mock.call(16)] * 6)
+        self.assertEqual(phases, ['boot_activation_wait', 'boot_console_activate',
+                                 'boot_root_check', 'boot_root_check_wait', *STEP_PHASES])
+
+    def test_readonly_probe_deadline_and_attempt_cap_bound_all_timeouts(self):
+        for send_delay, wait_advance, expected_attempts, last_window in (
+                (0, 0, 90, 2), (0, None, 90, 2), (179.5, None, 1, 0.5)):
+            clock, windows, commands = [0.0], [], []
+            class FakeGuest:
+                def sendline(self, command):
+                    commands.append(command)
+                    clock[0] += send_delay
+                def expect(self, pattern, *, timeout):
+                    windows.append(timeout)
+                    clock[0] += timeout if wait_advance is None else wait_advance
+                    raise ConsoleTimeout('private-timeout-fixture')
+            with self.subTest(send_delay=send_delay, wait_advance=wait_advance), \
+                    mock.patch.object(vm_console.time, 'monotonic', side_effect=lambda: clock[0]):
+                with self.assertRaises(ConsoleTimeout):
+                    vm_console._root_shell(FakeGuest(), lambda stage: None, ConsoleTimeout)
+            self.assertEqual(len(commands), expected_attempts)
+            self.assertEqual(len(windows), expected_attempts)
+            self.assertTrue(all(0 < window <= 2 for window in windows))
+            self.assertEqual(windows[-1], last_window)
+            self.assertLessEqual(clock[0], 180)
+            self.assertTrue(all(command.startswith('test "$(id -u)" = 0 && printf') for command in commands))
+
+    def test_root_probe_does_not_retry_eof_or_unrelated_exceptions(self):
+        for error in (EOFError('private-eof'), ValueError('private-error'), TimeoutError('other-timeout')):
+            guest = mock.Mock()
+            guest.before = 'OpenWrt 24.10.8'
+            guest.expect.side_effect = [0, error]
+            with self.subTest(error=type(error).__name__), contextlib.redirect_stdout(io.StringIO()) as output:
+                with self.assertRaises(type(error)) as raised:
+                    vm_console.prepare_guest_console(guest, 'private-key', lambda stage: None,
+                                                     timeout_error=ConsoleTimeout)
+            self.assertIs(raised.exception, error)
+            self.assertEqual(guest.sendline.call_count, 2)
+            self.assertEqual(guest.expect.call_count, 2)
+            self.assertNotIn('private', output.getvalue())
+
+    def test_root_retries_cannot_accept_echo_stale_partial_or_nonroot_output(self):
+        for mode in ('echo', 'stale', 'partial', 'nonroot'):
+            commands = []
+            class FakeGuest:
+                before = 'OpenWrt 24.10.8'
+                def sendline(self, command):
+                    commands.append(command)
+                def expect(self, pattern, **options):
+                    if pattern == vm_console.ACTIVATION:
+                        return 0
+                    self_test.assertIsInstance(pattern, str)
+                    self.before = {'echo': commands[-1] + '\r\n',
+                                   'stale': '\n' + vm_console.ROOT_MARKER + 'b' * 32 + '\r\n',
+                                   'partial': '\n' + vm_console.ROOT_MARKER + NONCE[:-1] + '\r\n',
+                                   'nonroot': '\nuid=65534\r\n'}[mode]
+                    self_test.assertNotRegex(self.before, pattern)
+                    raise ConsoleTimeout('private-rejected-marker')
+            self_test = self
+            with self.subTest(mode=mode), mock.patch.object(vm_console.time, 'monotonic', return_value=0), \
+                    mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                with self.assertRaises(ConsoleTimeout):
+                    vm_console.prepare_guest_console(FakeGuest(), 'private-key', lambda stage: None,
+                                                     timeout_error=ConsoleTimeout)
+            self.assertEqual(len(commands), 91)
+            self.assertTrue(all(command.startswith('test "$(id -u)" = 0 && printf') for command in commands[1:]))
+            self.assertNotIn('private', output.getvalue())
+            self.assertNotIn(NONCE, output.getvalue())
+
+    @unittest.skipUnless(SH, 'A real POSIX shell is required for prompt-separated result markers')
+    def test_all_result_markers_start_a_new_line_after_a_prompt_without_newline(self):
+        guest = mock.Mock()
+        guest.expect.return_value = 0
+        with mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE):
+            vm_console._root_shell(guest, lambda stage: None, ConsoleTimeout)
+        fixtures = [(guest.sendline.call_args.args[0], guest.expect.call_args.args[0])]
+        for ready, body, expected_index in ((False, 'true', 0), (False, 'false', 1),
+                                            (True, 'true', 0), (True, 'false', 1)):
+            guest = mock.Mock()
+            guest.expect.return_value = expected_index
+            with mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE):
+                if expected_index:
+                    with self.assertRaises(ValueError):
+                        vm_console._console_step(guest, lambda stage: None, 'synthetic_step', body, ready=ready)
+                else:
+                    vm_console._console_step(guest, lambda stage: None, 'synthetic_step', body, ready=ready)
+            fixtures.append((guest.sendline.call_args.args[0], guest.expect.call_args.args[0][expected_index]))
+        for command, pattern in fixtures:
+            with self.subTest(pattern=pattern):
+                script = 'id() { printf "0\\n"; }; printf "%s" "root@custom:/# "; ' + command
+                result = subprocess.run([SH], input=script, encoding='utf-8', capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, 0)
+                self.assertRegex(result.stdout, pattern)
+                self.assertNotRegex('root@custom:/# ' + command, pattern)
+
     def test_each_console_wait_failure_reports_only_fixed_signals_and_reraises(self):
         for failed_wait, stage in enumerate(('boot_activation_wait', 'boot_root_check_wait', *STEP_PHASES)):
             guest, phases = mock.Mock(), []
@@ -343,7 +477,7 @@ class VmAcceptanceTest(unittest.TestCase):
             guest.expect.side_effect = [0] * failed_wait + [error]
             with self.subTest(stage=stage), contextlib.redirect_stdout(io.StringIO()) as output:
                 with self.assertRaises(TimeoutError) as raised:
-                    vm_console.prepare_guest_console(guest, private, phases.append)
+                    vm_console.prepare_guest_console(guest, private, phases.append, timeout_error=ConsoleTimeout)
             self.assertIs(raised.exception, error)
             self.assertEqual(phases[-1], stage)
             self.assertEqual(output.getvalue(), 'OpenWrt VM boot signals: linux\n')
@@ -373,7 +507,7 @@ class VmAcceptanceTest(unittest.TestCase):
             return 0
         guest.expect.side_effect = expect
         with mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE):
-            vm_console.prepare_guest_console(guest, public_key, phases.append)
+            vm_console.prepare_guest_console(guest, public_key, phases.append, timeout_error=ConsoleTimeout)
         self.assertEqual(phases[-1], 'boot_network_restart')
 
     def test_echo_only_root_check_cannot_trigger_provisioning(self):
@@ -389,7 +523,7 @@ class VmAcceptanceTest(unittest.TestCase):
         with mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE), \
                 contextlib.redirect_stdout(io.StringIO()) as output:
             with self.assertRaises(TimeoutError):
-                vm_console.prepare_guest_console(guest, private, phases.append)
+                vm_console.prepare_guest_console(guest, private, phases.append, timeout_error=ConsoleTimeout)
         self.assertEqual(phases[-1], 'boot_root_check_wait')
         self.assertEqual(guest.sendline.call_count, 2)
         self.assertNotIn(private, output.getvalue())
@@ -400,7 +534,7 @@ class VmAcceptanceTest(unittest.TestCase):
         guest = mock.Mock()
         guest.expect.return_value = 0
         with mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE):
-            vm_console.prepare_guest_console(guest, 'key-fixture', lambda stage: None)
+            vm_console.prepare_guest_console(guest, 'key-fixture', lambda stage: None, timeout_error=ConsoleTimeout)
         root_command = guest.sendline.call_args_list[1].args[0]
         root_pattern = guest.expect.call_args_list[1].args[0]
         for uid in (0, 65534):
@@ -431,7 +565,8 @@ class VmAcceptanceTest(unittest.TestCase):
             with self.subTest(stage=stage), mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE), \
                     contextlib.redirect_stdout(io.StringIO()) as output:
                 with self.assertRaisesRegex(ValueError, 'provisioning step failed'):
-                    vm_console.prepare_guest_console(guest, 'private-key-fixture', phases.append)
+                    vm_console.prepare_guest_console(guest, 'private-key-fixture', phases.append,
+                                                     timeout_error=ConsoleTimeout)
             self.assertEqual(phases[-1], stage)
             self.assertEqual(guest.sendline.call_count, index + 3)
             self.assertEqual(output.getvalue(), 'OpenWrt VM boot signals: provision_step_failed\n')
@@ -442,7 +577,7 @@ class VmAcceptanceTest(unittest.TestCase):
         guest = mock.Mock()
         guest.expect.return_value = 0
         with mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE):
-            vm_console.prepare_guest_console(guest, 'key-fixture', lambda stage: None)
+            vm_console.prepare_guest_console(guest, 'key-fixture', lambda stage: None, timeout_error=ConsoleTimeout)
         command = guest.sendline.call_args_list[2].args[0]
         ok, fail = guest.expect.call_args_list[2].args[0]
         for network_type in ('interface', 'device', ''):
@@ -458,7 +593,7 @@ class VmAcceptanceTest(unittest.TestCase):
         guest = mock.Mock()
         guest.expect.return_value = 0
         with mock.patch.object(vm_console.secrets, 'token_hex', return_value=NONCE):
-            vm_console.prepare_guest_console(guest, 'key-fixture', lambda stage: None)
+            vm_console.prepare_guest_console(guest, 'key-fixture', lambda stage: None, timeout_error=ConsoleTimeout)
         fixtures = (
             (3, 'mkdir() { return 1; }; chmod() { printf "unexpected-later-command\\n"; }; '),
             (4, 'uci() { case "$*" in "-q get network.lan") printf "interface\\n";; '
@@ -478,7 +613,8 @@ class VmAcceptanceTest(unittest.TestCase):
         for filename in ('test-openwrt-vm.py', 'test-public-command.py'):
             source = (ROOT / 'scripts' / filename).read_text(encoding='utf-8')
             self.assertIn('from vm_console import prepare_guest_console', source)
-            self.assertIn('try:\n            prepare_guest_console(guest, public_key, phase)', source)
+            self.assertIn('try:\n            prepare_guest_console(guest, public_key, phase, '
+                          'timeout_error=pexpect.TIMEOUT)', source)
             self.assertIn('finally:\n            guest.terminate(force=True)\n            guest.close(force=True)', source)
 
     def test_failure_diagnostics_expose_only_stage_class_and_http_status(self):
