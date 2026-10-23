@@ -4,7 +4,10 @@ import copy
 import importlib.util
 import io
 import json
+import os
 import pathlib
+import shlex
+import shutil
 import struct
 import subprocess
 import sys
@@ -27,6 +30,14 @@ smoke_spec.loader.exec_module(platform_smoke)
 runtime_spec = importlib.util.spec_from_file_location('private_runtime', ROOT / 'scripts/private-runtime.py')
 private_runtime = importlib.util.module_from_spec(runtime_spec)
 runtime_spec.loader.exec_module(private_runtime)
+SH = shutil.which('sh')
+if not SH:
+    candidate = pathlib.Path(shutil.which('git') or '').parent.parent / 'usr/bin/sh.exe'
+    SH = str(candidate) if candidate.is_file() else None
+AWK = shutil.which('awk')
+if not AWK and SH:
+    candidate = pathlib.Path(SH).with_name('awk.exe')
+    AWK = str(candidate) if candidate.is_file() else None
 
 
 def tar_bytes(members):
@@ -48,6 +59,81 @@ def elf(machine=183, interp=False, needed=False):
     first = struct.pack('<IIQQQQQQ', 1, 5, 0, 0, 0, 208, 208, 4096)
     second = struct.pack('<IIQQQQQQ', 3 if interp else 2, 4, 176, 0, 0, 32, 32, 8)
     return bytes(header) + first + second + struct.pack('<qQqQ', 1 if needed else 0, 1, 0, 0)
+
+
+class PlatformMetadataTest(unittest.TestCase):
+    def metadata_cases(self, shell, busybox=None):
+        source = (ROOT / 'scripts/platform-probe.sh').read_text(encoding='utf-8')
+        definitions = source[:source.index('\ncsqtt_has()')]
+        executable = pathlib.Path(busybox or AWK).as_posix()
+        prefix = 'awk() { ' + shlex.quote(executable) + (' awk' if busybox else '') + ' "$@"; };\n'
+        with tempfile.TemporaryDirectory(prefix='csqtt-metadata-') as temporary:
+            directory = pathlib.Path(temporary)
+            data, executed = directory / 'metadata', directory / 'must-not-execute'
+            accepted = ('24.10.8', '25.12.6', 'x86/64', 'mediatek/filogic', 'aarch64_cortex-a53',
+                        'glinet,gl-mt6000', 'fixture:scope/path,board@slot-1', 'x' * 160)
+            rejected = ('bad value', 'bad"value', 'bad\\value', 'bad;value', 'bad$value', '\u0100',
+                        'x' * 161, '$(touch ' + executed.as_posix() + ')', '`touch ' + executed.as_posix() + '`')
+            for function in ('csqtt_release_value', 'csqtt_metadata_line'):
+                for value in accepted + rejected:
+                    with self.subTest(function=function, value=value[:45], busybox=busybox is not None):
+                        body = "DISTRIB_TARGET='" + value + "'\r\n" if function == 'csqtt_release_value' else value + '\r\nignored-second-line\n'
+                        data.write_text(body, encoding='utf-8', newline='')
+                        command = function + ' ' + shlex.quote(data.as_posix())
+                        if function == 'csqtt_release_value':
+                            command += ' DISTRIB_TARGET'
+                        result = subprocess.run(shell, input=prefix + definitions + '\n' + command + '\n',
+                                                encoding='utf-8', capture_output=True, timeout=10)
+                        self.assertEqual(result.returncode, 0, 'Metadata parser failed before validating its value')
+                        self.assertEqual(result.stderr, '')
+                        self.assertEqual(result.stdout, value + '\n' if value in accepted else '')
+                        self.assertFalse(executed.exists(), 'Metadata was evaluated as shell code')
+
+    def feed_cases(self, awk):
+        source = (ROOT / 'scripts/portable-install.sh').read_text(encoding='utf-8')
+        programs = [line.split("'")[1] for line in source.splitlines() if 'awk -v prefix=' in line]
+        self.assertEqual(len(programs), 2, 'Exercise both exact production bootstrap feed filters')
+        prefix = 'https://downloads.openwrt.org/releases/25.12.6/'
+        good = prefix + 'packages/x86_64/base/packages.adb'
+        punctuation = prefix + 'fixture_name.+:~-'
+        invalid = ('https://foreign.invalid/feed', prefix.replace('25.12.6', '24.10.8') + 'feed',
+                   prefix + 'feed?query', prefix + 'feed\r', prefix + 'feed\x01', prefix + '\u0100', prefix + '$(command)')
+        for index, program in enumerate(programs):
+            def feed(url):
+                return url if index == 0 else 'src/gz base_fixture-1 ' + url
+            valid = '\t# comment\n\n' + feed(good) + '\n' + feed(punctuation) + '\n'
+            result = subprocess.run(awk + ['-v', 'prefix=' + prefix, program], input=valid,
+                                    encoding='utf-8', capture_output=True, timeout=10)
+            self.assertEqual(result.returncode, 0, 'Production feed allowlist failed to compile or rejected valid URLs')
+            self.assertEqual(result.stderr, '')
+            self.assertEqual(result.stdout, feed(good) + '\n' + feed(punctuation) + '\n')
+            for url in invalid:
+                with self.subTest(filter=index, invalid=url):
+                    result = subprocess.run(awk + ['-v', 'prefix=' + prefix, program], input=feed(url) + '\n',
+                                            encoding='utf-8', capture_output=True, timeout=10)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, '')
+            if index:
+                for malformed in ('src base ' + good, 'src/gz bad/name ' + good, 'src/gz base ' + good + ' extra'):
+                    result = subprocess.run(awk + ['-v', 'prefix=' + prefix, program], input=malformed + '\n',
+                                            encoding='utf-8', capture_output=True, timeout=10)
+                    self.assertNotEqual(result.returncode, 0)
+
+    @unittest.skipUnless(SH and AWK, 'A real POSIX shell and awk are required for metadata parsing')
+    def test_metadata_tokens_preserve_slashes_colons_commas_and_refuse_shell_values(self):
+        self.metadata_cases([SH])
+
+    @unittest.skipUnless(AWK, 'A native awk is required for bootstrap feed filtering')
+    def test_exact_bootstrap_feed_filters_preserve_official_urls_and_refuse_malformed_input(self):
+        self.feed_cases([AWK])
+
+    def test_metadata_and_bootstrap_filters_with_actual_busybox_awk(self):
+        busybox = shutil.which('busybox')
+        if not busybox and os.name == 'nt':
+            self.skipTest('Native BusyBox is unavailable on Windows; Linux CI requires it')
+        self.assertIsNotNone(busybox, 'Linux CI must install BusyBox for production awk compatibility checks')
+        self.metadata_cases([busybox, 'sh'], busybox=busybox)
+        self.feed_cases([busybox, 'awk'])
 
 
 class PlatformsTest(unittest.TestCase):

@@ -11,8 +11,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Disposable VM dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 openssh-client python3-pexpect e2fsprogs busybox-static
       - name: Validate bounded image preparation on Linux
         run: |
+          python3 tests/platforms/platforms_test.py
           python3 tests/release/openwrt_image_test.py
           python3 tests/release/vm_disk_test.py
           python3 tests/release/vm_acceptance_test.py
@@ -23,10 +28,6 @@ jobs:
           run-id: 39839530729
           github-token: ${{ github.token }}
           path: .work/diagnostic-vm
-      - name: Disposable VM dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 openssh-client python3-pexpect e2fsprogs
       - name: Private fixture only, never publish or qualify these packages
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}

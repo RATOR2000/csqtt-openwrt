@@ -88,4 +88,4 @@ jobs:
             echo 'An existing tag must not be moved or reused.' >&2
             exit 1
           fi
-          gh release create "$RELEASE_TAG" dist/publish/* --target "$GITHUB_SHA" --draft --prerelease --title "CSQTT $RELEASE_TAG вЂ” official OpenWrt preview" --notes-file dist/publish/RELEASE_NOTES.md
+          gh release create "$RELEASE_TAG" dist/publish/* --target "$GITHUB_SHA" --draft --prerelease --title "CSQTT $RELEASE_TAG - official OpenWrt preview" --notes-file dist/publish/RELEASE_NOTES.md
