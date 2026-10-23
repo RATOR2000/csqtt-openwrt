@@ -115,6 +115,32 @@ phases, each UID0 + fresh nonce OK/FAIL. Explicit && chains/checked exits preven
 POSIX if/errexit masking. Actual shell tests cover first mkdir/UCI-set failure
 without later writes. VMcontract13/13 + public-command7/7 + pycompile PASS.
 Agent qualification_review finished those2files; root owns subsequent Git.
+Diagnostic7 RUNNING39948133378 on6386f8ce7664beae699f8de7a35fac186e838c96.
+Dev41db96d1a2419d18185c2ee6887ea036b9a909d8 is the skipci provisioning checkpoint;
+connector/fetch/tree equality PASS. Build stays4f21; no new6SDK cycle launched.
+Current metadata .work/preview.10/probe.json saved; .work/preview.10/candidate.json
+still describes4f21/full runs, not this diagnostic-only source. Keep them separate.
+Probe7 FAILED job120395721748: boot/UID0/all5SSHprovision steps PASS; actual
+installer first_offline_install returned1 in0.2s. Prior bad-signature nonzero
+also instant and could be generic preflight refusal, so NOT signature evidence.
+Root delegated ONLY test-openwrt-vm.py + VMacceptance test to qualification_review:
+safe static installer error-callsite/missing-known-tool enums and strengthen
+rejection to require actual expected signature error in bounded private log.
+No production-installer fix without concrete evidence; diagnostic8 next.
+Safe VM diagnostics complete: current fixed phase log only,8KiB bound; exact
+static installer failure literals map to integer source callsites, fixed known
+missing-tool/POSIX-shell enums, source-allowlisted guest stages. No raw logs.
+Wrong signature now requires nonzero AND exact signature error line; other early
+refusals cannot count. VMcontract17/17/public-command7/7/compile PASS. Owner
+qualification_review complete. Root pushing diagnostic8; production parser work
+by disk_finish remains separate/uncommitted until its own tests/freeze.
+Independent concrete image finding:24.10.8 stock status has171 install-ok and4
+install-hold installed packages. Three production opkg parsers only accepted
+install-ok, so held package preservation proof was incomplete (not yet shown as
+the early failure cause). disk_finish now owns ONLY portable-install.sh,
+focused installer tests and generated install.sh: include supported held/user
+installed records, reject partial and unknown-installed ambiguity, preserve
+all trust/rollback/lock guards. qualification_review owns VM driver/VMtest only.
 At11:36UTC fresh official contracts/native-policy and4regression nonSDK jobs
 SUCCESS;6SDK + reference SDK compiling. All new source/Git IDs above preserved.
 No owner router changes, scheduled tasks, reboot or WAN guard relaxation.

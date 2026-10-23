@@ -5,9 +5,11 @@ import importlib.util
 import io
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 import urllib.error
 from unittest import mock
@@ -29,6 +31,85 @@ if not SH:
 
 
 class VmAcceptanceTest(unittest.TestCase):
+    def test_shell_locations_expose_only_valid_generated_line_numbers(self):
+        text = '/private/password/install.sh: line 561: secret: parameter not set\n' \
+               'install.sh: 23: secret\ninstall.sh: line 99999: secret\n'
+        classified = native_vm.installer_diagnostics(text)
+        self.assertEqual(classified['generated_error_lines'], [23, 561])
+        self.assertNotIn('password', str(classified))
+        self.assertNotIn('secret', str(classified))
+
+    def test_private_installer_errors_map_only_complete_static_literals_to_source_lines(self):
+        private = 'private-secret-command-url-fixture'
+        source = (ROOT / 'scripts/portable-install.sh').read_text(encoding='utf-8').splitlines()
+        literal = 'Не удалось прочитать исходный состав пакетов'
+        lines = [number for number, line in enumerate(source, 1)
+                 if "csqtt_portable_die '" + literal + "'" in line]
+        self.assertTrue(lines)
+        diagnostic = native_vm.installer_diagnostics('CSQTT: ' + literal + '\n' + private)
+        self.assertEqual(diagnostic['portable_error_lines'], lines)
+        self.assertNotIn(private, str(diagnostic))
+        for text in (literal, 'CSQTT: ' + literal + ' ' + private,
+                     'CSQTT: ' + literal + '\n' + 'x' * 40960):
+            self.assertEqual(native_vm.installer_diagnostics(text)['portable_error_lines'], [])
+
+    def test_private_missing_tools_and_shell_errors_emit_only_fixed_allowlisted_values(self):
+        private = 'private-secret-fixture'
+        text = ('CSQTT: В прошивке отсутствует необходимая команда: tar\n'
+                'install.sh: line 98: mktemp: not found\n'
+                'CSQTT: В прошивке отсутствует необходимая команда: ' + private + '\n'
+                'install.sh: line 55: ' + private + ': not found\n'
+                'install.sh: ' + private + ': parameter not set\n')
+        diagnostic = native_vm.installer_diagnostics(text)
+        self.assertEqual(set(diagnostic['missing_tools']), {'tar', 'mktemp'})
+        self.assertEqual(diagnostic['shell_errors'], ['unset_parameter'])
+        self.assertNotIn(private, str(diagnostic))
+
+    def test_remote_failure_diagnostics_read_only_current_fixed_log_and_do_not_expose_values(self):
+        private = 'private-secret-command-url-fixture'
+        commands = []
+        def transport(args, **options):
+            commands.append(args[-1])
+            if len(commands) == 1:
+                return subprocess.CompletedProcess(args, 1, stdout='', stderr=private)
+            return subprocess.CompletedProcess(args, 0,
+                    stdout='CSQTT: В прошивке отсутствует необходимая команда: tar\n' +
+                           'CSQTT_GUEST_STAGE=' + private.replace('-', '_') + '\n' + private,
+                    stderr='')
+        with mock.patch.object(native_vm, 'PHASE', 'first_offline_install'), \
+                mock.patch.object(native_vm.subprocess, 'run', side_effect=transport), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            with self.assertRaises(ValueError):
+                native_vm.run_remote(['ssh', 'synthetic-host'], 'false')
+        self.assertIn('OpenWrt missing tool: tar', output.getvalue())
+        self.assertNotIn(private, output.getvalue())
+        self.assertNotIn(private.replace('-', '_'), output.getvalue())
+        self.assertIn('/install.private.log', commands[1])
+        self.assertNotIn('/reject.private.log', commands[1])
+        self.assertNotIn('*', commands[1])
+
+    @unittest.skipUnless(SH, 'A real POSIX shell is required for exact signature rejection evidence')
+    def test_signature_rejection_requires_the_actual_fixed_error_and_nonzero_exit(self):
+        rejected = subprocess.CompletedProcess(['synthetic-installer'], 1)
+        grep = shutil.which('grep') or str(pathlib.Path(SH).with_name('grep.exe'))
+        if not pathlib.Path(grep).is_file():
+            self.skipTest('A native grep is required for the actual fixed-message proof')
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            def remote(command):
+                command = command.replace('cd /tmp/csqtt-native', 'cd ' + shlex.quote(directory.as_posix()))
+                script = ('set -eu; sha256sum() { return 0; }; grep() { ' +
+                          shlex.quote(pathlib.Path(grep).as_posix()) + ' "$@"; }; ' + command)
+                return subprocess.run([SH], input=script, encoding='utf-8', capture_output=True, check=True)
+            for error in ('', 'CSQTT: Missing prerequisite', native_vm.SIGNATURE_REJECTION + ' extra'):
+                (directory / 'reject.private.log').write_text(error + '\n', encoding='utf-8')
+                with self.assertRaises(subprocess.CalledProcessError):
+                    native_vm.require_signature_rejection(remote, rejected)
+            (directory / 'reject.private.log').write_text(native_vm.SIGNATURE_REJECTION + '\n', encoding='utf-8')
+            native_vm.require_signature_rejection(remote, rejected)
+            with self.assertRaises(ValueError):
+                native_vm.require_signature_rejection(remote, subprocess.CompletedProcess(['synthetic'], 0))
+
     def test_boot_signals_report_fixed_categories_without_console_content(self):
         private = 'private-key-command-url-fixture'
         console = ('GRUB Linux version 6.6 OpenWrt 24.10.8\n'
