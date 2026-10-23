@@ -38,11 +38,31 @@ requires a fresh candidate after diagnostic proof; STATUS alone never does.
 Exact metadata: .work/preview.10/candidate.json; source/package/evidence must bind
 to frozen SHA. No GITHUB_SHA override or old diagnostic proof promotion.
 
-FIRST UNFINISHED ACTION: run focused diagnostic17 with added prerequisite and
-stage-source markers (workflow .work/preview.10/probe-workflow-v17.yml), then
+FIRST UNFINISHED ACTION: read diagnostic17 remaining25job; run/read diagnostic18
+24-only missing-tool marker (.work/preview.10/probe-workflow-v18.yml), then
 run fresh exact-source qualification. Diagnostic reuses compiled06c packages;
 it MUST NOT qualify a release or override evidence source. No client rebuild
 needed to diagnose authenticated feed cache and both native VM transactions.
+19:00UTC dev checkpointd28b73fa9c4fc5d3009b5aed35cc4e12950d7068,
+tree87d216aa86c584f1b6384c290e82cb5839fb8244. Local/fetch tree equality PASS.
+Diagnostic17 run40007934424/sourcea0ba424f57d63638cffd6cb155f7f2d3dec92a87
+24job120600536428 badsignature/firstinstall PASS again, runtime fails exact
+prerequisites_tools. Native signed application install is proven only diagnostic;
+runtime/guards/repeat notPASS. Pinned24/25 rootfs archives both lack timeout path
+(nslookup present); timeout is used ONLY by guest harness, not production client.
+Do not add production dependencies or weaken bounds from that clue alone. New
+fixed missing-tool marker+source-derived whitelist implemented;7malformed marker
+cases1focusedPASS, compile/shellPASS. Need actual failed tool on next24VM.
+25job120600536738 still setup at19:07UTC (no running logs read); its future failure
+will expose stage.log source trace added17. Read bounded failed logs only.
+General9898run40006282226: core/android/native-policy PASS, checks120594898568
+failed portable20test16failures because opkg double lacks print-architecture and
+readonly test forbids all opkg calls. Agent diagnostics_finish owns test doubles
+and readonly assertion only; native production query remains strict. Fix now
+frozen: nativequery double+exact readonly allowlist, readonly2PM/opkg success/
+catalogue_signature/service_failure rollback PASS; Node/Python/whitespacePASS.
+Agents completed/frozen. openwrt
+skipped. Do not treat this run as ALL5PASS. No full6SDK retry while blockers open.
 18:48UTC checkpoint pushed9898abf3f8b91bb0a51868630ebc29d42e077f6f,
 tree6b61460c1dbe5d0fcc4efd3423e60ea579766794; tree/fetch equality PASS, no edits.
 Diagnostic16 run40006335403/sourceaea94a5952687b5e3b8f16f7c185b823932f7889

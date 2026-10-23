@@ -321,11 +321,15 @@ def run_remote(ssh, command, timeout=600, check=True):
         for name, category in classified['platform_trace'].items():
             if category != 'unobserved':
                 print('OpenWrt installer platform trace: ' + name + '=' + category, flush=True)
-        allowed_stages = set(re.findall(r'^stage ([a-z_]{1,50})$',
-                            (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8'), re.MULTILINE))
+        guest_source = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
+        allowed_stages = set(re.findall(r'^stage ([a-z_]{1,50})$', guest_source, re.MULTILINE))
         markers = [m for m in re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private) if m in allowed_stages]
         if markers:
             print('OpenWrt guest substage: ' + markers[-1], flush=True)
+        guest_tools = {tool for group in re.findall(r'^for tool in ([a-z0-9 _-]+); do command -v "\$tool"',
+                                                    guest_source, re.MULTILINE) for tool in group.split()}
+        for tool in sorted(set(re.findall(r'(?m)^CSQTT_GUEST_MISSING_TOOL=([a-z0-9_-]{1,50})\r?$', private)) & guest_tools):
+            print('OpenWrt guest missing tool: ' + tool, flush=True)
         reasons = {
             'signature_rejected': ('UNTRUSTED signature', 'BAD signature', 'Verification failure', 'подпись'),
             'dependency_solver': ('unable to select packages', 'unsatisfiable', 'Неполный набор зависимостей', 'не прошла в изолированной базе'),

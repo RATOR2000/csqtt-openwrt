@@ -53,6 +53,14 @@ else if (command === 'jsonfilter') {
 else if (command.startsWith('service:')) {
   if (['service_failure','module_failure'].includes(scenario) && command === 'service:csqtt-health' && args[0] === 'restart') fail('Service failed');
 } else if (command === 'apk' || command === 'opkg') {
+  if(command === 'opkg' && args.includes('print-architecture')) {
+    if(args.length !== 1 || args[0] !== 'print-architecture') fail('Unexpected architecture-query arguments');
+    if(process.env.OPKG_CONF_DIR !== undefined || process.env.OFFLINE_ROOT !== undefined) fail('Architecture query inherited installer configuration');
+    const arch=process.env.CSQTT_FAKE_ARCH;
+    if(!arch || !/^[A-Za-z0-9][A-Za-z0-9_.+~-]*$/.test(arch)) fail('Missing fixture native architecture');
+    out('arch all 1\narch noarch 1\narch ' + arch + ' 10');
+    process.exit(0);
+  }
   if (args.some(a => ['--allow-untrusted','--nodeps','--force-depends','--force-checksum','--force-signature'].includes(a))) fail('Trust/dependency bypass');
   const staged = args.includes('--root') || args.includes('--offline-root');
   const base = staged ? native(opt(args.includes('--root') ? '--root' : '--offline-root')) : root;
