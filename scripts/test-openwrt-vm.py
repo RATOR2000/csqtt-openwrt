@@ -363,6 +363,7 @@ def main():
             signature.write_bytes(b'wrong signature fixture')
             rejected = remote('cd /tmp/csqtt-native; ' + PRIVATE_TRACE + ' > reject.private.log 2>&1', check=False)
             require_signature_rejection(remote, rejected)
+            remote('test ! -e /etc/csqtt/installer-bootstrap; test ! -e /etc/csqtt/installer-transaction; cd /tmp/csqtt-native; sha256sum -c before.sha256 >/dev/null')
             signature.write_bytes(valid_signature)
             phase('first_offline_install')
             remote('cd /tmp/csqtt-native; ' + PRIVATE_TRACE + ' > install.private.log 2>&1')

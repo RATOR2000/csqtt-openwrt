@@ -1,46 +1,34 @@
-name: Diagnostic existing candidate VM (not release evidence)
+name: Diagnostic official transport only (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]
 permissions:
   contents: read
-  actions: read
 jobs:
-  diagnostic:
+  transport:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - release: '24.10.8'
-            artifact_run: 39839530729
-          - release: '25.12.6'
-            artifact_run: 39946222767
+    timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
-      - name: Disposable VM dependencies
+      - name: Compare bounded verified official downloads without building binaries
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 openssh-client python3-pexpect e2fsprogs busybox-static
-      - name: Validate bounded image preparation on Linux
-        run: |
-          python3 tests/platforms/platforms_test.py
-          python3 tests/release/openwrt_image_test.py
-          python3 tests/release/vm_disk_test.py
-          python3 tests/release/vm_acceptance_test.py
-          python3 tests/release/public_command_test.py
-      - uses: actions/download-artifact@v4
-        with:
-          name: candidate-official-${{ matrix.release }}-x86-64-x86_64
-          run-id: ${{ matrix.artifact_run }}
-          github-token: ${{ github.token }}
-          path: .work/diagnostic-vm
-      - name: Private fixture only, never publish or qualify these packages
-        env:
-          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
-        run: python3 scripts/sign-portable-release.py .work/diagnostic-vm --provisional
-      - name: Diagnose actual pinned image preparation and guest installation
-        env:
-          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
-        run: python3 scripts/test-openwrt-vm.py --directory .work/diagnostic-vm --profile official-${{ matrix.release }}-x86-64-x86_64
+          python3 - <<'PY'
+          import hashlib,pathlib,subprocess,tempfile,urllib.request,urllib.error
+          pins={'24.10.8':'6c94190246a54088e3984fc0c4cbbb518972abb2b10a28e30a0c41554eea8b9d','25.12.6':'55e52bb34de582a1ebe56bd50f94ff54ac7c77f5bca9cae807656d1930456da4'}
+          limit=67108864
+          for version,digest in pins.items():
+              url='https://downloads.openwrt.org/releases/'+version+'/targets/x86/64/openwrt-'+version+'-x86-64-rootfs.tar.gz'
+              for label,headers in [('urllib_default',{}),('urllib_explicit',{'User-Agent':'CSQTT-build-verifier/1'})]:
+                  try:
+                      with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=25) as response:
+                          data=response.read(limit+1)
+                          origin=response.url.startswith('https://downloads.openwrt.org/')
+                      verified=origin and 0<len(data)<=limit and hashlib.sha256(data).hexdigest()==digest
+                      print(version,label,'verified='+str(verified),flush=True)
+                  except urllib.error.HTTPError as error: print(version,label,'http_status='+str(error.code),flush=True)
+                  except Exception as error: print(version,label,'exception='+type(error).__name__,flush=True)
+              with tempfile.TemporaryDirectory() as temporary:
+                  target=pathlib.Path(temporary)/'rootfs.tar.gz'
+                  result=subprocess.run(['curl','--fail','--location','--proto','=https','--proto-redir','=https','--max-time','30','--max-filesize',str(limit),'--output',str(target),'--write-out','%{url_effective}',url],capture_output=True,text=True,timeout=35)
+                  verified=result.returncode==0 and result.stdout.startswith('https://downloads.openwrt.org/') and target.is_file() and 0<target.stat().st_size<=limit and hashlib.sha256(target.read_bytes()).hexdigest()==digest
+                  print(version,'curl','exit='+str(result.returncode),'verified='+str(verified),flush=True)
+          PY

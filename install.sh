@@ -214,6 +214,34 @@ csqtt_inventory() {
 csqtt_preserve_inventory() {
     awk 'NR==FNR{old[$1]=$2;next} {if($1 in old){if(old[$1]!=$2)bad=1;delete old[$1]}} END{for(n in old)bad=1;exit bad}' "$1" "$2"
 }
+csqtt_opkg_remove_ordered() (
+    CS_RM_ROOT=$1 CS_RM_CONF=$2; shift 2
+    CS_RM_STATUS=/usr/lib/opkg/status
+    [ "$CS_RM_ROOT" = - ] || CS_RM_STATUS="$CS_RM_ROOT/usr/lib/opkg/status"
+    csqtt_removal_command() {
+        if [ "$CS_RM_ROOT" = - ]; then OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_RM_CONF" --lists-dir "$CS_TMP/no-repositories" "$@"
+        else OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_RM_CONF" --lists-dir "$CS_TMP/no-repositories" --offline-root "$CS_RM_ROOT" "$@"; fi
+    }
+    # opkg processes operands in order. Prove each removal first, then retry
+    # blocked dependencies only after another selected package was removed.
+    while [ "$#" -gt 0 ]; do
+        CS_RM_PENDING= CS_RM_PROGRESS=0
+        for CS_RM_PACKAGE do
+            csqtt_token "$CS_RM_PACKAGE" || exit 1
+            CS_RM_VERSION=$(csqtt_opkg_records "$CS_RM_STATUS" version "$CS_RM_PACKAGE") || exit 1
+            [ -n "$CS_RM_VERSION" ] || continue
+            if csqtt_removal_command --noaction remove "$CS_RM_PACKAGE" >> "$CS_TMP/removal-plan.log" 2>&1; then
+                csqtt_removal_command remove "$CS_RM_PACKAGE" || exit 1
+                CS_RM_VERSION=$(csqtt_opkg_records "$CS_RM_STATUS" version "$CS_RM_PACKAGE") || exit 1
+                [ -z "$CS_RM_VERSION" ] || exit 1
+                CS_RM_PROGRESS=1
+            else CS_RM_PENDING="$CS_RM_PENDING $CS_RM_PACKAGE"; fi
+        done
+        [ -n "$CS_RM_PENDING" ] || exit 0
+        [ "$CS_RM_PROGRESS" = 1 ] || exit 1
+        set -- $CS_RM_PENDING
+    done
+)
 csqtt_bootstrap_rollback() {
     CS_BOOT=/etc/csqtt/installer-bootstrap
     [ -d "$CS_BOOT" ] || return 0
@@ -228,7 +256,7 @@ csqtt_bootstrap_rollback() {
     done < "$CS_BOOT/remove"
     if [ "$#" -gt 0 ]; then
         if [ "$CS_PM" = apk ]; then apk --preserve-env --repositories-file /dev/null --no-network del "$@" > "$CS_BOOT/recover.log" 2>&1
-        else OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_BOOT/offline.conf" remove "$@" > "$CS_BOOT/recover.log" 2>&1; fi || return 1
+        else csqtt_opkg_remove_ordered - "$CS_BOOT/offline.conf" "$@" > "$CS_BOOT/recover.log" 2>&1; fi || return 1
     fi
     csqtt_inventory - > "$CS_BOOT/recovered" || return 1
     csqtt_exact_packages "$CS_BOOT/before" "$CS_BOOT/recovered" || return 1
@@ -576,8 +604,8 @@ csqtt_bundle_sources() {
         CS_FILE=$(csqtt_j "$CS_MANIFEST" "@.dependency_bundle.packages[$CS_I].filename")
         csqtt_token "$CS_DEP" && csqtt_token "$CS_VERSION" && csqtt_token "$CS_ID" && csqtt_token "$CS_FILE" || csqtt_portable_die 'Неверный состав подписанных зависимостей'
         case "$CS_DEP" in
-          kmod-tun) [ "$(csqtt_j "$CS_MANIFEST" "@.dependency_bundle.packages[$CS_I].kernel_package")" = "$(csqtt_j "$CS_TMP/probe.json" '@.kernel_package')" ] || csqtt_portable_die 'Модуль TUN предназначен для другого ядра' ;;
-          kernel|kmod-*|dnsmasq*|firewall*|procd|netifd|csqtt|csqtt-captcha|luci-app-csqtt) csqtt_portable_die 'Замена ядра, DNS, межсетевого экрана или системных служб запрещена' ;;
+          kmod-*) [ "$(csqtt_j "$CS_MANIFEST" "@.dependency_bundle.packages[$CS_I].kernel_package")" = "$(csqtt_j "$CS_MANIFEST" '@.requirements.kernel_package')" ] && [ "$(csqtt_j "$CS_MANIFEST" '@.requirements.kernel_package')" = "$(csqtt_j "$CS_TMP/probe.json" '@.kernel_package')" ] || csqtt_portable_die 'Модуль предназначен для другого ядра' ;;
+          kernel|dnsmasq*|firewall*|procd|netifd|csqtt|csqtt-captcha|luci-app-csqtt) csqtt_portable_die 'Замена ядра, DNS, межсетевого экрана или системных служб запрещена' ;;
         esac
         [ -d "$CS_TMP/repos/$CS_ID" ] || csqtt_portable_die 'Неверный состав подписанных индексов зависимостей'
         [ ! -e "$CS_TMP/repos/$CS_ID/$CS_FILE" ] || csqtt_portable_die 'Неверный состав подписанных зависимостей'
@@ -602,15 +630,32 @@ csqtt_remove() {
     if [ "$CS_PM" = apk ]; then
         if [ "$CS_DEL_ROOT" = - ]; then apk --preserve-env --repositories-file "$CS_TMP/empty-repositories" --keys-dir "$CS_TMP/keys" --no-network del "$@"
         else apk --root "$CS_DEL_ROOT" --arch "$CS_ARCH" --repositories-file "$CS_TMP/empty-repositories" --keys-dir etc/apk/keys --no-network --no-scripts del "$@"; fi
-    elif [ "$CS_DEL_ROOT" = - ]; then csqtt_opkg remove "$@"
-    else csqtt_opkg --offline-root "$CS_DEL_ROOT" remove "$@"; fi
+    else csqtt_opkg_remove_ordered "$CS_DEL_ROOT" "$CS_TMP/opkg.conf" "$@"; fi
 }
+csqtt_new_module_allowed() (
+    CS_MOD_BUNDLE=$1 CS_MOD_BASELINE=$2 CS_MOD_PACKAGE=$3
+    [ -s "$CS_MOD_BASELINE" ] && [ -f "$CS_MOD_BUNDLE/manifest.json" ] || exit 1
+    # A recorded baseline module can never become a removal target.
+    awk -v wanted="$CS_MOD_PACKAGE" '{name=$0;sub(/^.*"name"[ ]*:[ ]*"/,"",name);sub(/".*$/,"",name);if(name==wanted)found=1} END{exit found}' "$CS_MOD_BASELINE" || exit 1
+    CS_MOD_ABI=$(csqtt_j "$CS_MOD_BUNDLE/manifest.json" '@.requirements.kernel_package')
+    [ -n "$CS_MOD_ABI" ] && [ "$CS_MOD_ABI" = "$(csqtt_j "$CS_TMP/probe.json" '@.kernel_package')" ] || exit 1
+    CS_MOD_I=0 CS_MOD_MATCHES=0
+    while [ -n "$(csqtt_j "$CS_MOD_BUNDLE/manifest.json" "@.dependency_bundle.packages[$CS_MOD_I]")" ]; do
+        [ "$CS_MOD_I" -lt 64 ] || exit 1
+        if [ "$(csqtt_j "$CS_MOD_BUNDLE/manifest.json" "@.dependency_bundle.packages[$CS_MOD_I].package")" = "$CS_MOD_PACKAGE" ]; then
+            [ "$(csqtt_j "$CS_MOD_BUNDLE/manifest.json" "@.dependency_bundle.packages[$CS_MOD_I].kernel_package")" = "$CS_MOD_ABI" ] || exit 1
+            CS_MOD_MATCHES=$((CS_MOD_MATCHES+1))
+        fi
+        CS_MOD_I=$((CS_MOD_I+1))
+    done
+    [ "$CS_MOD_MATCHES" = 1 ]
+)
 csqtt_remove_new() {
-    CS_REMOVE_ROOT=$1; CS_REMOVE_LIST=$2; set --
+    CS_REMOVE_ROOT=$1 CS_REMOVE_LIST=$2 CS_REMOVE_BUNDLE=${3:-} CS_REMOVE_BASELINE=${4:-}; set --
     while IFS= read -r CS_DEP; do
         [ -n "$CS_DEP" ] || continue
         csqtt_token "$CS_DEP" || return 1
-        case "$CS_DEP" in kernel|dnsmasq*|firewall*|procd|netifd|csqtt|csqtt-captcha|luci-app-csqtt) return 1 ;; kmod-*) [ "$CS_DEP" = kmod-tun ] || return 1 ;; esac
+        case "$CS_DEP" in kernel|dnsmasq*|firewall*|procd|netifd|csqtt|csqtt-captcha|luci-app-csqtt) return 1 ;; kmod-*) [ -n "$CS_REMOVE_BUNDLE" ] && csqtt_new_module_allowed "$CS_REMOVE_BUNDLE" "$CS_REMOVE_BASELINE" "$CS_DEP" || return 1 ;; esac
         set -- "$@" "$CS_DEP"
     done < "$CS_REMOVE_LIST"
     csqtt_remove "$CS_REMOVE_ROOT" "$@"
@@ -635,7 +680,7 @@ csqtt_rollback() {
     if [ "$CS_UPGRADE" = 1 ]; then csqtt_pm_install - "$CS_BACKUP/previous" 1 >> "$CS_BACKUP/rollback.log" 2>&1 || CS_RESTORED=1
     else csqtt_remove - luci-app-csqtt csqtt-captcha csqtt >> "$CS_BACKUP/rollback.log" 2>&1 || CS_RESTORED=1; fi
     if [ "$CS_RESTORED" = 0 ]; then
-        csqtt_remove_new - "$CS_BACKUP/new-dependencies" >> "$CS_BACKUP/rollback.log" 2>&1 || CS_RESTORED=1
+        csqtt_remove_new - "$CS_BACKUP/new-dependencies" "$CS_BACKUP/transaction" "$CS_BACKUP/packages-before" >> "$CS_BACKUP/rollback.log" 2>&1 || CS_RESTORED=1
         csqtt_snapshot - > "$CS_BACKUP/packages-rolled-back" || CS_RESTORED=1
         csqtt_exact_packages "$CS_BACKUP/packages-before" "$CS_BACKUP/packages-rolled-back" || CS_RESTORED=1
         for CS_CONFIG in csqtt dhcp firewall network; do
@@ -857,7 +902,7 @@ CSQTT_PORTABLE_PUBLIC_KEY
         csqtt_pm_install "$CS_TMP/stage" "$CS_TMP/previous" 1 > "$CS_TMP/restore-proof.log" 2>&1 || csqtt_portable_die 'Предыдущие пакеты нельзя восстановить без сети'
         csqtt_check_versions "$CS_TMP/stage" "$CS_TMP/previous" || csqtt_portable_die 'Предыдущие пакеты нельзя восстановить без сети'
     else csqtt_remove "$CS_TMP/stage" luci-app-csqtt csqtt-captcha csqtt > "$CS_TMP/restore-proof.log" 2>&1 || csqtt_portable_die 'Не удалось проверить удаление новых пакетов'; fi
-    csqtt_remove_new "$CS_TMP/stage" "$CS_TMP/new-dependencies" >> "$CS_TMP/restore-proof.log" 2>&1 || csqtt_portable_die 'Не удалось проверить автономный откат зависимостей'
+    csqtt_remove_new "$CS_TMP/stage" "$CS_TMP/new-dependencies" "$CS_TMP" "$CS_TMP/packages-before" >> "$CS_TMP/restore-proof.log" 2>&1 || csqtt_portable_die 'Не удалось проверить автономный откат зависимостей'
     csqtt_snapshot "$CS_TMP/stage" > "$CS_TMP/packages-restored" || csqtt_portable_die 'Не удалось проверить состав пакетов после изолированного отката'
     csqtt_exact_packages "$CS_TMP/packages-before" "$CS_TMP/packages-restored" || csqtt_portable_die 'Проверенный откат не восстановил исходный состав пакетов'
     CS_BUNDLE_KIB=$(du -sk "$CS_TMP" | awk '{print $1}')

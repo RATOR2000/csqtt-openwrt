@@ -51,6 +51,7 @@ class PortableTest(unittest.TestCase):
             if scenario.startswith('migration'): db.update({name:'0.1.0-r9' for name in ['csqtt','csqtt-captcha','luci-app-csqtt']})
             if scenario.startswith('bootstrap'): db.pop('jsonfilter')
             if scenario.startswith('tun'): db.pop('kmod-tun')
+            if scenario=='module_existing': db['kmod-nf-conntrack-netlink']='1'
             before = db.copy()
             (root/'lib/apk/db/installed').write_text(json.dumps(db))
             (root/'etc/apk/world').write_text('\n'.join(db)+'\n')
@@ -80,8 +81,8 @@ class PortableTest(unittest.TestCase):
             if scenario=='path': manifest['packages'][0]['name']='../outside.ipk'
             if scenario=='missing_required': manifest['requirements']['packages'].append('missing-package')
             if scenario=='checksum': manifest['packages'][0]['sha256']='0'*64
-            if scenario.startswith('dep_') or scenario.startswith('tun'):
-                dep='kmod-tun' if scenario.startswith('tun') else 'liblucihttp0'
+            if scenario.startswith('dep_') or scenario.startswith('tun') or scenario.startswith('module_'):
+                dep='kmod-nf-conntrack-netlink' if scenario.startswith('module_') else 'kmod-tun' if scenario.startswith('tun') else 'liblucihttp0'
                 if scenario=='dep_upgrade': dep='ip-full'
                 if scenario=='dep_protected': dep='firewall4'
                 version='1' if dep!='ip-full' else 'unexpected-upgrade'
@@ -89,6 +90,7 @@ class PortableTest(unittest.TestCase):
                 file.write_text(json.dumps({'package':dep,'version':version}))
                 entry=artifact(file,package=dep,version=version,index='base',filename=f'{dep}_{version}.{"apk" if pm=="apk" else "ipk"}')
                 if dep=='kmod-tun': entry['kernel_package']='other-kernel' if scenario=='tun_kernel' else db['kernel']
+                if dep=='kmod-nf-conntrack-netlink' and scenario!='module_missing_kernel': entry['kernel_package']='other-kernel' if scenario=='module_kernel' else db['kernel']
                 manifest['dependency_bundle']['packages']=[entry]
                 manifest['requirements']['packages'].append(dep)
                 index=release/f'{profile}--base-index'
@@ -167,7 +169,7 @@ class PortableTest(unittest.TestCase):
                 self.assertTrue((root/'stop-admitted').exists(),'Stop must be admitted after installer cleanup')
             else:
                 result=subprocess.run(invocation,env=env,capture_output=True,text=True,timeout=100)
-            if scenario in ['powerloss','bootstrap_powerloss','bootstrap_powerloss_main']:
+            if scenario in ['powerloss','bootstrap_powerloss','bootstrap_powerloss_main','module_powerloss']:
                 self.assertNotEqual(result.returncode,0,'First install must be interrupted without a cleanup trap')
                 journal=root/('etc/csqtt/installer-bootstrap' if scenario=='bootstrap_powerloss' else 'etc/csqtt/installer-transaction')
                 self.assertTrue(journal.exists(),'Power loss must leave a persistent journal')
@@ -198,6 +200,21 @@ class PortableTest(unittest.TestCase):
             self.assertEqual(config,'private fixture csqtt\n')
             self.assertTrue(any('--root' in c['args'] or '--offline-root' in c['args'] for c in calls))
             self.assertIn('http://192.168.73.1/cgi-bin/luci/admin/services/csqtt',result.stdout)
+
+    def test_exact_kernel_modules_preserve_baseline_and_rollback_introduced_only(self):
+        for pm in ('opkg','apk'):
+            for scenario in ('module_new','module_existing','module_failure','module_kernel','module_missing_kernel','module_powerloss'):
+                with self.subTest(pm=pm,scenario=scenario):
+                    result,calls,before,after,_,_=self.run_case(pm,scenario)
+                    if scenario in ('module_new','module_existing','module_powerloss'):
+                        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+                        self.assertEqual(after['kmod-nf-conntrack-netlink'],'1')
+                    else:
+                        self.assertNotEqual(result.returncode,0,result.stdout+result.stderr)
+                        self.assertEqual(before,after)
+                    self.assertEqual(after['kmod-tun'],before['kmod-tun'])
+                    if scenario=='module_existing':
+                        self.assertFalse(any(c['command']==pm and any(a in c['args'] for a in ('del','remove')) and 'kmod-nf-conntrack-netlink' in c['args'] for c in calls))
 
     def test_failures_are_before_live_mutation(self):
         for scenario in ['catalogue_signature','manifest_signature','unqualified','tuple','kernel','path','checksum','duplicate_role','ambiguous','missing_required','space','dependency','wrong_installed_version','unrelated_change']:

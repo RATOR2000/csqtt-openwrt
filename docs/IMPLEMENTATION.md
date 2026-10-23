@@ -145,6 +145,16 @@ their exact metadata and all payload hashes with native offline fetch from that
 immutable signed index and pinned official key, using a fresh empty output and
 never --link or allow-untrusted. Require the exact selected filename/version and
 bytes. Project APKs additionally require their own pinned package signatures.
+Cache every required kernel module and its transitive dependencies. Each module
+must declare its own single exact kernel ABI in authenticated metadata, equal
+to TUN, the manifest and the running kernel. Keep firmware core packages intact.
+Rollback may remove only introduced modules recorded in the verified bundle and
+absent from the original inventory. Bootstrap cannot add/remove kernel modules.
+Native opkg prefixes list paths with its offline root; copy authenticated lists
+there before staging. Plan each removal with native --noaction, execute it only
+after success, and retry blocked plans only after another selected removal.
+Actual removal errors abort; never force dependencies or garbage-collect the
+original installation. Full original-inventory restoration remains mandatory.
 Unknown versions preserve settings and refuse unsafe activation. A compiled or
 emulated target is not native device qualification. Public diagnostic additions
 must preserve existing RPC fields and secret redaction.
@@ -168,7 +178,7 @@ remote mutation is authorized. Current SSH alias `router` permits agreed reads.
 See PORTABILITY.md and docs/evidence for source/build/native gate distinctions.
 
 One README command must work on a clean supported image: authenticated bootstrap
-of verifier/tools, full signed dependency resolution (including exact-kernel TUN),
+of verifier/tools, full signed dependency resolution (including exact-kernel modules),
 staged downloads and solver proof, persistent transaction journal/offline rollback,
 and schema1r9 upgrade migration. Never require the user to preinstall tools or
 replace DNS manually. Package install success means software installed; actual
