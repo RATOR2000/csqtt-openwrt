@@ -38,11 +38,25 @@ requires a fresh candidate after diagnostic proof; STATUS alone never does.
 Exact metadata: .work/preview.10/candidate.json; source/package/evidence must bind
 to frozen SHA. No GITHUB_SHA override or old diagnostic proof promotion.
 
-FIRST UNFINISHED ACTION: finish focused native probe/solver diagnostics, run
-diagnostic16 (workflow .work/preview.10/probe-workflow-v16.yml), then freeze and
+FIRST UNFINISHED ACTION: run focused diagnostic17 with added prerequisite and
+stage-source markers (workflow .work/preview.10/probe-workflow-v17.yml), then
 run fresh exact-source qualification. Diagnostic reuses compiled06c packages;
 it MUST NOT qualify a release or override evidence source. No client rebuild
 needed to diagnose authenticated feed cache and both native VM transactions.
+18:48UTC checkpoint pushed9898abf3f8b91bb0a51868630ebc29d42e077f6f,
+tree6b61460c1dbe5d0fcc4efd3423e60ea579766794; tree/fetch equality PASS, no edits.
+Diagnostic16 run40006335403/sourceaea94a5952687b5e3b8f16f7c185b823932f7889
+finished:24job120595077224 badsignature+firstinstall PASS; runtime immediately
+failed prerequisites (no precise earlier marker). Native opkg architecture fix
+therefore passed actual clean firmware.25job120595077911 badsignature PASS,
+stage install failed again; checked stage.log readPASS but unclassified_output,
+only source-known jsonfilter name. Add safe stage trace source-line/functions
+and11 static guest prerequisites markers; assertions unchanged. Focused helper
+5tests=4PASS/1Windows symlinkskip; py_compile/shell/marker allowlist PASS.
+Both diagnostic binaries remain06c, NEVER release proof. General
+run40006282226 tests9898source. On failure, read fixed safe classes only;
+do not rebuild6SDK until concrete production defects corrected and nativeVM
+diagnostics pass. Build branch remains failed06c; preview10 not published.
 Fix checkpoint pushed3e599facb7f3d89a29efa3f48a11c302b7b79024,
 treea83b652d7d05abf6d6898499d539039770d7150e, local tree/fetch equality PASS.
 Diagnostic15 run40004512219/source53bedbed15a870bd6cda37dd6999b720f8276152

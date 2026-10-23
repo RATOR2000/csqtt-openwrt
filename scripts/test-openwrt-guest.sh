@@ -7,17 +7,28 @@ umask 077
 fail() { printf '%s\n' 'CSQTT guest smoke failed; inspect private guest diagnostics.' >&2; exit 1; }
 stage() { printf 'CSQTT_GUEST_STAGE=%s\n' "$1"; }
 stage prerequisites
+stage prerequisites_uid
 [ "$(id -u)" = 0 ] || fail
+stage prerequisites_cpu
 [ "$(uname -m)" = x86_64 ] || fail
+stage prerequisites_hypervisor
 cat /sys/class/dmi/id/product_name /sys/class/dmi/id/sys_vendor 2>/dev/null | grep -Eqi 'QEMU|Bochs|KVM' || fail
+stage prerequisites_vendor
 [ ! -f /etc/glversion ] || fail
+stage prerequisites_release
 . /etc/openwrt_release
 case "${DISTRIB_RELEASE:-}" in 24.10.*|25.12.*) ;; *) fail ;; esac
+stage prerequisites_tools
 for tool in ucode uci ubus nft fw4 ip timeout nslookup sha256sum; do command -v "$tool" >/dev/null || fail; done
+stage prerequisites_enabled
 [ "$(uci -q get csqtt.main.enabled)" = 0 ] || fail
+stage prerequisites_auto_recover
 [ "$(uci -q get csqtt.main.auto_recover)" = 0 ] || fail
+stage prerequisites_workers
 [ "$(uci -q get csqtt.main.workers)" = auto ] || fail
+stage prerequisites_ucode_absence
 [ ! -x /usr/libexec/csqtt/ucode ] || fail
+stage prerequisites_dns_features
 DNS=/usr/sbin/dnsmasq
 [ ! -x /usr/libexec/csqtt/dnsmasq ] || DNS=/usr/libexec/csqtt/dnsmasq
 "$DNS" --version | grep -Eq '(^|[[:space:]])nftset([[:space:]]|$)' || fail

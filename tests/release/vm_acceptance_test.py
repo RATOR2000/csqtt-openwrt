@@ -201,7 +201,12 @@ class VmAcceptanceTest(unittest.TestCase):
         sentinel = ('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n').encode('ascii')
         main = subprocess.CompletedProcess(['ssh'], 0,
                  stdout=native_vm.PROJECT_STAGE_ERROR.encode('utf-8') + sentinel, stderr=b'')
-        body = ('ERROR: unable to select packages:\ncsqtt (no such package)\n' + private).encode('utf-8')
+        body = ('ERROR: unable to select packages:\ncsqtt (no such package)\n'
+                '+CSQTT_XTRACE:40: csqtt_pm_install ' + private + '\n'
+                '+CSQTT_XTRACE:80: ' + private + ' secret\n'
+                'install.sh: line 88: tar: not found\n'
+                'install.sh: line 90: ' + private + ': parameter not set\n'
+                '+CSQTT_XTRACE:100: csqtt_portable_cleanup ' + private + '\n').encode('utf-8')
         cases = ((subprocess.CompletedProcess(['ssh'], 0, stdout=body + sentinel, stderr=b''), True),
                  (subprocess.CompletedProcess(['ssh'], 1, stdout=body + sentinel, stderr=body), False),
                  (subprocess.CompletedProcess(['ssh'], 0, stdout=body, stderr=body), False),
@@ -227,6 +232,11 @@ class VmAcceptanceTest(unittest.TestCase):
             if success:
                 self.assertIn('OpenWrt project stage class: dependency_unsatisfied', output.getvalue())
                 self.assertIn('OpenWrt project stage package: csqtt', output.getvalue())
+                self.assertIn('OpenWrt project stage trace function: csqtt_pm_install', output.getvalue())
+                self.assertIn('OpenWrt project stage trace: generated_source_line=40', output.getvalue())
+                self.assertIn('OpenWrt project stage shell error: unset_parameter', output.getvalue())
+                self.assertIn('OpenWrt project stage missing tool: tar', output.getvalue())
+                self.assertNotIn('csqtt_portable_cleanup', output.getvalue())
 
     def test_project_stage_read_requires_complete_exact_error_in_checked_current_phase_log(self):
         sentinel = ('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n').encode('ascii')
