@@ -35,9 +35,12 @@ IMAGES = {
 }
 PHASE = 'host_preflight'
 SIGNATURE_REJECTION = 'CSQTT: Подпись выпуска недействительна'
+DIAGNOSTIC_READ_OK = 'CSQTT_PRIVATE_LOG_READ_OK'
+DIAGNOSTIC_LIMIT = 8192
+PRIVATE_TRACE = "PS4='+CSQTT_XTRACE:${LINENO:-0}: '; export PS4; sh -x install.sh ci-private"
 KNOWN_TOOLS = ('uclient-fetch', 'sha256sum', 'awk', 'tar', 'sync', 'du', 'mktemp', 'wc', 'sed', 'cut',
                'cat', 'cp', 'mkdir', 'rm', 'mv', 'rmdir', 'chmod', 'grep', 'sort', 'tr', 'date', 'sleep',
-               'id', 'openssl', 'jsonfilter', 'usign', 'opkg', 'apk', 'uci', 'ubus')
+               'id', 'openssl', 'jsonfilter', 'usign', 'opkg', 'apk', 'uci', 'ubus', 'dd', 'tail')
 SHELL_ERRORS = {
     'syntax_error': ('syntax error',),
     'unset_parameter': ('parameter not set', 'unbound variable'),
@@ -98,8 +101,40 @@ def installer_diagnostics(private):
     generated_lines = sorted({int(n) for n in re.findall(
         r'(?m)^(?:install\.sh|[^ \r\n]*/install\.sh): (?:line )?([1-9][0-9]{0,4}):', private)
         if int(n) <= len((ROOT / 'install.sh').read_text(encoding='utf-8').splitlines())})
+    installer = (ROOT / 'install.sh').read_text(encoding='utf-8').splitlines()
+    functions = set(re.findall(r'^(csqtt_[A-Za-z0-9_]+)\(\)', '\n'.join(installer), re.MULTILINE))
+    traced_functions, last_line = [], None
+    for line in private.splitlines():
+        trace = re.match(r'^\++CSQTT_XTRACE:([0-9]{1,6}):\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s|$)', line)
+        if not trace:
+            continue
+        number, name = int(trace[1]), trace[2]
+        # Stop before EXIT cleanup obscures the original failure. The emitted
+        # names and source numbers are defined by this checkout, never values.
+        if name in ('csqtt_portable_cleanup', 'csqtt_operation_cleanup'):
+            break
+        if 0 < number <= len(installer):
+            last_line = number
+        if name in functions and (not traced_functions or traced_functions[-1] != name):
+            traced_functions.append(name)
     return {'portable_error_lines': sorted(errors), 'missing_tools': tools, 'shell_errors': shell,
-            'generated_error_lines': generated_lines}
+            'generated_error_lines': generated_lines, 'trace_functions': traced_functions[-8:],
+            'trace_last_source_line': last_line}
+
+
+def private_log_read_command():
+    name = PRIVATE_PHASE_LOGS.get(PHASE)
+    if name is None:
+        return 'exit 1'
+    # Baseline BusyBox wc/dd suffice; tail -c is not a required capability.
+    # The byte count and read must both succeed before the sentinel is emitted.
+    # No earlier phase log may supply a reason for the current failure.
+    return ('f=/tmp/csqtt-native/' + name + '.private.log; [ -f "$f" ] || exit 1; '
+            'n=$(wc -c < "$f") || exit 1; set -- $n; [ "$#" = 1 ] || exit 1; n=$1; '
+            'case "$n" in ""|*[!0-9]*) exit 1;; esac; '
+            'skip=0; [ "$n" -le 8192 ] || skip=$((n-8192)); '
+            'dd if="$f" bs=1 skip="$skip" count=8192 2>/dev/null || exit 1; '
+            'printf "\\n' + DIAGNOSTIC_READ_OK + '\\n"')
 
 
 def run_remote(ssh, command, timeout=600, check=True):
@@ -109,13 +144,24 @@ def run_remote(ssh, command, timeout=600, check=True):
         print(f'OpenWrt VM failure: stage={PHASE} exit={result.returncode}', flush=True)
         # Capture only bounded private diagnostics into host memory;
         # emit fixed enums, never package logs or configuration text.
-        names = [PRIVATE_PHASE_LOGS[PHASE]] if PHASE in PRIVATE_PHASE_LOGS else ['reject', 'install', 'smoke', 'repeat']
-        paths = ' '.join('/tmp/csqtt-native/' + name + '.private.log' for name in names)
-        diagnostics = subprocess.run(ssh + [
-            'for f in ' + paths + '; '
-            'do [ ! -f "$f" ] || tail -c 8192 "$f"; done'],
-            capture_output=True, text=True, timeout=15)
-        private = diagnostics.stdout[-32768:] + result.stderr[-8192:]
+        try:
+            diagnostics = subprocess.run(ssh + [private_log_read_command()],
+                capture_output=True, timeout=15)
+        except (OSError, subprocess.SubprocessError):
+            diagnostics = None
+        sentinel = ('\n' + DIAGNOSTIC_READ_OK + '\n').encode('ascii')
+        if (diagnostics is None or diagnostics.returncode != 0 or
+                not diagnostics.stdout.endswith(sentinel) or
+                len(diagnostics.stdout) > DIAGNOSTIC_LIMIT + len(sentinel)):
+            print('OpenWrt guest diagnostics: diagnostic_unavailable', flush=True)
+            private = result.stderr[-DIAGNOSTIC_LIMIT:]
+        else:
+            print('OpenWrt guest diagnostics: bounded_read_ok', flush=True)
+            # A bounded byte tail may begin inside a UTF-8 character. Validate
+            # transport framing before decoding so replacement cannot inflate
+            # the measured byte count and reject an otherwise valid read.
+            log = diagnostics.stdout[:-len(sentinel)].decode('utf-8', errors='replace')
+            private = (log + result.stderr[-DIAGNOSTIC_LIMIT:])[-DIAGNOSTIC_LIMIT:]
         classified = installer_diagnostics(private)
         for line in classified['portable_error_lines']:
             print('OpenWrt installer error: portable_source_line=' + str(line), flush=True)
@@ -125,6 +171,10 @@ def run_remote(ssh, command, timeout=600, check=True):
             print('OpenWrt missing tool: ' + tool, flush=True)
         for category in classified['shell_errors']:
             print('OpenWrt shell error: ' + category, flush=True)
+        for name in classified['trace_functions']:
+            print('OpenWrt installer trace function: ' + name, flush=True)
+        if classified['trace_last_source_line'] is not None:
+            print('OpenWrt installer trace: generated_source_line=' + str(classified['trace_last_source_line']), flush=True)
         allowed_stages = set(re.findall(r'^stage ([a-z_]{1,50})$',
                             (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8'), re.MULTILINE))
         markers = [m for m in re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private) if m in allowed_stages]
@@ -245,11 +295,11 @@ def main():
             signature = fixture / 'catalogue.sig'
             valid_signature = signature.read_bytes()
             signature.write_bytes(b'wrong signature fixture')
-            rejected = remote('cd /tmp/csqtt-native; sh install.sh ci-private > reject.private.log 2>&1', check=False)
+            rejected = remote('cd /tmp/csqtt-native; ' + PRIVATE_TRACE + ' > reject.private.log 2>&1', check=False)
             require_signature_rejection(remote, rejected)
             signature.write_bytes(valid_signature)
             phase('first_offline_install')
-            remote('cd /tmp/csqtt-native; sh install.sh ci-private > install.private.log 2>&1')
+            remote('cd /tmp/csqtt-native; ' + PRIVATE_TRACE + ' > install.private.log 2>&1')
             phase('native_runtime_dns_firewall_luci')
             smoke = remote('cd /tmp/csqtt-native; sh guest.sh > smoke.private.log 2>&1 && tail -n 1 smoke.private.log')
             require(smoke.stdout.strip() == 'CSQTT_GUEST_SMOKE_PASS', 'Native runtime/DNS/firewall/LuCI guest proof missing')
