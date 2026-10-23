@@ -34,6 +34,23 @@ IMAGES = {
     '25.12.6': 'f8538784d0288b4133a99ac2a68443e4922ffde6343e80df56a5882364b9d499',
 }
 PHASE = 'host_preflight'
+SIGNATURE_REJECTION = 'CSQTT: Подпись выпуска недействительна'
+KNOWN_TOOLS = ('uclient-fetch', 'sha256sum', 'awk', 'tar', 'sync', 'du', 'mktemp', 'wc', 'sed', 'cut',
+               'cat', 'cp', 'mkdir', 'rm', 'mv', 'rmdir', 'chmod', 'grep', 'sort', 'tr', 'date', 'sleep',
+               'id', 'openssl', 'jsonfilter', 'usign', 'opkg', 'apk', 'uci', 'ubus')
+SHELL_ERRORS = {
+    'syntax_error': ('syntax error',),
+    'unset_parameter': ('parameter not set', 'unbound variable'),
+    'arithmetic_error': ('arithmetic syntax error', 'arithmetic expression'),
+    'permission_denied': ('Permission denied',),
+    'read_only_filesystem': ('Read-only file system',),
+}
+PRIVATE_PHASE_LOGS = {
+    'bootstrap_and_signature_rejection': 'reject',
+    'first_offline_install': 'install',
+    'native_runtime_dns_firewall_luci': 'smoke',
+    'repeat_install_settings_preserved': 'repeat',
+}
 
 
 def phase(value):
@@ -60,6 +77,31 @@ def free_port():
         return bound.getsockname()[1]
 
 
+def installer_diagnostics(private):
+    """Map bounded private text to trusted source line numbers and fixed enums."""
+    private = private[-40960:]
+    source = (ROOT / 'scripts/portable-install.sh').read_text(encoding='utf-8')
+    errors = set()
+    for number, line in enumerate(source.splitlines(), 1):
+        for match in re.finditer(r"\bcsqtt_portable_die\s+'([^'\r\n]+)'", line):
+            # Only complete hardcoded messages qualify, never a dynamic value
+            # or a matching prefix taken from configuration/package output.
+            if re.search(r'(?m)^CSQTT: ' + re.escape(match[1]) + r'\r?$', private):
+                errors.add(number)
+    tools = []
+    for tool in KNOWN_TOOLS:
+        explicit = 'CSQTT: В прошивке отсутствует необходимая команда: ' + tool
+        missing = r'(?m)(?:^|[ :])' + re.escape(tool) + r': (?:not found|command not found)\r?$'
+        if re.search(r'(?m)^' + re.escape(explicit) + r'\r?$', private) or re.search(missing, private):
+            tools.append(tool)
+    shell = [name for name, needles in SHELL_ERRORS.items() if any(needle in private for needle in needles)]
+    generated_lines = sorted({int(n) for n in re.findall(
+        r'(?m)^(?:install\.sh|[^ \r\n]*/install\.sh): (?:line )?([1-9][0-9]{0,4}):', private)
+        if int(n) <= len((ROOT / 'install.sh').read_text(encoding='utf-8').splitlines())})
+    return {'portable_error_lines': sorted(errors), 'missing_tools': tools, 'shell_errors': shell,
+            'generated_error_lines': generated_lines}
+
+
 def run_remote(ssh, command, timeout=600, check=True):
     result = subprocess.run(ssh + ['set -eu; ' + command], capture_output=True, text=True, timeout=timeout)
     # Private native diagnostics never enter public evidence/logs.
@@ -67,11 +109,25 @@ def run_remote(ssh, command, timeout=600, check=True):
         print(f'OpenWrt VM failure: stage={PHASE} exit={result.returncode}', flush=True)
         # Capture only bounded private diagnostics into host memory;
         # emit fixed enums, never package logs or configuration text.
+        names = [PRIVATE_PHASE_LOGS[PHASE]] if PHASE in PRIVATE_PHASE_LOGS else ['reject', 'install', 'smoke', 'repeat']
+        paths = ' '.join('/tmp/csqtt-native/' + name + '.private.log' for name in names)
         diagnostics = subprocess.run(ssh + [
-            'for f in /tmp/csqtt-native/*.private.log; do [ ! -f "$f" ] || tail -c 8192 "$f"; done'],
+            'for f in ' + paths + '; '
+            'do [ ! -f "$f" ] || tail -c 8192 "$f"; done'],
             capture_output=True, text=True, timeout=15)
-        private = diagnostics.stdout
-        markers = re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private)
+        private = diagnostics.stdout[-32768:] + result.stderr[-8192:]
+        classified = installer_diagnostics(private)
+        for line in classified['portable_error_lines']:
+            print('OpenWrt installer error: portable_source_line=' + str(line), flush=True)
+        for line in classified['generated_error_lines']:
+            print('OpenWrt installer shell location: generated_line=' + str(line), flush=True)
+        for tool in classified['missing_tools']:
+            print('OpenWrt missing tool: ' + tool, flush=True)
+        for category in classified['shell_errors']:
+            print('OpenWrt shell error: ' + category, flush=True)
+        allowed_stages = set(re.findall(r'^stage ([a-z_]{1,50})$',
+                            (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8'), re.MULTILINE))
+        markers = [m for m in re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private) if m in allowed_stages]
         if markers:
             print('OpenWrt guest substage: ' + markers[-1], flush=True)
         reasons = {
@@ -86,6 +142,14 @@ def run_remote(ssh, command, timeout=600, check=True):
                 print('OpenWrt guest reason: ' + reason, flush=True)
         raise ValueError('Disposable guest command failed; native acceptance was not granted')
     return result
+
+
+def require_signature_rejection(remote, rejected):
+    require(rejected.returncode != 0, 'Wrong project signature was accepted')
+    # A missing tool or other early refusal cannot count as signature evidence.
+    remote("cd /tmp/csqtt-native; grep -Fqx '" + SIGNATURE_REJECTION +
+           "' reject.private.log; sha256sum -c before.sha256 >/dev/null; test ! -x /usr/bin/csqtt-client")
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -182,8 +246,7 @@ def main():
             valid_signature = signature.read_bytes()
             signature.write_bytes(b'wrong signature fixture')
             rejected = remote('cd /tmp/csqtt-native; sh install.sh ci-private > reject.private.log 2>&1', check=False)
-            require(rejected.returncode != 0, 'Wrong project signature was accepted')
-            remote('cd /tmp/csqtt-native; sha256sum -c before.sha256 >/dev/null; test ! -x /usr/bin/csqtt-client')
+            require_signature_rejection(remote, rejected)
             signature.write_bytes(valid_signature)
             phase('first_offline_install')
             remote('cd /tmp/csqtt-native; sh install.sh ci-private > install.private.log 2>&1')
