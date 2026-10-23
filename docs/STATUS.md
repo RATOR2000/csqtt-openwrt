@@ -86,7 +86,18 @@ It contains current helpers plus diagnostic-only workflow, Linux image/disk test
 and headless e2fsprogs. It uses older9358 SDK24 artifact, NEVER release evidence.
 Both candidate.json/probe.json saved locally; diagnostic2 is failed/superseded.
 
-FIRST UNFINISHED ACTION: inspect compact current CI/probe jobs; read only failed
+New actual Linux failure23Oct: regression39941510870 checks120373804280 FAILED
+in native disk fixture before expansion: _superblock moved the source cursor to
+2048, then fixture copied from that position. Fixed missing source.seek(0) in
+the test only; helper guards unchanged. Native tests moved to first CI step so
+future fixture failures precede expensive contracts. Local disk15PASS/2Windows
+SKIP retained; native result must be rerun. Probe39941575430 canceled in browser
+as superseded during apt (confirmed cancellation request; screenshot in .work).
+Owner disk_finish independently confirmed the cursor error, no other native
+sequence flaw found. No native pass/release claimed.
+
+FIRST UNFINISHED ACTION: push corrected test/early checks as a fresh candidate
+and updated diagnostic; inspect compact current CI/probe jobs; read only failed
 job diagnostics. Fix actual failures and checkpoint; when successful continue
 signature/draft/public download/literal README-command gates below. Keep final exact-source6SDK/3VM/signature/
 public-command gates; no reused diagnostic qualification or GITHUB_SHA override.
