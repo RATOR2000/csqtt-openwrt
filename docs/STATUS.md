@@ -25,134 +25,99 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-Resumed2026-10-23. Frozen candidate dev/build4dd255ed392a3149cd3f185e9088d29e313ffd1f
-(tree86c3af427f7e8e803f3c4e738c49e7d48a2eb77e). Checkpoint pushed through connector;
-credential-free fetch and exact tree equality PASS. Official39941507237 and
-regression39941510870 are superseded/failed; fresh official39942392214 and
-regression39942395478 RUNNING. Native Linux image/disk preparation step PASS in
-both fresh official contracts and diagnostic4. No guest acceptance inferred.
-Preview10 NOT published; preview9
-immutable; main README remains2lines, attached existing draft PR#1.
+23Oct11:28UTC. Frozen dev/build candidate:
+4f21dbf6f58b6c6fcac16eeb21c0be023b58f922,
+tree daed5516a673f062a6524b562f9b071df158c8e1.
+Connector push, credential-free fetch and exact tree equality PASS.
+Fresh official39946222767 PENDING; regression39946224573 RUNNING.
+Diagnostic6 run39946229202, source d4ab7c18cf1ccc067b6d0f020cabfc620346649d,
+tree differs by diagnostic-only workflow. It uses old9358 SDK24 artifact,
+NEVER release qualification. .work/preview.10/{candidate,probe}.json updated.
+Preview10 NOT published; preview9 immutable; main README remains2lines,
+existing attached draft PR#1 is the future main merge, no duplicate PR/schedule.
 
-Current regression39847161011 on9e604 completed: checks/core/Android/native-policy
-SUCCESS; reference SDK job120066943263 FAILED. All build/TUN/earlier native APK
-fixtures passed, then the NEW fixture wrongly asserted raw APK info.hashes was
-absent. Actual producer exposes it. Root removed only that unverified absence
-assertion; signed-index digest, exact metadata, fresh native offline fetch and
-wrong-key/metadata/payload corruption checks remain mandatory. Producer supports
-both raw hash representations. Local dependency8/8 PASS; actual native rerun
-still required. Do not call this failed regression accepted.
+FIRST UNFINISHED ACTION: complete console provisioning fix owned by
+qualification_review (vm_console.py + VMacceptance test), then push diagnostic7;
+do NOT launch another6SDK cycle until actual diagnostic installation passes.
+Compact current CI/probe snapshot; failed jobs only logs.
+Official39946222767 waits for old39942392214 cancellation requested11:27UTC in
+browser (UI confirms request, screenshot .work/preview.10/cancel-superseded-4dd.png).
+Confirm old actually stops; do not mistake request for completed cancellation.
+Old39942392214 now confirmed canceled, including2ARM/native-VM/release jobs.
+Do not keep launching full SDK builds on diagnostic-only changes. If diagnostic6
+reveals a real installer fault, fix guarded source + tests/checkpoint, then freeze
+a new exact-source candidate. Successful diagnostic alone NEVER qualifies assets.
+When final6SDK/3VM and5regression pass, continue signature/draft/public-download/
+literal README-command gates below. Owner personally installs; no SSH mutation.
 
-Prior9358 regression39839535419 ALL5 SUCCESS. Official39839530729: both24.10.8
-SDKs SUCCESS;25.x builds/CPU/privateDNS/TUN/project signatures passed then bundle
-producer rejected legitimate unsigned official dependency APKs. The9e604 fix
-uses exact signed file:// index + pinned official signer + fresh native APK fetch
-and exact resulting bytes. No --link/allow-untrusted. Installer already used the
-correct dependency name=version/index path and was unchanged. Independent review
-PASS; complete corrected native producer contract still pending rerun.
+Failures resolved in current source, with honest remaining gates:
+- Earlier9358 official build rejected legitimate unsigned official APK payloads.
+  Producer now checks exact metadata + pinned official signed packages.adb and
+  fresh empty offline native APK fetch through private file:// mirror; exact output
+  filename/version/bytes mandatory, no --link/allow-untrusted. Installer already
+  used correct native name=version signed-index path. 9e604 regression fixture
+  falsely asserted raw info.hashes absent; removed only that assumption, retained
+  all signed-index/payload/wrong-key/metadata/corruption checks. Supports either
+  raw hash representation. Full corrected new candidate native SDK still pending.
+- Official24.10.8 image has valid34byte FWx0 trailer after gzip. Shared bounded
+  openwrt_image.py verifies whole compressed pin, gzip CRC/EOF/size and bounded
+  fwtool framing/CRC. Arbitrary tail/extra gzip members refuse. Framing CRC is NOT
+  cryptographic authentication; wholefile SHA is trust. Both actual24.10.8/25.12.6
+  decode126353408bytes. Old artifact12454216980/.work/preview.10/sdk24-x86.zip
+  ZIP SHA a08884e212db2b4f8871facef8f0bf89537423f34a98bada1623411b54ebc027.
+- Both helpers prepare explicit1GiB disposable regular-file root, native offline
+  e2fsck+resize2fs, preserve boot/partition1/root identity and atomic failure;
+  no physical device/mount/root/symlink/junction/hardlink boundary bypass.
+  image.test_disk discloses original/test bytes, expansion, physical_device=false.
+  Stock104MiB capacity is NOT certified; installer resource guards unchanged.
+  Native fixture initially omitted source.seek(0) after superblock read; fixed.
+  Corrected Linux image/disk CI step PASS on4dd and diagnostic4/5. Actual pinned
+  image expansion PASS in diagnostic4/5 before console. Native guest install not.
+- Diagnostic4(39942434054) failed generic boot TIMEOUT; diagnostic5(39944323508)
+  proved firmware actually boots: activation arrived19s, OpenWrt banner printed,
+  hardcoded root@OpenWrt prompt was not matched. Shared vm_console.py now requires
+  UID0 command response with split prefix/fresh128bit nonce, newline-anchored,
+  accepts LF/CRLF/CRCRLF. Echo/stale/partial text cannot prove root or provisioning.
+  set-eu prevents setup failure masked by ready echo. Distinct phases and bounded
+  final64KiB fixed enum diagnostics only; no raw console/keys/URLs/commands.
+  QEMU options/waits unchanged. This actual console fix awaits diagnostic6.
+  Reference docs: https://openwrt.org/docs/guide-user/virtualization/qemu
 
-Diagnostic39845922812/c6db8b1 failed opaque host_preflight. Diagnostic2
-39849782402/25d42ee20b2df1c1e11e53fe43638b2b38f7ca39,job120072536918 failed
-image_extract/BadGzipFile after successful validation, fixture signing/server and
-whole pinned image SHA. Actual official24.10.8 has valid34byte FWx0 trailer after
-gzip. Shared openwrt_image.py now checks full compressed pin, gzip CRC/EOF/size
-and bounded fwtool framing/CRC, rejecting arbitrary trailing bytes. Actual pinned
-24.10.8 and25.12.6 decode126353408bytes; framing CRC is not claimed as signature
-authentication. Local image6/6 PASS; VMcontract2/2/public-command7/7 PASS.
-Diagnostic proofs are NEVER release qualification: their source differs from
-the9358 binary artifacts. Artifact12454216980 remains .work/preview.10/sdk24-x86.zip
-with verified ZIP digest a08884e212db2b4f8871facef8f0bf89537423f34a98bada1623411b54ebc027.
+Previous candidate4dd, official39942392214, is superseded, not accepted:
+contracts120376734801/native-policy120378461887 SUCCESS;24.10.8 ARM/x86 and
+25.12.5/25.12.6 x86 SDK SUCCESS; remaining2ARM were compiling at cancellation.
+Regression39942395478 checks/core/Android/native-policy SUCCESS; SDK120379197506
+was compiling, may be canceled by fresh regression concurrency. Never infer PASS.
+Older39847161011/39941510870 failures and probes1-3 are historical, do not poll.
 
-Both VM helpers now prepare explicit1GiB disposable root filesystems and record
-image.test_disk (original/test bytes, expansion, physical_device=false). Stock
-root104MiB/free75.629MiB is NOT certified by this expanded test environment.
-All installer resource/rollback guards retained; no system files/package data
-changed by offline disk expansion. disk_finish completed module/tests; root owns
-integration/Git/docs. Readonly qualification_review found no CI-launch blockers;
-recheck agent liveness on resume. Linux real e2fsprogs and actual guest execution
-remain mandatory, mocks are not acceptance.
-Headless VM host dependencies use --no-install-recommends +e2fsprogs; observed
-apt preparation improved20min to9min. Only one bounded live host-apt UI read was
-used for the earlier stall; no private guest logs/secrets were read.
+Focused local current checks: dependency8, image6, release9, public-command7,
+VMcontract10 PASS. Disk17:15PASS/2explicit Windows skips (real Linux e2fsprogs,
+symlink privilege); Linux CI and actual pinned image expansion separately above.
+VMcontract includes actual POSIX shell UID0/nonroot, setup failure, fresh nonce,
+echo/stale/partial/CR line ending and bounded privacy checks. Python compile,
+assemble-installer.py --check, native APK shell syntax, diff-check PASS.
+No local Rust/WSL/Docker. Agent disk_finish completed image disk module/tests;
+qualification_review completed shared console/drivers/tests, no active ownership
+assumed on resume. Root owns Git/release/integration. All source checkpointed.
 
-Focused final Windows checks23Oct: dependency8, image6, release9, VMcontract2,
-public-command7 all PASS. Disk17 tests:15 PASS,2 explicit Windows skips (actual
-Linux e2fsprogs expansion/data readback and symlink creation). Python compilation,
-actual assemble-installer.py --check, native APK shell syntax and diff-check PASS.
-One attempted build-installer.py check used a nonexistent filename; corrected to
-assemble-installer.py and passed. No native Linux/guest pass inferred from these.
-
-Diagnostic3 pushed d78ace7064753001c2ddfd63fa2d31241ac37637,
-tree469dba48b7f5e7d763dd8af5e1b26236edaac4b9, run39941575430 RUNNING.
-It contains current helpers plus diagnostic-only workflow, Linux image/disk tests
-and headless e2fsprogs. It uses older9358 SDK24 artifact, NEVER release evidence.
-Both candidate.json/probe.json saved locally; diagnostic2 is failed/superseded.
-
-New actual Linux failure23Oct: regression39941510870 checks120373804280 FAILED
-in native disk fixture before expansion: _superblock moved the source cursor to
-2048, then fixture copied from that position. Fixed missing source.seek(0) in
-the test only; helper guards unchanged. Native tests moved to first CI step so
-future fixture failures precede expensive contracts. Local disk15PASS/2Windows
-SKIP retained; native result must be rerun. Probe39941575430 canceled in browser
-as superseded during apt (confirmed cancellation request; screenshot in .work).
-Owner disk_finish independently confirmed the cursor error, no other native
-sequence flaw found. No native pass/release claimed.
-
-Diagnostic4 source18f8c25b076e343952d439cca292575ba232213f,
-run39942434054, job120376874228 RUNNING (apt). It uses corrected test first, old
-9358 binary artifact; never release eligible. Candidate/probe metadata updated.
-At11:02UTC: official contracts120376734801 and native-policy120378461887 SUCCESS;
-all6SDK jobs running. Regression checks120376744675/core120376744762/Android
-120376744350/native-policy120376744743 SUCCESS; SDK120379197506 running.
-Probe4 FAILED at clean_firmware_boot/TIMEOUT (11:05UTC), before any installation.
-Actual pinned24.10.8 image download, full SHA, trailer extraction, native offline
-disk expansion and SSH-key generation passed;180s wait for console did not.
-Readonly review agent now owns ONLY both VM helpers, VMacceptance test and optional
-vm_console.py: add fixed allowlisted boot signals/distinct console phases, never
-raw guest log/URLs/keys. No speculative hardware change/timeout increase yet.
-Official docs confirm combined-image VirtIO BIOS method (q35 example):
-https://openwrt.org/docs/guide-user/virtualization/qemu
-Need diagnostic5 before deciding actual boot fix. Current6SDK/regression SDK still
-running; retain exact-source qualification requirement, no diagnostic proof reuse.
-Boot diagnostic source now complete: shared vm_console.py used by both drivers,
-distinct activation/root/provision/ready phases and final64KiB fixed signal scan.
-No raw console, matched substrings, commands, keys or URLs emitted. QEMU options,
-timeouts and acceptance unchanged. VMcontract7/7, public-command7/7, pycompile
-PASS. qualification_review complete; root owns integration/Git. Push diagnostic5
-with new shared module; do not rebuild all6SDK until actual boot fix is known.
-Diagnostic5 is now running39944323508, source9c0847c135bc397629b0f100394987f289e93e54.
-Dev checkpoint52e7bdd2fe7e24b3fc1d97a6321c71927c408d31 (skipci) pushed/fetched,
-exact tree190bd6810aea7243a576fb5b62e7bde7448e2f1a matched. Build remains4dd255e;
-do not infer final-source qualification from this diagnostic change. At11:12UTC
-all6SDK compiling, reference regression SDK starting compilation; no new failure.
-Diagnostic5 FAILED boot_root_prompt_wait/TIMEOUT (11:21UTC). Crucial finding:
-activation prompt arrived after19s and shell printed OpenWrt banner, so pinned
-image/expanded root/kernel actually boot. Hardcoded root@OpenWrt prompt was not
-observed. Root cause is console synchronization, not evidence of a firmware or
-installer fault. qualification_review owns vm_console.py + VMacceptance test:
-replace hostname prompt with UID0-checked command-response marker, split printf
-arguments so echoed input cannot satisfy readiness; same for provision marker.
-Do not provision before successful root proof. Retain strict waits/cleanup.
-At11:22UTC SDK24.10.8 ARM/x86 and25.12.6 x86 SUCCESS; other3SDK compiling.
-UID0 handshake fix complete: activation followed by UID==0 test and newline-
-anchored split prefix/fresh128bit nonce response; no dependence on hostname or
-ANSI prompt. Provisioning set-eu and fresh split ready marker prevent masked
-errors/echo false positives. VMcontract10/10 PASS including actual POSIX-shell
-UID0/nonroot and earlier-command-failure cases; public-command7/7/pycompile PASS.
-Owner qualification_review complete. Freeze new candidate; supersede stale full
-CI before updating build ref, then diagnostic6 can exercise the fix earlier.
-
-FIRST UNFINISHED ACTION: inspect compact current CI/probe jobs; read only failed
-job diagnostics. Fix actual failures and checkpoint; when successful continue
-signature/draft/public download/literal README-command gates below. Keep final exact-source6SDK/3VM/signature/
-public-command gates; no reused diagnostic qualification or GITHUB_SHA override.
-New root release9/9 tests require explicit1GiB test-disk disclosure. Workflow
-checks include image/disk tests. SDK recipe7PASS/1localGNUmakeSKIP from prior
-checkpoint; earlier general Node129/platform13 remain separate evidence.
-
-Native boot/installation/storage/runtime of the new portable installer are NOT
-yet proved. No owner router changes or Codex scheduled tasks. Owner installs
-personally only after published signed preview and actual README command tests.
+Native installer/storage/runtime of portable release remain UNVERIFIED.
+Diagnostic6 FAILED39946229202/job120389455717 at boot_console_ready_wait:
+UID0 fresh response PASS, then set-e provisioning exited to askfirst console.
+Agent confirmed both actual pinned images lack stty in all binary directories;
+network config is generated on first boot. Remove unjustified stty dependency,
+wait boundedly for EXISTING UCI network.lan interface before mutation, then
+fixed phase + fresh nonce proof for each key/network/service preparation step.
+Never weaken fail-on-error or fabricate guest readiness. Current full4f21 cycle
+may fail old provisioning; do not misclassify as an application failure/pass.
+Provisioning fix source complete, diagnostic-only push next: no stty; bounded
+existing network.lan interface wait, key/DHCP/dropbear/network as separate fixed
+phases, each UID0 + fresh nonce OK/FAIL. Explicit && chains/checked exits prevent
+POSIX if/errexit masking. Actual shell tests cover first mkdir/UCI-set failure
+without later writes. VMcontract13/13 + public-command7/7 + pycompile PASS.
+Agent qualification_review finished those2files; root owns subsequent Git.
+At11:36UTC fresh official contracts/native-policy and4regression nonSDK jobs
+SUCCESS;6SDK + reference SDK compiling. All new source/Git IDs above preserved.
+No owner router changes, scheduled tasks, reboot or WAN guard relaxation.
 
 ## Implemented source and verification scope
 
