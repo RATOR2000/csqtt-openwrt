@@ -6,6 +6,35 @@ csqtt_token() { case "$1" in ''|*[!A-Za-z0-9_.+~-]*|.*|-*) return 1 ;; esac; [ "
 csqtt_hash() { case "$1" in *[!a-f0-9]*) return 1 ;; esac; [ "${#1}" -eq 64 ]; }
 csqtt_uint() { case "$1" in ''|*[!0-9]*) return 1 ;; esac; [ "${#1}" -le 9 ]; }
 csqtt_stage() { printf 'CSQTT: %s\n' "$*"; }
+# opkg's middle Status token is a flag, not the package installation state.
+# Stock firmware includes held packages; manually selected packages may use user.
+# Buffer records so malformed/unknown installed states never yield a partial
+# inventory that could be mistaken for a complete preservation/rollback proof.
+csqtt_opkg_records() {
+    awk -v mode="$2" -v wanted="${3:-}" '
+      BEGIN { RS=""; FS="\n" }
+      {
+        name=""; version=""; state=""; names=0; versions=0; states=0
+        for(i=1;i<=NF;i++) {
+          if($i ~ /^Package: /) { name=substr($i,10); names++ }
+          if($i ~ /^Version: /) { version=substr($i,10); versions++ }
+          if($i ~ /^Status: /) { state=substr($i,9); states++ }
+        }
+        if(names>1 || versions>1 || states>1 || (name!="" && seen[name]++)) bad=1
+        if(state !~ /(^|[ \t])installed([ \t]|$)/) next
+        if(state !~ /^install (ok|hold|user) installed$/ || names!=1 || versions!=1 || states!=1 ||
+           name !~ /^[A-Za-z0-9_.+~-]+$/ || version !~ /^[A-Za-z0-9_.+~-]+$/) { bad=1; next }
+        package[++count]=name; release[count]=version
+      }
+      END {
+        if(bad) exit 1
+        for(i=1;i<=count;i++) {
+          if(mode=="json") printf "{\"name\":\"%s\",\"version\":\"%s\"}\n",package[i],release[i]
+          else if(mode=="version") { if(package[i]==wanted) print release[i] }
+          else print package[i] " " release[i]
+        }
+      }' "$1"
+}
 # The native package manager and the firmware's local distribution keys are the
 # bootstrap trust anchor. Project metadata is never parsed before this succeeds.
 csqtt_inventory() {
@@ -15,7 +44,7 @@ csqtt_inventory() {
           awk '/^Name: / { n=$2 } /^Version: / { if(n ~ /^[A-Za-z0-9_.+~-]+$/ && $2 ~ /^[A-Za-z0-9_.+~-]+$/) print n " " $2; else exit 1; n="" }'
     else
         CS_INV=/usr/lib/opkg/status; [ "$1" = - ] || CS_INV="$1/usr/lib/opkg/status"
-        awk 'BEGIN{RS="";FS="\n"} {n="";v="";s="";for(i=1;i<=NF;i++){if($i~/^Package: /)n=substr($i,10);if($i~/^Version: /)v=substr($i,10);if($i~/^Status: /)s=substr($i,9)} if(s=="install ok installed" && n~/^[A-Za-z0-9_.+~-]+$/ && v~/^[A-Za-z0-9_.+~-]+$/)print n " " v}' "$CS_INV"
+        csqtt_opkg_records "$CS_INV" inventory
     fi
 }
 csqtt_preserve_inventory() {
@@ -66,7 +95,7 @@ csqtt_bootstrap() {
     [ -n "$CS_NEED" ] || return 0
     csqtt_stage 'Проверка и установка средств проверки из подписанных репозиториев OpenWrt'
     mkdir -p "$CS_TMP/bootstrap/cache" "$CS_TMP/bootstrap/keys" "$CS_TMP/bootstrap/lists"
-    csqtt_inventory - > "$CS_TMP/bootstrap/before"
+    csqtt_inventory - > "$CS_TMP/bootstrap/before" || csqtt_portable_die 'Не удалось прочитать исходный состав пакетов'
     [ -s "$CS_TMP/bootstrap/before" ] || csqtt_portable_die 'Не удалось прочитать исходный состав пакетов'
     csqtt_clone "$CS_TMP/bootstrap/root"
     : > "$CS_TMP/bootstrap/repositories"
@@ -88,7 +117,7 @@ csqtt_bootstrap() {
         OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_TMP/bootstrap/opkg.conf" --lists-dir "$CS_TMP/bootstrap/lists" update > "$CS_TMP/bootstrap/update.log" 2>&1 || csqtt_portable_die 'Не прошла проверка подписанных репозиториев OpenWrt'
         OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_TMP/bootstrap/opkg.conf" --lists-dir "$CS_TMP/bootstrap/lists" --cache "$CS_TMP/bootstrap/cache" --offline-root "$CS_TMP/bootstrap/root" install $CS_NEED > "$CS_TMP/bootstrap/solver.log" 2>&1 || csqtt_portable_die 'Средства проверки недоступны без изменения системных пакетов'
     fi
-    csqtt_inventory "$CS_TMP/bootstrap/root" > "$CS_TMP/bootstrap/after"
+    csqtt_inventory "$CS_TMP/bootstrap/root" > "$CS_TMP/bootstrap/after" || csqtt_portable_die 'Не удалось проверить состав средств проверки в изолированной базе'
     csqtt_preserve_inventory "$CS_TMP/bootstrap/before" "$CS_TMP/bootstrap/after" || csqtt_portable_die 'Установка средств проверки потребовала бы обновления системных пакетов'
     awk 'NR==FNR{old[$1]=1;next}!($1 in old){print}' "$CS_TMP/bootstrap/before" "$CS_TMP/bootstrap/after" > "$CS_TMP/bootstrap/new"
     while read -r CS_BNAME CS_BVER; do case "$CS_BNAME" in kernel|kmod-*|dnsmasq*|firewall*|procd|netifd) csqtt_portable_die 'Запрещённая системная зависимость средств проверки' ;; esac; done < "$CS_TMP/bootstrap/new"
@@ -97,7 +126,7 @@ csqtt_bootstrap() {
     # discover that loss only after it has already changed the live system.
     awk '{print $1}' "$CS_TMP/bootstrap/new" > "$CS_TMP/bootstrap/remove"
     csqtt_remove_new "$CS_TMP/bootstrap/root" "$CS_TMP/bootstrap/remove" > "$CS_TMP/bootstrap/rollback-proof.log" 2>&1 || csqtt_portable_die 'Не удалось проверить автономное удаление средств проверки'
-    csqtt_inventory "$CS_TMP/bootstrap/root" > "$CS_TMP/bootstrap/rolled-back"
+    csqtt_inventory "$CS_TMP/bootstrap/root" > "$CS_TMP/bootstrap/rolled-back" || csqtt_portable_die 'Не удалось проверить состав пакетов после изолированного отката средств проверки'
     csqtt_exact_packages "$CS_TMP/bootstrap/before" "$CS_TMP/bootstrap/rolled-back" || csqtt_portable_die 'Откат средств проверки изменил бы исходный состав пакетов'
     CS_BOOT_KIB=$(du -sk "$CS_TMP/bootstrap" | awk '{print $1}')
     csqtt_uint "$CS_BOOT_KIB" && [ "$(csqtt_free_kib /overlay)" -ge "$((CS_BOOT_KIB * 2 + 1024))" ] || csqtt_portable_die 'Недостаточно места для автономного кэша и установки средств проверки'
@@ -121,7 +150,7 @@ csqtt_bootstrap() {
         OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_BOOT/offline.conf" install "$@" > "$CS_BOOT/install.log" 2>&1 || csqtt_portable_die 'Установка средств проверки прервана; повторите ту же команду для восстановления'
     fi
     command -v openssl >/dev/null && command -v jsonfilter >/dev/null || csqtt_portable_die 'Установленные средства проверки недоступны'
-    csqtt_inventory - > "$CS_BOOT/installed"
+    csqtt_inventory - > "$CS_BOOT/installed" || csqtt_portable_die 'Не удалось проверить состав установленных средств проверки'
     csqtt_exact_packages "$CS_BOOT/after" "$CS_BOOT/installed" || csqtt_portable_die 'Состав установленных средств проверки отличается от проверенного'
     printf 'complete\n' > "$CS_BOOT/phase.new"; mv "$CS_BOOT/phase.new" "$CS_BOOT/phase"; sync
 }
@@ -146,7 +175,7 @@ csqtt_installed_version() {
     if [ "$CS_PM" = apk ]; then
         apk query --installed --match name --fields version --format json "$1" 2>/dev/null | jsonfilter -e '@[0].version' 2>/dev/null || true
     else
-        OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg -f "$CS_TMP/opkg.conf" status "$1" 2>/dev/null | awk '/^Version: / { print $2; exit }' || true
+        OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg -f "$CS_TMP/opkg.conf" status "$1" 2>/dev/null | csqtt_opkg_records - version "$1"
     fi
 }
 csqtt_opkg() { OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_TMP/opkg.conf" --lists-dir "$CS_TMP/no-repositories" "$@"; }
@@ -168,9 +197,9 @@ csqtt_check_versions() {
     while [ "$CS_CHECK_N" -lt 3 ]; do
         CS_CHECK_ROLE=$(csqtt_package_field "$CS_CHECK_BUNDLE/manifest.json" "$CS_CHECK_N" role)
         CS_CHECK_VERSION=$(csqtt_package_field "$CS_CHECK_BUNDLE/manifest.json" "$CS_CHECK_N" version)
-        if [ "$CS_CHECK_ROOT" = - ]; then CS_CHECK_ACTUAL=$(csqtt_installed_version "$CS_CHECK_ROLE")
+        if [ "$CS_CHECK_ROOT" = - ]; then CS_CHECK_ACTUAL=$(csqtt_installed_version "$CS_CHECK_ROLE") || return 1
         elif [ "$CS_PM" = apk ]; then CS_CHECK_ACTUAL=$(apk --root "$CS_CHECK_ROOT" --arch "$CS_ARCH" --keys-dir etc/apk/keys --no-network query --installed --match name --fields version --format json "$CS_CHECK_ROLE" | jsonfilter -e '@[0].version')
-        else CS_CHECK_ACTUAL=$(awk -v wanted="$CS_CHECK_ROLE" 'BEGIN { RS=""; FS="\n" } { name=""; version=""; state=""; for(i=1;i<=NF;i++){if($i ~ /^Package: /) name=substr($i,10); if($i ~ /^Version: /) version=substr($i,10); if($i ~ /^Status: /) state=substr($i,9)} if(name==wanted && state=="install ok installed") print version }' "$CS_CHECK_ROOT/usr/lib/opkg/status"); fi
+        else CS_CHECK_ACTUAL=$(csqtt_opkg_records "$CS_CHECK_ROOT/usr/lib/opkg/status" version "$CS_CHECK_ROLE") || return 1; fi
         [ "$CS_CHECK_ACTUAL" = "$CS_CHECK_VERSION" ] || return 1
         CS_CHECK_N=$((CS_CHECK_N + 1))
     done
@@ -182,7 +211,7 @@ csqtt_snapshot() {
     else
         CS_STATUS=/usr/lib/opkg/status
         [ "$1" = - ] || CS_STATUS="$1/usr/lib/opkg/status"
-        awk 'BEGIN { RS=""; FS="\n" } { name=""; version=""; state=""; for(i=1;i<=NF;i++){if($i ~ /^Package: /) name=substr($i,10); if($i ~ /^Version: /) version=substr($i,10); if($i ~ /^Status: /) state=substr($i,9)} if(state=="install ok installed") printf "{\"name\":\"%s\",\"version\":\"%s\"}\n",name,version }' "$CS_STATUS"
+        csqtt_opkg_records "$CS_STATUS" json
     fi
 }
 csqtt_unchanged_packages() {
@@ -439,7 +468,7 @@ csqtt_rollback() {
     else csqtt_remove - luci-app-csqtt csqtt-captcha csqtt >> "$CS_BACKUP/rollback.log" 2>&1 || CS_RESTORED=1; fi
     if [ "$CS_RESTORED" = 0 ]; then
         csqtt_remove_new - "$CS_BACKUP/new-dependencies" >> "$CS_BACKUP/rollback.log" 2>&1 || CS_RESTORED=1
-        csqtt_snapshot - > "$CS_BACKUP/packages-rolled-back"
+        csqtt_snapshot - > "$CS_BACKUP/packages-rolled-back" || CS_RESTORED=1
         csqtt_exact_packages "$CS_BACKUP/packages-before" "$CS_BACKUP/packages-rolled-back" || CS_RESTORED=1
         for CS_CONFIG in csqtt dhcp firewall network; do
             if [ -f "$CS_BACKUP/config/$CS_CONFIG" ]; then cp -p "$CS_BACKUP/config/$CS_CONFIG" "/etc/config/$CS_CONFIG" || CS_RESTORED=1
@@ -648,11 +677,11 @@ CSQTT_PORTABLE_PUBLIC_KEY
         csqtt_previous
     fi
     csqtt_stage 'Загрузка зависимостей завершена. Проверка установки и полного отката без сети'
-    csqtt_snapshot - > "$CS_TMP/packages-before"
+    csqtt_snapshot - > "$CS_TMP/packages-before" || csqtt_portable_die 'Не удалось проверить исходный состав установленных пакетов'
     csqtt_clone "$CS_TMP/stage"
     csqtt_pm_install "$CS_TMP/stage" "$CS_TMP" 0 > "$CS_TMP/stage.log" 2>&1 || csqtt_portable_die 'Проверка автономной установки в изолированной базе завершилась ошибкой'
     csqtt_check_versions "$CS_TMP/stage" "$CS_TMP" || csqtt_portable_die 'Версии или состояние пакетов в изолированной базе не соответствуют манифесту'
-    csqtt_snapshot "$CS_TMP/stage" > "$CS_TMP/packages-staged"
+    csqtt_snapshot "$CS_TMP/stage" > "$CS_TMP/packages-staged" || csqtt_portable_die 'Не удалось проверить состав пакетов после изолированной установки'
     csqtt_unchanged_packages "$CS_TMP/packages-before" "$CS_TMP/packages-staged" || csqtt_portable_die 'Проверенная транзакция изменила бы посторонние установленные пакеты'
     CS_STAGE_KIB=$(du -sk "$CS_TMP/stage" | awk '{print $1}')
     csqtt_uint "$CS_STAGE_KIB" || csqtt_portable_die 'Не удалось измерить распакованный размер пакетов'
@@ -661,11 +690,11 @@ CSQTT_PORTABLE_PUBLIC_KEY
         csqtt_check_versions "$CS_TMP/stage" "$CS_TMP/previous" || csqtt_portable_die 'Предыдущие пакеты нельзя восстановить без сети'
     else csqtt_remove "$CS_TMP/stage" luci-app-csqtt csqtt-captcha csqtt > "$CS_TMP/restore-proof.log" 2>&1 || csqtt_portable_die 'Не удалось проверить удаление новых пакетов'; fi
     csqtt_remove_new "$CS_TMP/stage" "$CS_TMP/new-dependencies" >> "$CS_TMP/restore-proof.log" 2>&1 || csqtt_portable_die 'Не удалось проверить автономный откат зависимостей'
-    csqtt_snapshot "$CS_TMP/stage" > "$CS_TMP/packages-restored"
+    csqtt_snapshot "$CS_TMP/stage" > "$CS_TMP/packages-restored" || csqtt_portable_die 'Не удалось проверить состав пакетов после изолированного отката'
     csqtt_exact_packages "$CS_TMP/packages-before" "$CS_TMP/packages-restored" || csqtt_portable_die 'Проверенный откат не восстановил исходный состав пакетов'
     CS_BUNDLE_KIB=$(du -sk "$CS_TMP" | awk '{print $1}')
     csqtt_uint "$CS_BUNDLE_KIB" && [ "$(csqtt_free_kib /overlay)" -ge "$((CS_BUNDLE_KIB * 2 + CS_STAGE_KIB + 2048))" ] || csqtt_portable_die 'Недостаточно места для пакетов, полного журнала отката и сохранённого выпуска'
-    csqtt_snapshot - > "$CS_TMP/packages-precommit"
+    csqtt_snapshot - > "$CS_TMP/packages-precommit" || csqtt_portable_die 'Не удалось повторно проверить исходный состав установленных пакетов'
     csqtt_exact_packages "$CS_TMP/packages-before" "$CS_TMP/packages-precommit" || csqtt_portable_die 'Состав системных пакетов изменился во время проверки; повторите установку'
     CS_BACKUP=/etc/csqtt/installer-transaction.new
     [ ! -d "$CS_BACKUP" ] || rm -rf "$CS_BACKUP"
@@ -689,7 +718,7 @@ CSQTT_PORTABLE_PUBLIC_KEY
     csqtt_stage 'Установка проверенных пакетов и сохранение настроек'
     csqtt_pm_install - "$CS_BACKUP/transaction" 0 > "$CS_BACKUP/install.log" 2>&1 || csqtt_portable_die 'Автономная установка пакетов завершилась ошибкой'
     csqtt_check_versions - "$CS_TMP" || csqtt_portable_die 'Версии установленных пакетов не соответствуют подписанному манифесту'
-    csqtt_snapshot - > "$CS_TMP/packages-installed"
+    csqtt_snapshot - > "$CS_TMP/packages-installed" || csqtt_portable_die 'Не удалось проверить полный состав установленных пакетов'
     csqtt_unchanged_packages "$CS_TMP/packages-before" "$CS_TMP/packages-installed" || csqtt_portable_die 'Установленная транзакция изменила посторонние пакеты'
     csqtt_phase packages_installed
     # Persist the exact signed capability grant before runtime activation.

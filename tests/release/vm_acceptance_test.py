@@ -31,6 +31,164 @@ if not SH:
 
 
 class VmAcceptanceTest(unittest.TestCase):
+    def test_private_trace_classification_uses_fixed_functions_and_stops_before_cleanup(self):
+        private = 'private_secret_command_key_url'
+        trace = ('+CSQTT_XTRACE:40: csqtt_portable_main ' + private + '\n'
+                 '+CSQTT_XTRACE:60: csqtt_bootstrap ' + private + '\n'
+                 '+CSQTT_XTRACE:80: ' + private + ' secret\n'
+                 '+CSQTT_XTRACE:90: csqtt_portable_cleanup ' + private + '\n'
+                 '+CSQTT_XTRACE:100: csqtt_bootstrap_rollback ' + private + '\n')
+        classified = native_vm.installer_diagnostics(trace)
+        self.assertEqual(classified['trace_functions'], ['csqtt_portable_main', 'csqtt_bootstrap'])
+        self.assertEqual(classified['trace_last_source_line'], 80)
+        self.assertNotIn(private, str(classified))
+        self.assertIn('sh -x install.sh ci-private', native_vm.PRIVATE_TRACE)
+        self.assertIn('${LINENO:-0}', native_vm.PRIVATE_TRACE)
+        self.assertNotIn('sh -x', (ROOT / 'scripts/test-public-command.py').read_text(encoding='utf-8'))
+
+    @unittest.skipUnless(SH, 'A real POSIX shell is required for private xtrace classification')
+    def test_real_private_trace_keeps_commands_values_and_cleanup_out_of_public_output(self):
+        private = 'private-key-url-configuration-fixture'
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            (directory / 'install.sh').write_text(
+                'set -eu\ncsqtt_portable_cleanup() { :; }\n'
+                'csqtt_bootstrap() { false; }\n'
+                'csqtt_portable_main() { csqtt_bootstrap "$1"; }\n'
+                'trap csqtt_portable_cleanup EXIT\ncsqtt_portable_main "' + private + '"\n', encoding='utf-8')
+            script = 'sh() { ' + shlex.quote(pathlib.Path(SH).as_posix()) + ' "$@"; }; ' + native_vm.PRIVATE_TRACE
+            traced = subprocess.run([SH], input=script, cwd=directory, encoding='utf-8',
+                                    capture_output=True, timeout=10)
+        self.assertNotEqual(traced.returncode, 0)
+        self.assertIn(private, traced.stderr)
+        self.assertIn('CSQTT_XTRACE:', traced.stderr)
+        classified = native_vm.installer_diagnostics(traced.stderr)
+        self.assertEqual(classified['trace_functions'], ['csqtt_portable_main', 'csqtt_bootstrap'])
+        self.assertNotIn(private, str(classified))
+        self.assertNotIn('csqtt_portable_cleanup', str(classified))
+        with mock.patch.object(native_vm, 'PHASE', 'first_offline_install'), \
+                mock.patch.object(native_vm.subprocess, 'run', side_effect=[
+                    subprocess.CompletedProcess(['ssh'], 1, stdout='', stderr=''),
+                    subprocess.CompletedProcess(['ssh'], 0, stdout=(traced.stderr + '\n' +
+                                                native_vm.DIAGNOSTIC_READ_OK + '\n').encode('utf-8'), stderr=b'')]), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            with self.assertRaises(ValueError):
+                native_vm.run_remote(['ssh', 'synthetic-host'], 'false')
+        self.assertIn('OpenWrt installer trace function: csqtt_bootstrap', output.getvalue())
+        self.assertNotIn(private, output.getvalue())
+        self.assertNotIn('false', output.getvalue())
+
+    def test_private_log_reader_selects_exactly_the_current_phase_or_refuses(self):
+        for phase, name in native_vm.PRIVATE_PHASE_LOGS.items():
+            with self.subTest(phase=phase), mock.patch.object(native_vm, 'PHASE', phase):
+                command = native_vm.private_log_read_command()
+            self.assertEqual(re.findall(r'/tmp/csqtt-native/[a-z]+\.private\.log', command),
+                             ['/tmp/csqtt-native/' + name + '.private.log'])
+            self.assertNotIn('tail', command)
+            self.assertIn('count=8192', command)
+        with mock.patch.object(native_vm, 'PHASE', 'host_preflight'):
+            self.assertEqual(native_vm.private_log_read_command(), 'exit 1')
+
+    @unittest.skipUnless(SH, 'A real POSIX shell is required for private log read failure propagation')
+    def test_reader_requires_byte_count_and_read_success_without_implicit_errexit(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            (directory / 'install.private.log').write_text('private-log-fixture', encoding='utf-8')
+            with mock.patch.object(native_vm, 'PHASE', 'first_offline_install'):
+                command = native_vm.private_log_read_command()
+            command = command.replace('/tmp/csqtt-native/', shlex.quote(directory.as_posix()) + '/')
+            fixtures = (
+                ('wc() { return 1; }; dd() { printf unexpected-read; }; ', False),
+                ('wc() { printf "not-a-number\\n"; }; dd() { printf unexpected-read; }; ', False),
+                ('wc() { printf "1 2\\n"; }; dd() { printf unexpected-read; }; ', False),
+                ('wc() { printf "19\\n"; }; dd() { printf partial-private-log; return 1; }; ', True),
+            )
+            for functions, partial in fixtures:
+                with self.subTest(functions=functions):
+                    result = subprocess.run([SH], input=functions + command, encoding='utf-8',
+                                            capture_output=True, timeout=10)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn(native_vm.DIAGNOSTIC_READ_OK, result.stdout)
+                self.assertNotIn('unexpected-read', result.stdout)
+                self.assertEqual('partial-private-log' in result.stdout, partial)
+
+    @unittest.skipUnless(SH, 'A real POSIX shell is required for bounded wc/dd private log reading')
+    def test_checked_baseline_reader_is_bounded_and_fails_for_missing_log_or_read_tool(self):
+        tools = {}
+        for name in ('wc', 'dd'):
+            path = shutil.which(name) or str(pathlib.Path(SH).with_name(name + '.exe'))
+            if not pathlib.Path(path).is_file():
+                self.skipTest('Actual bounded reader requires native wc/dd; Linux CI exercises both')
+            tools[name] = pathlib.Path(path).as_posix()
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            with mock.patch.object(native_vm, 'PHASE', 'first_offline_install'):
+                command = native_vm.private_log_read_command()
+            command = command.replace('/tmp/csqtt-native/', shlex.quote(directory.as_posix()) + '/')
+            def run(prefix=''):
+                aliases = ''.join(name + '() { ' + shlex.quote(path) + ' "$@"; }; ' for name, path in tools.items())
+                script = aliases + prefix + command
+                return subprocess.run([SH], input=script, encoding='utf-8', capture_output=True, timeout=10)
+            missing = run()
+            self.assertNotEqual(missing.returncode, 0)
+            log = directory / 'install.private.log'
+            content = 'private-early-value' + 'x' * (1024 * 1024) + '\nCSQTT: fixed-last-message\n'
+            log.write_text(content, encoding='utf-8')
+            result = run()
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue(result.stdout.endswith('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n'))
+            self.assertLessEqual(len(result.stdout.encode('utf-8')),
+                                 native_vm.DIAGNOSTIC_LIMIT + len(native_vm.DIAGNOSTIC_READ_OK) + 2)
+            self.assertNotIn('private-early-value', result.stdout)
+            self.assertIn('fixed-last-message', result.stdout)
+            failed_tool = run('dd() { return 1; }; ')
+            self.assertNotEqual(failed_tool.returncode, 0)
+            self.assertNotIn(native_vm.DIAGNOSTIC_READ_OK, failed_tool.stdout)
+
+    def test_failed_diagnostic_transport_is_reported_without_raw_stderr_or_partial_log(self):
+        private = 'private-error-value'
+        raw = private.encode('ascii')
+        sentinel = ('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n').encode('ascii')
+        failures = (subprocess.CompletedProcess(['ssh'], 1, stdout=raw, stderr=raw),
+                    subprocess.CompletedProcess(['ssh'], 0, stdout=raw, stderr=raw),
+                    subprocess.CompletedProcess(['ssh'], 1, stdout=raw + sentinel, stderr=raw),
+                    subprocess.CompletedProcess(['ssh'], 0, stdout=raw * native_vm.DIAGNOSTIC_LIMIT + sentinel,
+                                                stderr=raw),
+                    subprocess.TimeoutExpired(private, 15))
+        for failure in failures:
+            responses = [subprocess.CompletedProcess(['ssh'], 1, stdout='', stderr=''), failure]
+            with self.subTest(failure=type(failure).__name__), \
+                    mock.patch.object(native_vm.subprocess, 'run', side_effect=responses), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                with self.assertRaises(ValueError):
+                    native_vm.run_remote(['ssh', 'synthetic-host'], 'false')
+            self.assertIn('diagnostic_unavailable', output.getvalue())
+            self.assertNotIn(private, output.getvalue())
+
+    def test_exact_bounded_byte_read_can_start_inside_utf8_without_false_unavailable(self):
+        marker = b'\ninstall.sh: line 561: private-value: parameter not set\n'
+        payload = b'\x80' + b'x' * (native_vm.DIAGNOSTIC_LIMIT - 1 - len(marker)) + marker
+        self.assertEqual(len(payload), native_vm.DIAGNOSTIC_LIMIT)
+        self.assertGreater(len(payload.decode('utf-8', errors='replace').encode('utf-8')),
+                           native_vm.DIAGNOSTIC_LIMIT)
+        sentinel = ('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n').encode('ascii')
+        def transport(args, **options):
+            if options.get('text'):
+                return subprocess.CompletedProcess(args, 1, stdout='', stderr='')
+            self.assertNotIn('encoding', options)
+            self.assertNotIn('errors', options)
+            return subprocess.CompletedProcess(args, 0, stdout=payload + sentinel, stderr=b'')
+        with mock.patch.object(native_vm, 'PHASE', 'first_offline_install'), \
+                mock.patch.object(native_vm.subprocess, 'run', side_effect=transport), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            with self.assertRaises(ValueError):
+                native_vm.run_remote(['ssh', 'synthetic-host'], 'false')
+        self.assertIn('bounded_read_ok', output.getvalue())
+        self.assertNotIn('diagnostic_unavailable', output.getvalue())
+        self.assertIn('generated_line=561', output.getvalue())
+        self.assertNotIn('private-value', output.getvalue())
+        self.assertNotIn('\ufffd', output.getvalue())
+
     def test_shell_locations_expose_only_valid_generated_line_numbers(self):
         text = '/private/password/install.sh: line 561: secret: parameter not set\n' \
                'install.sh: 23: secret\ninstall.sh: line 99999: secret\n'
@@ -71,11 +229,16 @@ class VmAcceptanceTest(unittest.TestCase):
         def transport(args, **options):
             commands.append(args[-1])
             if len(commands) == 1:
+                self.assertTrue(options['text'])
                 return subprocess.CompletedProcess(args, 1, stdout='', stderr=private)
+            self.assertNotIn('text', options)
+            self.assertNotIn('encoding', options)
+            self.assertNotIn('errors', options)
             return subprocess.CompletedProcess(args, 0,
-                    stdout='CSQTT: В прошивке отсутствует необходимая команда: tar\n' +
-                           'CSQTT_GUEST_STAGE=' + private.replace('-', '_') + '\n' + private,
-                    stderr='')
+                    stdout=('CSQTT: В прошивке отсутствует необходимая команда: tar\n' +
+                           'CSQTT_GUEST_STAGE=' + private.replace('-', '_') + '\n' + private + '\n' +
+                           native_vm.DIAGNOSTIC_READ_OK + '\n').encode('utf-8'),
+                    stderr=b'')
         with mock.patch.object(native_vm, 'PHASE', 'first_offline_install'), \
                 mock.patch.object(native_vm.subprocess, 'run', side_effect=transport), \
                 contextlib.redirect_stdout(io.StringIO()) as output:
@@ -86,7 +249,8 @@ class VmAcceptanceTest(unittest.TestCase):
         self.assertNotIn(private.replace('-', '_'), output.getvalue())
         self.assertIn('/install.private.log', commands[1])
         self.assertNotIn('/reject.private.log', commands[1])
-        self.assertNotIn('*', commands[1])
+        self.assertNotIn('/*.private.log', commands[1])
+        self.assertNotIn('tail -c', commands[1])
 
     @unittest.skipUnless(SH, 'A real POSIX shell is required for exact signature rejection evidence')
     def test_signature_rejection_requires_the_actual_fixed_error_and_nonzero_exit(self):
@@ -344,7 +508,7 @@ class VmAcceptanceTest(unittest.TestCase):
                 result = shell([SH, '-c', args[-1]], **options)
                 transported.append(result)
                 return result
-            return subprocess.CompletedProcess(args, 0, stdout='', stderr='')
+            return subprocess.CompletedProcess(args, 0, stdout=b'', stderr=b'')
         with mock.patch.object(native_vm.subprocess, 'run', side_effect=transport), contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaisesRegex(ValueError, 'native acceptance was not granted'):
                 native_vm.run_remote(['ssh', 'synthetic-acceptance-host'], command)

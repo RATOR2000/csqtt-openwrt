@@ -134,6 +134,15 @@ Wrong signature now requires nonzero AND exact signature error line; other early
 refusals cannot count. VMcontract17/17/public-command7/7/compile PASS. Owner
 qualification_review complete. Root pushing diagnostic8; production parser work
 by disk_finish remains separate/uncommitted until its own tests/freeze.
+Root added generated-install.sh numeric error line locations only (bounded to
+actual source lines, never raw variable/path); VMcontract now18/18 PASS.
+Diagnostic8 RUNNING39949386881 on1c8964733e477868afde00c5790a1beb7b0bc904.
+Dev88ae789145ec5f88193693c35975481b6e729610 checkpoint pushed/fetched with tree
+equality; build stays4f21. No new full cycle for diagnostic-only code.
+11:54UTC regression39946224573 ALL5 SUCCESS, including native reference APK
+job120391910853: corrected producer/native signed-index fixtures now truly pass.
+Official39946222767 contracts/policy +3SDK PASS;3SDK still compiling. Remaining
+portable install/VM/final-source qualification/public command gates still open.
 Independent concrete image finding:24.10.8 stock status has171 install-ok and4
 install-hold installed packages. Three production opkg parsers only accepted
 install-ok, so held package preservation proof was incomplete (not yet shown as
@@ -141,9 +150,78 @@ the early failure cause). disk_finish now owns ONLY portable-install.sh,
 focused installer tests and generated install.sh: include supported held/user
 installed records, reject partial and unknown-installed ambiguity, preserve
 all trust/rollback/lock guards. qualification_review owns VM driver/VMtest only.
+Held-package source now frozen: shared opkg parser includes ok/hold/user installed
+records in inventory/snapshot/live+staged version checks; excludes partial states,
+rejects unknown installed flags/duplicates atomically. All snapshot/inventory
+failures checked explicitly, including rollback invoked with errexit disabled.
+Focused OpkgInventoryTest6/6 PASS (real POSIX shell), final-source both-backend
+install PASS (51.425s), generated installer check/compile/shell/diff PASS.
+Signed bootstrap+SIGKILL-resume session60312 and independent opkg_state_review
+still PENDING; no full CI/public release acceptance implied. Checkpoint now;
+disk_finish retains ownership only for concrete follow-up findings/results.
 At11:36UTC fresh official contracts/native-policy and4regression nonSDK jobs
 SUCCESS;6SDK + reference SDK compiling. All new source/Git IDs above preserved.
 No owner router changes, scheduled tasks, reboot or WAN guard relaxation.
+
+12:03UTC diagnostic8 FAILED39949386881/job120399845109 at strict signature
+rejection; boot and SSH preparation PASS. No static/missing-tool/shell diagnostics
+were emitted. Do NOT assume implicit shell failure yet: diagnostic reader ignored
+its own return/stderr and tail-c support may be absent. qualification_review now
+owns VMdriver+VMtest: prove bounded log-read success (fixed unavailable enum on
+failure; dd+wc bounded alternative if needed), then private sh-x with only fixed
+function names/line IDs emitted if still needed. Exact signature cause mandatory.
+Probe9 next; no new full SDK until diagnostic actual install succeeds.
+
+Held-package checkpoint d7286a4346159497a8fa1095dc33f0eeab69de06 pushed/fetched,
+exact tree equality PASS. Source/generated installer synced. All pending held
+checks finished: both-backend install and signed bootstrap/SIGKILL-resume selected
+2tests PASS/352.210s; final-source both-backend standalone PASS/51.425s;6new parser
+tests PASS. Independent opkg_state_review NO BLOCKER. disk_finish complete.
+No actual native held-parser/installer acceptance yet. Root owns further Git.
+
+12:07UTC full39946222767 completed FAILED:5SDK +contracts+native-policy SUCCESS,
+original25.12.5ARM job120392335507 failed ONLY native r9 migration after successful
+compile/privateDNS/ISA/TUN/nativeAPK/signed-index corruption fixtures/signatures
+and6signedindexes/50cacheddeps. No3VM/final release gates ran. Not accepted.
+disk_finish now owns ONLY test-r9-migration.py + focused migration tests: it adds
+unsigned official dependency APKs as explicitfiles, likely incompatible with
+signed-index-only trust model; use native authenticated offline index/exact names,
+preserve original r9 DNS provider/settings/identity/budget and source proof. Add
+fixed stage/error enums, no raw native logs. No production installer mutation
+unless separate concrete issue reported. Actual native migration rerun mandatory.
+
+User resumed and asked progress/5h economy: rough readiness70% done/30% remains,
+explicitly estimated by gates, not a guarantee/date. App usage snapshot newturn:
+5h1% used (weekly32%); previous agents errored quota mid-edit. Their source was
+preserved; root now owns migration, fresh diagnostics_finish owns VMdriver/test.
+No full SDK cycle until diagnostic native installation/migration pass.
+
+Migration harness fix completed by root from interrupted source: signed-index
+file:// repositories and exact missing dependency names, reused fresh native APK
+authentication, no unsigned explicit official payload operands. Rooted historical
+dnsmasq-full, preserve every nonproject baseline package, six synthetic owner
+files, remove only introduced dependencies on rollback and require full inventory
+and original world equality. Added safe fixed stages/errors, no raw native logs,
+scripts still disabled. Fixed official key filenames to exact SHA required by
+shared verifier; stale migration proof removed before each attempt. Host
+migration_test7/7 PASS, compile/installer-sync/diff PASS; actual native pending.
+Both general/portable contracts include migration_test.py.
+
+Artifact API confirms failed ARM build DID upload complete unqualified candidate
+12499474417 (14,428,822bytes, ZIPsha a14b6359eec963d7066b9700431144afa10a82ead3405ad03049da5ede085545)
+under run39946222767/name candidate-official-25.12.5-mediatek-filogic-aarch64_cortex-a53.
+Can download through Actions and use pinned25.12.5 SDK host APK (no Rust rebuild)
+for a standalone diagnostic migration job. Source differs, NEVER release proof.
+Diagnostic9 will run VM and that migration in parallel; no GITHUB_SHA override.
+
+Fresh diagnostics_finish completed and froze VMdriver/test: phase-only wc/dd
+reader checks success sentinel/status/exact8192-byte bound before UTF8 decoding;
+fixed unavailable on any readfailure. Private sh-x emits only source-allowlisted
+functionnames/line numbers before cleanup, never raw trace/arguments. Exact
+signatureerror still mandatory, public-command driver unchanged. VM25tests:
+24PASS/1Windows-skip(native dd), public-command7/7, compile/diff PASS. Root owns all.
+Next push diagnostic9 with these fixes and parallel migration on uploaded ARM
+candidate + pinned SDK host APK. No project rebuild/secret in migration job.
 
 ## Implemented source and verification scope
 

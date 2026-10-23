@@ -289,4 +289,144 @@ class PortableTest(unittest.TestCase):
             self.assertEqual(before,after,result.stdout+result.stderr)
 
 
+@unittest.skipUnless(SH, 'A real POSIX shell and awk are required')
+class OpkgInventoryTest(unittest.TestCase):
+    def setUp(self):
+        workspace = REPO / '.work/portable-tests'
+        workspace.mkdir(parents=True, exist_ok=True)
+        temporary = tempfile.TemporaryDirectory(prefix='opkg-status-', dir=workspace)
+        self.addCleanup(temporary.cleanup)
+        self.root = pathlib.Path(temporary.name)
+        self.helper = self.root / 'portable-helper.sh'
+        source = (REPO / 'scripts/portable-install.sh').read_text()
+        for prefix in ('/etc/', '/usr/lib/opkg/'):
+            source = re.sub(r'(?<![A-Za-z0-9_])' + re.escape(prefix), posix(self.root) + prefix, source)
+        self.helper.write_text(source, newline='\n')
+        self.status = self.root / 'usr/lib/opkg/status'
+        self.status.parent.mkdir(parents=True)
+        self.rows = [('busybox', '1.36.1-r2', 'install ok installed'),
+                     ('kernel', '6.6.123-1-abi', 'install hold installed'),
+                     ('jsonfilter', '2025.1-r1', 'install user installed'),
+                     ('csqtt', '0.1.0-r1', 'install hold installed'),
+                     ('csqtt-captcha', '0.1.0-r1', 'install user installed'),
+                     ('luci-app-csqtt', '0.1.0-r1', 'install ok installed')]
+        self.write_status(self.rows)
+
+    def write_status(self, rows):
+        self.status.write_text(''.join(f'Package: {name}\nVersion: {version}\nStatus: {state}\n\n'
+                                      for name, version, state in rows), newline='\n')
+
+    def shell(self, command):
+        env = {**os.environ, 'CS_TEST_HELPER': posix(self.helper),
+               'CS_TEST_ROOT': posix(self.root), 'CS_TEST_STATUS': posix(self.status)}
+        # opkg itself is only a local status-output double. Every parser and
+        # preservation/version comparison runs as the production shell + awk.
+        setup = '''PATH=/usr/bin:$PATH; export PATH
+. "$CS_TEST_HELPER"
+CS_PM=opkg; CS_TMP=$CS_TEST_ROOT
+opkg() { cat "$CS_TEST_STATUS"; }
+csqtt_package_field() {
+    if [ "$3" = version ]; then printf '%s\\n' 0.1.0-r1
+    else case "$2" in 0) printf '%s\\n' csqtt ;; 1) printf '%s\\n' csqtt-captcha ;; 2) printf '%s\\n' luci-app-csqtt ;; esac; fi
+}
+'''
+        return subprocess.run([SH, '-c', setup + command], env=env, capture_output=True,
+                              text=True, timeout=15)
+
+    def test_real_ok_hold_and_user_states_appear_in_inventory_snapshot_and_version_proofs(self):
+        result = self.shell('csqtt_inventory "$CS_TEST_ROOT"')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), [f'{name} {version}' for name, version, _ in self.rows])
+        result = self.shell('csqtt_snapshot "$CS_TEST_ROOT"')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([json.loads(line) for line in result.stdout.splitlines()],
+                         [{'name': name, 'version': version} for name, version, _ in self.rows])
+        for target in ('"$CS_TEST_ROOT"', '-'):
+            result = self.shell(f'csqtt_check_versions {target} "$CS_TEST_ROOT"')
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_stock_image_status_counts_do_not_omit_four_held_packages(self):
+        # Actual pinned 24.10.8 distribution: 171 ok + four held records.
+        rows = [(f'normal-{number}', '1-r1', 'install ok installed') for number in range(171)]
+        rows += [(f'held-{number}', '1-r1', 'install hold installed') for number in range(4)]
+        self.write_status(rows)
+        result = self.shell('csqtt_inventory "$CS_TEST_ROOT"')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(result.stdout.splitlines()), 175)
+        self.assertTrue(all(f'held-{number} 1-r1' in result.stdout.splitlines() for number in range(4)))
+
+    def test_unpacked_config_files_and_partial_states_do_not_pass_installed_version_checks(self):
+        for state in ('install ok unpacked', 'deinstall ok config-files', 'purge ok not-installed',
+                      'install reinstreq half-installed', 'install ok half-configured'):
+            with self.subTest(state=state):
+                self.write_status([(name, version, state if name == 'csqtt' else old)
+                                   for name, version, old in self.rows])
+                for command in ('csqtt_inventory "$CS_TEST_ROOT"', 'csqtt_snapshot "$CS_TEST_ROOT"'):
+                    result = self.shell(command)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertNotIn('csqtt 0.1.0-r1', result.stdout.splitlines())
+                    self.assertNotIn('"name":"csqtt"', result.stdout)
+                result = self.shell('csqtt_installed_version csqtt')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, '')
+                for target in ('"$CS_TEST_ROOT"', '-'):
+                    self.assertNotEqual(self.shell(f'csqtt_check_versions {target} "$CS_TEST_ROOT"').returncode, 0)
+
+    def test_unknown_installed_flags_and_duplicate_records_refuse_without_partial_output(self):
+        invalid = []
+        for state in ('install unknown installed', 'install reinstreq installed', 'deinstall ok installed',
+                      'install hold,user installed', 'install ok installed extra'):
+            invalid.append(self.rows + [('unknown', '1-r1', state)])
+        invalid.extend((self.rows + [self.rows[1]],
+                        self.rows + [('kernel', 'changed', 'install hold installed')],
+                        self.rows + [('kernel', '1-r1', 'install ok unpacked')]))
+        for rows in invalid:
+            with self.subTest(record=rows[-1]):
+                self.write_status(rows)
+                for command in ('csqtt_inventory "$CS_TEST_ROOT"', 'csqtt_snapshot "$CS_TEST_ROOT"',
+                                'csqtt_installed_version csqtt',
+                                'csqtt_check_versions "$CS_TEST_ROOT" "$CS_TEST_ROOT"',
+                                'csqtt_check_versions - "$CS_TEST_ROOT"'):
+                    result = self.shell(command)
+                    self.assertNotEqual(result.returncode, 0, command)
+                    self.assertEqual(result.stdout, '', 'Failed inventory must not emit a valid-looking prefix')
+
+    def test_missing_or_changed_held_package_fails_preservation_and_exact_rollback(self):
+        before = self.root / 'before'
+        before.write_text(''.join(f'{name} {version}\n' for name, version, _ in self.rows), newline='\n')
+        for change in ('unchanged', 'removed', 'version'):
+            rows = self.rows if change == 'unchanged' else [
+                (name, 'changed' if name == 'kernel' and change == 'version' else version, state)
+                for name, version, state in self.rows if change != 'removed' or name != 'kernel']
+            self.write_status(rows)
+            for check in ('csqtt_preserve_inventory', 'csqtt_exact_packages'):
+                with self.subTest(change=change, check=check):
+                    result = self.shell('csqtt_inventory "$CS_TEST_ROOT" > "$CS_TEST_ROOT/after" && '
+                                        f'{check} "$CS_TEST_ROOT/before" "$CS_TEST_ROOT/after"')
+                    self.assertEqual(result.returncode == 0, change == 'unchanged', result.stderr)
+
+    def test_parser_failure_marks_rollback_incomplete_even_without_errexit_or_nonempty_baseline(self):
+        backup = self.root / 'backup'
+        backup.mkdir()
+        (backup / 'packages-before').write_text('')
+        (backup / 'new-dependencies').write_text('')
+        for rows in (self.rows + [('unknown', '1-r1', 'install unknown installed')],
+                     self.rows + [self.rows[1]]):
+            self.write_status(rows)
+            result = self.shell('''
+CS_BACKUP=$CS_TEST_ROOT/backup; CS_UPGRADE=0; CS_CHANGED=1
+csqtt_remove() { return 0; }
+csqtt_remove_new() { return 0; }
+csqtt_installed_version() { return 0; }
+csqtt_phase() { printf '%s\\n' "$1" > "$CS_TEST_ROOT/phase"; }
+csqtt_archive_journal() { printf archived > "$CS_TEST_ROOT/archived"; }
+# A function called in an if condition cannot rely on POSIX set -e.
+if csqtt_rollback; then exit 0; else exit 1; fi
+''')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual((self.root / 'phase').read_text().strip(), 'rollback_incomplete')
+            self.assertFalse((self.root / 'archived').exists())
+            self.assertNotIn('Откат завершён', result.stdout)
+
+
 if __name__=='__main__': unittest.main(verbosity=2)
