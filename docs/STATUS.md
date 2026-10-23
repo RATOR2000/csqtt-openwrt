@@ -25,7 +25,7 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-23Oct17:50UTC. Owner resumed. Fresh5h usage window0% at resume; conserve tokens.
+23Oct18:25UTC. Owner resumed. Fresh5h usage window0% at resume; conserve tokens.
 Release estimate remains rough70%done/30%remaining, not guarantee/date. Preview10
 NOT published/ready. Main README2lines; existing attached draft PR#1 only:
 https://github.com/RATOR2000/csqtt-openwrt/pull/1
@@ -33,18 +33,29 @@ No duplicate PR or Codex schedule. Owner personally installs; no router mutation
 
 FROZEN qualification source06c2faf455a20f9ee6f2e85def176e0d8e6e165c,
 treee5e2fd9578a8630a6bf79e52795a643dae706eac. Build branch points there. Dev
-b556cbd6491336dd139f396b1772530631435f5e is docs-only ahead. Do NOT re-freeze or
+192d1bfefe298eb6b2f67279e1d1d19a67cd6ee1 is docs-only ahead. Do NOT re-freeze or
 rebuild because STATUS changes. Credential-free fetch/tree equality alreadyPASS.
 Exact metadata: .work/preview.10/candidate.json; source/package/evidence must bind
 to frozen SHA. No GITHUB_SHA override or old diagnostic proof promotion.
 
 FIRST UNFINISHED ACTION: compact status for these active fresh CI runs:
--39996605422 official6SDK/3VM/draft: contracts120561640111/native-policy120565355501 PASS.
- 24SDK120565355792/120565355857 FAILED official rootfs download502 AFTER compile/
- privateDNS/ISA/TUN PASS;4x25SDK stillinprogress. Local official GET4,625,134bytes
- nowPASS with pinnedSHA6c94190246a54088e3984fc0c4cbbb518972abb2b10a28e30a0c41554eea8b9d.
- Retry failed jobs on SAME06c after overallrun completes; connector refused now
- with403 "This workflow is already running" (state, not permission blocker).
+-39996605422 official6SDK/3VM/draft: attempt1 contracts/native-policy PASS,
+ all6SDK compiled+privateDNS+ISA+TUN PASS; APK signatures/native signed-index
+ fixtures PASS, then ALL6 failed official rootfs HTTP502 before dependency cache.
+ ARM jobs120565355765/964; x8625jobs120565355888/120565356339 and24jobs
+ 120565355792/857. No native VM/migration/release qualification yet.
+ Official GET now recovered: local24pinnedSHA PASS; GitHub diagnostic14
+ run40000891415/source391d654d2376ac829589c8ca3993166dd46ad2a2/job120576354877
+ downloaded24.10.8 AND25.12.6 with defaulturllib/explicitUA/curl, ALL6 pinned-byte
+ checks PASS. Workflow .work/preview.10/probe-workflow-v14.yml, neverreleaseproof.
+ Requested rerun FAILED jobs of same39996605422, SAME06c source, after completion.
+ First request during active run403 alreadyrunning was state restriction only.
+ Check attempt2 compactly; don't restart general5regression or freeze new source.
+ Attempt2: all6SDK in progress; contracts120576951503/native-policy120577009594
+ PASS. SDK jobs24x86120576949514,25.12.6x86120576949698,25.12.6ARM120576949857,
+ 25.12.5ARM120576949936,25.12.5x86120576950043,24ARM120576950052.
+ Scoped readonly SDK-vs-probe environment audit found no concrete proxy/network
+ setting difference. SDK changes PATH/cwd only; no unjustified source workaround.
 -39996612862 general5regression ALL5 SUCCESS on06c: checks120561666876,
  core120561667232,android120561667319,native-policy120561667379,openwrt120565507447.
  No need to rerun these without source changes/failure.
