@@ -41,8 +41,8 @@ class DependencyTest(unittest.TestCase):
             row, package, index, keys = self.native_fixture(directory)
             def native(args, **options):
                 if 'adbdump' in args:
-                    # Raw package info omits the self digest that mkndx adds to
-                    # the signed index. The complete verifier must accept this.
+                    # Some producers omit hashes in raw info. Native signed
+                    # index verification must remain authoritative.
                     info = {field: row[field] for field in ('name', 'version', 'arch')}
                     return subprocess.CompletedProcess(args, 0, stdout=json.dumps({'info': info}).encode(), stderr=b'')
                 self.assertIn('--no-network', args)
@@ -61,6 +61,26 @@ class DependencyTest(unittest.TestCase):
                 return subprocess.CompletedProcess(args, 0, stdout=b'', stderr=b'')
             with mock.patch.object(bundle.subprocess, 'run', side_effect=native):
                 bundle.authenticate_apk_payload('native-apk', 'x86_64', row, package, index, keys, pathlib.Path(directory) / 'work')
+
+    def test_raw_apk_hash_representation_does_not_replace_native_index_verification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            row, package, index, keys = self.native_fixture(directory)
+            calls = []
+            def native(args, **options):
+                calls.append(args)
+                if 'adbdump' in args:
+                    info = {field: row[field] for field in ('name', 'version', 'arch')}
+                    info['hashes'] = 'raw producer metadata digest'
+                    return subprocess.CompletedProcess(args, 0, stdout=json.dumps({'info': info}).encode())
+                fetched = pathlib.Path(args[args.index('--output') + 1])
+                shutil.copyfile(package, fetched / row['filename'])
+                return subprocess.CompletedProcess(args, 0)
+            with mock.patch.object(bundle.subprocess, 'run', side_effect=native):
+                bundle.authenticate_apk_payload('native-apk', 'x86_64', row, package, index, keys,
+                                                pathlib.Path(directory) / 'work')
+            self.assertEqual(len(calls), 2)
+            self.assertIn('fetch', calls[-1])
+            self.assertIn('--no-network', calls[-1])
 
     def test_native_apk_missing_output_corruption_rejection_and_wrong_key_pin_fail(self):
         with tempfile.TemporaryDirectory() as directory:

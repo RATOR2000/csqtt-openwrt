@@ -439,7 +439,10 @@ assert len(matches) == 1, 'Signed fixture index identity is ambiguous'
 row = {**matches[0], 'filename': original.name, 'index': 'feed0'}
 info = json.loads(subprocess.run([tool, 'adbdump', '--format', 'json', str(original)],
                                  check=True, capture_output=True).stdout)['info']
-assert row.get('hashes') and not info.get('hashes'), 'Fixture must cover index-added digest absent from raw APK info'
+assert row.get('hashes'), 'Signed fixture index must bind a package digest'
+# APK producer versions may also expose hashes in raw info. Native fetch is
+# authoritative for the signed index identity and the complete payload in both
+# representations; do not impose an unverified absence requirement here.
 index = {'key_sha256': good_hash, 'path': root / 'repo/packages.adb'}
 bundle.authenticate_apk_payload(tool, architecture, row, original, index, keys, root / 'file-index-good')
 for mode in ('wrong_key', 'metadata', 'payload'):

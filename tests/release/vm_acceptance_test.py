@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import unittest
+import urllib.error
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -23,6 +24,20 @@ if not SH:
 
 
 class VmAcceptanceTest(unittest.TestCase):
+    def test_failure_diagnostics_expose_only_stage_class_and_http_status(self):
+        private = 'private-command-url-key-output-fixture'
+        errors = [ValueError(private), ModuleNotFoundError(private),
+                  subprocess.CalledProcessError(1, private, output=private, stderr=private),
+                  urllib.error.HTTPError('https://invalid.example/' + private, 403, private, None, None)]
+        with mock.patch.object(native_vm, 'PHASE', 'image_download'):
+            for error in errors:
+                message = native_vm.failure_message(error)
+                self.assertIn('stage=image_download', message)
+                self.assertIn('exception=' + type(error).__name__, message)
+                self.assertNotIn(private, message)
+                self.assertNotIn('https:', message)
+                self.assertEqual('http_status=403' in message, isinstance(error, urllib.error.HTTPError))
+
     @unittest.skipUnless(SH, 'A real POSIX shell is required for the mocked SSH contract')
     def test_failed_intermediate_command_cannot_be_masked_by_successful_tail(self):
         shell = subprocess.run

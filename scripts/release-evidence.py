@@ -26,6 +26,15 @@ def package_binding(manifest):
     return [{k: p[k] for k in ('role', 'name', 'sha256', 'size', 'version')} for p in manifest['packages']]
 
 
+def validate_vm_test_disk(disk):
+    require(isinstance(disk, dict) and disk.get('physical_device') is False and
+            disk.get('disk_expanded') is True and
+            type(disk.get('original_root_bytes')) is int and
+            0 < disk['original_root_bytes'] < 1073741824 and
+            type(disk.get('test_root_bytes')) is int and disk['test_root_bytes'] == 1073741824,
+            'VM must disclose its expanded disposable root; stock storage is not qualified')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=('abi', 'qualify'))
@@ -60,6 +69,7 @@ def main():
             vm.get('package_manager') == manifest['platform']['package_manager'] and
             set(vm.get('checks', [])) == VM_CHECKS and vm.get('result') == 'pass', 'Clean native firmware acceptance missing or mismatched')
     require(vm.get('image', {}).get('sha256') and vm.get('physical_device') is False, 'VM scope/image proof missing')
+    validate_vm_test_disk(vm['image'].get('test_disk'))
     backend = validate(load(args.backend_manifest), args.backend_manifest.parent)
     expected_vm = 'official-' + manifest['platform']['openwrt'] + '-x86-64-x86_64'
     require(backend['profile_id'] == expected_vm and vm.get('profile_id') == expected_vm and

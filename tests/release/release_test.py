@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the manifest producer and workflow verifier across real files."""
 import json
+import importlib.util
 import pathlib
 import subprocess
 import sys
@@ -11,6 +12,22 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 
 
 class ReleaseTest(unittest.TestCase):
+    def test_vm_scope_cannot_hide_expanded_disk_or_claim_physical_storage(self):
+        sys.path.insert(0, str(REPO / 'scripts'))
+        spec = importlib.util.spec_from_file_location('release_evidence', REPO / 'scripts/release-evidence.py')
+        evidence = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(evidence)
+        disk = {'original_root_bytes': 104 * 1024 * 1024, 'test_root_bytes': 1073741824,
+                'disk_expanded': True, 'physical_device': False}
+        evidence.validate_vm_test_disk(disk)
+        for change in ({'physical_device': True}, {'disk_expanded': False},
+                       {'original_root_bytes': 1073741824}, {'original_root_bytes': 0},
+                       {'test_root_bytes': 104 * 1024 * 1024}, {'test_root_bytes': True}):
+            with self.assertRaises(ValueError):
+                evidence.validate_vm_test_disk({**disk, **change})
+        with self.assertRaises(ValueError):
+            evidence.validate_vm_test_disk(None)
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory(prefix='csqtt-manifest-')
         self.addCleanup(self.directory.cleanup)

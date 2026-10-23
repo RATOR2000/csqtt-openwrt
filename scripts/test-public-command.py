@@ -5,7 +5,6 @@ No signing secrets, private fixture, installer substitution or router access.
 The output is independent evidence; it cannot qualify or modify release assets.
 """
 import argparse
-import gzip
 import hashlib
 import importlib.util
 import json
@@ -19,6 +18,8 @@ import time
 import urllib.request
 
 from release_schema import artifact, describe, load, require, token, validate
+from openwrt_image import extract_openwrt_image
+from vm_disk import expand_disposable_root
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REPOSITORY = 'RATOR2000/csqtt-openwrt'
@@ -161,8 +162,9 @@ def main():
         compressed = work / image_name
         bundle.download(f'https://downloads.openwrt.org/releases/{version}/targets/x86/64/' + image_name, compressed, vm.IMAGES[version])
         disk = work / 'guest.img'
-        with gzip.open(compressed, 'rb') as source, disk.open('wb') as target:
-            shutil.copyfileobj(source, target, 1024 * 1024)
+        image_extraction = extract_openwrt_image(compressed, disk, vm.IMAGES[version])
+        phase('disk_prepare')
+        test_disk = expand_disposable_root(disk, work)
         private_key = work / 'ssh-key'
         subprocess.run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(private_key)], check=True, capture_output=True)
         public_key = private_key.with_suffix('.pub').read_text().strip()
@@ -244,7 +246,8 @@ def main():
             result = {'schema': 1, 'kind': 'published_readme_command_vm', 'result': 'pass',
                       'release': released, 'acceptance_source_commit': evidence.source(), 'profile_id': args.profile,
                       'openwrt': version, 'package_manager': platform['package_manager'], 'physical_device': False,
-                      'image': {'name': image_name, 'sha256': vm.IMAGES[version], 'root_partition': 'stock'},
+                      'image': {'name': image_name, 'sha256': vm.IMAGES[version], 'root_partition': 'expanded_disposable_vm',
+                                'extraction': image_extraction, 'test_disk': test_disk},
                       'fixture': 'native_removal_of_luci_uhttpd_openssl_tool_tun_before_install',
                       'command': command, 'packages': evidence.package_binding(manifest),
                       'checks': ['public_signed_metadata_and_selected_assets', 'released_installer_source_equality',

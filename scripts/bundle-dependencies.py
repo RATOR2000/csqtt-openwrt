@@ -151,9 +151,9 @@ def authenticate_apk_payload(tool, architecture, row, package, index, keys, work
                                     check=True, capture_output=True, timeout=30).stdout)['info']
     require(all(info.get(field) == row.get(field) for field in ('name', 'version', 'arch')),
             'APK identity differs from authenticated index')
-    # mkndx adds the index's hashes field after reading raw package info. A raw
-    # package cannot contain its own metadata digest. Native fetch below binds
-    # that index-added digest and then checks every file payload hash.
+    # The index digest and any hashes exposed by raw package metadata need not
+    # share a representation across APK producers. Native fetch binds the
+    # signed index identity and then checks every file payload hash.
     root = work / 'native-apk' / row['index'] / row['name']
     require(not root.exists(), 'Native APK verification root must be fresh')
     mirror, fetched, target = root / 'mirror', root / 'fetched', root / 'root'
