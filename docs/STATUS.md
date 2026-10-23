@@ -120,6 +120,27 @@ No raw console, matched substrings, commands, keys or URLs emitted. QEMU options
 timeouts and acceptance unchanged. VMcontract7/7, public-command7/7, pycompile
 PASS. qualification_review complete; root owns integration/Git. Push diagnostic5
 with new shared module; do not rebuild all6SDK until actual boot fix is known.
+Diagnostic5 is now running39944323508, source9c0847c135bc397629b0f100394987f289e93e54.
+Dev checkpoint52e7bdd2fe7e24b3fc1d97a6321c71927c408d31 (skipci) pushed/fetched,
+exact tree190bd6810aea7243a576fb5b62e7bde7448e2f1a matched. Build remains4dd255e;
+do not infer final-source qualification from this diagnostic change. At11:12UTC
+all6SDK compiling, reference regression SDK starting compilation; no new failure.
+Diagnostic5 FAILED boot_root_prompt_wait/TIMEOUT (11:21UTC). Crucial finding:
+activation prompt arrived after19s and shell printed OpenWrt banner, so pinned
+image/expanded root/kernel actually boot. Hardcoded root@OpenWrt prompt was not
+observed. Root cause is console synchronization, not evidence of a firmware or
+installer fault. qualification_review owns vm_console.py + VMacceptance test:
+replace hostname prompt with UID0-checked command-response marker, split printf
+arguments so echoed input cannot satisfy readiness; same for provision marker.
+Do not provision before successful root proof. Retain strict waits/cleanup.
+At11:22UTC SDK24.10.8 ARM/x86 and25.12.6 x86 SUCCESS; other3SDK compiling.
+UID0 handshake fix complete: activation followed by UID==0 test and newline-
+anchored split prefix/fresh128bit nonce response; no dependence on hostname or
+ANSI prompt. Provisioning set-eu and fresh split ready marker prevent masked
+errors/echo false positives. VMcontract10/10 PASS including actual POSIX-shell
+UID0/nonroot and earlier-command-failure cases; public-command7/7/pycompile PASS.
+Owner qualification_review complete. Freeze new candidate; supersede stale full
+CI before updating build ref, then diagnostic6 can exercise the fix earlier.
 
 FIRST UNFINISHED ACTION: inspect compact current CI/probe jobs; read only failed
 job diagnostics. Fix actual failures and checkpoint; when successful continue

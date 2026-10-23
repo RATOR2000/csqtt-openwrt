@@ -1,10 +1,11 @@
 """Boot-console synchronization and fixed, bounded, non-secret diagnostics."""
 import re
+import secrets
 
 CONSOLE_LIMIT = 64 * 1024
 ACTIVATION = 'Please press Enter to activate this console'
-ROOT_PROMPT = r'root@OpenWrt:.*#'
-READY = 'CSQTT_CONSOLE_READY'
+ROOT_MARKER = 'CSQTT_ROOT_UID0_'
+READY = 'CSQTT_CONSOLE_READY_'
 SIGNALS = (
     ('kernel_panic', r'Kernel panic|not syncing:'),
     ('root_mount_failure', r'Waiting for root device|Waiting for device PARTUUID|VFS: Cannot open root device|VFS: Unable to mount root fs|unknown-block\('),
@@ -14,8 +15,8 @@ SIGNALS = (
     ('root_mounted', r'VFS: Mounted root'),
     ('openwrt_banner', r'OpenWrt (?:[0-9]{2}\.[0-9]{2}|SNAPSHOT)'),
     ('activation_prompt', re.escape(ACTIVATION)),
-    ('root_prompt', r'root@OpenWrt:[^\r\n]{0,200}#'),
-    ('console_ready', READY),
+    ('root_uid0', r'(?m)^' + ROOT_MARKER + r'[0-9a-f]{32}\r*$'),
+    ('console_ready', r'(?m)^' + READY + r'[0-9a-f]{32}\r*$'),
 )
 
 
@@ -31,18 +32,22 @@ def boot_signals(value):
 
 
 def prepare_guest_console(guest, public_key, phase):
-    """Preserve the stock boot handshake and provision only its temporary key."""
+    """Require an executing UID0 shell, independent of hostname or prompt style."""
     try:
         phase('boot_activation_wait')
         guest.expect(ACTIVATION)
         phase('boot_console_activate')
         guest.sendline('')
-        phase('boot_root_prompt_wait')
-        guest.expect(ROOT_PROMPT)
+        nonce = secrets.token_hex(16)
+        phase('boot_root_check')
+        # Split arguments keep the full output marker out of echoed commands.
+        guest.sendline('test "$(id -u)" = 0 && printf \'%s%s\\n\' \'' + ROOT_MARKER + "' '" + nonce + "'")
+        phase('boot_root_check_wait')
+        guest.expect(r'(?m)^' + re.escape(ROOT_MARKER + nonce) + r'\r*$')
         phase('boot_console_provision')
-        guest.sendline("stty -echo; mkdir -p /etc/dropbear; printf '%s\\n' '" + public_key + "' > /etc/dropbear/authorized_keys; chmod 600 /etc/dropbear/authorized_keys; uci set network.lan.proto=dhcp; uci commit network; /etc/init.d/dropbear restart; /etc/init.d/network restart; echo CSQTT_CONSOLE_READY")
+        guest.sendline("set -eu; stty -echo; mkdir -p /etc/dropbear; printf '%s\\n' '" + public_key + "' > /etc/dropbear/authorized_keys; chmod 600 /etc/dropbear/authorized_keys; uci set network.lan.proto=dhcp; uci commit network; /etc/init.d/dropbear restart; /etc/init.d/network restart; printf '%s%s\\n' '" + READY + "' '" + nonce + "'")
         phase('boot_console_ready_wait')
-        guest.expect(READY, timeout=90)
+        guest.expect(r'(?m)^' + re.escape(READY + nonce) + r'\r*$', timeout=90)
     except Exception:
         # Console text may include echoed commands or keys after provisioning.
         # Never emit that text, exceptions, or matched substrings.
