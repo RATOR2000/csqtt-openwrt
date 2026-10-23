@@ -25,6 +25,7 @@ import urllib.error
 from release_schema import describe, load, require, validate
 from openwrt_image import extract_openwrt_image
 from vm_disk import expand_disposable_root
+from vm_console import prepare_guest_console
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 IMAGES = {
@@ -166,11 +167,7 @@ def main():
             '-netdev', f'user,id=net0,hostfwd=tcp:127.0.0.1:{port}-:22',
             '-device', 'virtio-net-pci,netdev=net0'], encoding='utf-8', timeout=180)
         try:
-            guest.expect('Please press Enter to activate this console')
-            guest.sendline('')
-            guest.expect(r'root@OpenWrt:.*#')
-            guest.sendline("stty -echo; mkdir -p /etc/dropbear; printf '%s\\n' '" + public_key + "' > /etc/dropbear/authorized_keys; chmod 600 /etc/dropbear/authorized_keys; uci set network.lan.proto=dhcp; uci commit network; /etc/init.d/dropbear restart; /etc/init.d/network restart; echo CSQTT_CONSOLE_READY")
-            guest.expect('CSQTT_CONSOLE_READY', timeout=90)
+            prepare_guest_console(guest, public_key, phase)
             ssh = ['ssh', '-i', str(private_key), '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes',
                    '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=' + str(work / 'known_hosts'),
                    '-o', 'ConnectTimeout=3', '-p', str(port), 'root@127.0.0.1']
