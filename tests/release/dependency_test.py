@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.error
 from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -21,6 +22,119 @@ spec.loader.exec_module(bundle)
 
 
 class DependencyTest(unittest.TestCase):
+    def profile_metadata(self):
+        profile = {'openwrt': '24.10.8', 'target': 'x86/64', 'architecture': 'x86_64'}
+        document = {'version_number': '24.10.8', 'target': 'x86/64', 'arch_packages': 'x86_64',
+                    'linux_kernel': {'version': '6.6.144', 'release': '1',
+                                     'vermagic': '50daf8372d971124fb3519e8d87e02ae'}}
+        return profile, document
+
+    def test_profiles_metadata_maps_six_exact_tuples_to_feed_directory_and_distinct_package_abi(self):
+        kernels = (('24.10.8', '6.6.144', '50daf8372d971124fb3519e8d87e02ae', '43cbcde0affaaf16309bb4ab09799e9a'),
+                   ('25.12.5', '6.12.94', 'a7bc15f451f9652701ba04af9cfb0b95', '5a6c1f71be683ae9980b15d3ce73e24d'),
+                   ('25.12.6', '6.12.112', 'b4125196ecec75391093e1e2edeba490', 'f0a7348f9cb959e1bf4d0447669b031e'))
+        for release, version, x86_hash, arm_hash in kernels:
+            for target, arch, vermagic in (('x86/64', 'x86_64', x86_hash),
+                                           ('mediatek/filogic', 'aarch64_cortex-a53', arm_hash)):
+                profile = {'openwrt': release, 'target': target, 'architecture': arch}
+                document = {'version_number': release, 'target': target, 'arch_packages': arch,
+                            'linux_kernel': {'version': version, 'release': '1', 'vermagic': vermagic}}
+                with self.subTest(release=release, target=target):
+                    directory, abi = bundle.kernel_feed(profile, json.dumps(document).encode('utf-8'))
+                    self.assertEqual(directory, version + '-1-' + vermagic)
+                    self.assertEqual(abi, version + '~' + vermagic + '-r1')
+                    self.assertNotEqual(directory, abi)
+
+    def test_profiles_metadata_refuses_wrong_tuple_types_ambiguous_json_and_unsafe_kernel_tokens(self):
+        profile, original = self.profile_metadata()
+        for field, wrong in (('version_number', '25.12.6'), ('target', 'mediatek/filogic'),
+                             ('arch_packages', 'aarch64_cortex-a53'), ('target', ['x86/64']),
+                             ('version_number', None), ('linux_kernel', None), ('linux_kernel', [])):
+            document = {**original, field: wrong}
+            with self.subTest(field=field, wrong=wrong), self.assertRaises(ValueError):
+                bundle.kernel_feed(profile, json.dumps(document).encode('utf-8'))
+        for field, wrong in (('version', '6.6.144/../other'), ('version', 6), ('version', '6.6.144\n'),
+                             ('release', 1), ('release', True), ('release', '0'), ('release', '01'),
+                             ('vermagic', 'a' * 31), ('vermagic', 'A' * 32), ('vermagic', '../other')):
+            document = {**original, 'linux_kernel': {**original['linux_kernel'], field: wrong}}
+            with self.subTest(field=field, wrong=wrong), self.assertRaises(ValueError):
+                bundle.kernel_feed(profile, json.dumps(document).encode('utf-8'))
+        duplicate = json.dumps(original).replace('"release": "1"', '"release": "1", "release": "2"').encode('utf-8')
+        for body in (b'', b'[]', b'null', b'"text"', b'\xff', b'{', duplicate):
+            with self.subTest(body=body[:50]), self.assertRaises(ValueError):
+                bundle.kernel_feed(profile, body)
+
+    def test_authenticated_module_closure_must_confirm_discovered_kernel_abi(self):
+        profile, document = self.profile_metadata()
+        _, abi = bundle.kernel_feed(profile, json.dumps(document).encode('utf-8'))
+        rows = [{'name': 'kmod-tun', 'version': '6.6.144-r1', 'depends': ['kernel (= ' + abi + ')']},
+                {'name': 'kmod-extra', 'version': '6.6.144-r1', 'depends': ['kernel=' + abi]}]
+        selected, _, actual = bundle.closure(rows, ['kmod-tun', 'kmod-extra'], expected_kernel=abi)
+        self.assertEqual(actual, abi)
+        self.assertTrue(all(row['kernel_package'] == abi for row in selected))
+        document['linux_kernel']['vermagic'] = 'a' * 32
+        _, wrong = bundle.kernel_feed(profile, json.dumps(document).encode('utf-8'))
+        with self.assertRaisesRegex(ValueError, 'differs from target profile'):
+            bundle.closure(rows, ['kmod-tun', 'kmod-extra'], expected_kernel=wrong)
+
+    def test_download_failure_identifies_only_fixed_stage_index_and_http_status(self):
+        private = 'private-url-command-response-fixture'
+        url = 'https://downloads.openwrt.org/' + private
+        errors = (urllib.error.HTTPError(url, 502, private, None, None), urllib.error.URLError(private), OSError(private))
+        with tempfile.TemporaryDirectory() as temporary:
+            output = pathlib.Path(temporary) / 'not-created'
+            for error in errors:
+                with self.subTest(error=type(error).__name__), \
+                        mock.patch.object(bundle.urllib.request, 'urlopen', side_effect=error):
+                    with self.assertRaises(ValueError) as raised:
+                        bundle.download(url, output, stage='feed_index', index=1)
+                self.assertIn('stage=feed_index index=1', str(raised.exception))
+                self.assertNotIn(private, str(raised.exception))
+                self.assertNotIn('https:', str(raised.exception))
+                self.assertEqual('http_status=502' in str(raised.exception), isinstance(error, urllib.error.HTTPError))
+                self.assertFalse(output.exists())
+            with mock.patch.object(bundle.urllib.request, 'urlopen', side_effect=errors[0]):
+                with self.assertRaisesRegex(ValueError, 'stage=payload index=4095 http_status=502'):
+                    bundle.download(url, output, stage='payload', index=4095)
+            for stage, index in ((private, 0), ('payload', private), ('payload', True), ('payload', 4096)):
+                with self.subTest(stage=stage, index=index), mock.patch.object(bundle.urllib.request, 'urlopen') as read:
+                    with self.assertRaises(ValueError):
+                        bundle.download(url, output, stage=stage, index=index)
+                    read.assert_not_called()
+
+    def test_labeled_download_retains_origin_size_and_digest_checks(self):
+        body = b'public pinned metadata bytes'
+        response = mock.MagicMock()
+        response.__enter__.return_value = response
+        response.url = 'https://downloads.openwrt.org/public-fixture'
+        response.read.return_value = body
+        with tempfile.TemporaryDirectory() as temporary:
+            output = pathlib.Path(temporary) / 'metadata'
+            with mock.patch.object(bundle.urllib.request, 'urlopen', return_value=response) as read:
+                result = bundle.download(response.url, output, hashlib.sha256(body).hexdigest(), stage='profiles')
+            self.assertEqual(result, body)
+            self.assertEqual(output.read_bytes(), body)
+            read.assert_called_once_with(response.url, timeout=60)
+            response.read.assert_called_once_with(bundle.LIMIT + 1)
+            output.unlink()
+            for invalid in (b'', b'12345'):
+                response.read.return_value = invalid
+                with mock.patch.object(bundle, 'LIMIT', 4), \
+                        mock.patch.object(bundle.urllib.request, 'urlopen', return_value=response):
+                    with self.assertRaises(ValueError):
+                        bundle.download(response.url, output, stage='profiles')
+                self.assertFalse(output.exists())
+            response.read.return_value = body
+            with mock.patch.object(bundle.urllib.request, 'urlopen', return_value=response):
+                with self.assertRaises(ValueError):
+                    bundle.download(response.url, output, '0' * 64, stage='rootfs')
+            self.assertFalse(output.exists())
+            response.url = 'https://foreign.invalid/metadata'
+            with mock.patch.object(bundle.urllib.request, 'urlopen', return_value=response):
+                with self.assertRaises(ValueError):
+                    bundle.download('https://downloads.openwrt.org/metadata', output, stage='profiles')
+            self.assertFalse(output.exists())
+
     def native_fixture(self, directory):
         root = pathlib.Path(directory)
         keys = root / 'keys'
