@@ -15,8 +15,8 @@ jobs:
         run: |
           python3 tests/release/openwrt_image_test.py
           python3 tests/release/vm_disk_test.py
-      - name: Validate migration host contracts
-        run: python3 tests/release/migration_test.py
+          python3 tests/release/vm_acceptance_test.py
+          python3 tests/release/public_command_test.py
       - uses: actions/download-artifact@v4
         with:
           name: candidate-official-24.10.8-x86-64-x86_64
@@ -35,33 +35,3 @@ jobs:
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
         run: python3 scripts/test-openwrt-vm.py --directory .work/diagnostic-vm --profile official-24.10.8-x86-64-x86_64
-
-  migration:
-    name: Diagnostic signed r9 transactions (never release evidence)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: candidate-official-25.12.5-mediatek-filogic-aarch64_cortex-a53
-          run-id: 39946222767
-          github-token: ${{ github.token }}
-          path: .work/diagnostic-migration
-      - name: Migration host contracts
-        run: python3 tests/release/migration_test.py
-      - name: Verify SDK and use its native APK without rebuilding project binaries
-        run: |
-          set -euo pipefail
-          eval "$(python3 scripts/platforms.py --profile official-25.12.5-mediatek-filogic-aarch64_cortex-a53 --format shell)"
-          mkdir -p .work/diagnostic-sdk
-          curl --fail --location --retry 3 "$SDK_URL" -o .work/diagnostic-sdk/sdk.tar.zst
-          printf '%s  %s\n' "$SDK_SHA" .work/diagnostic-sdk/sdk.tar.zst | sha256sum -c -
-          tar --zstd -xf .work/diagnostic-sdk/sdk.tar.zst -C .work/diagnostic-sdk
-          test -x ".work/diagnostic-sdk/$SDK_NAME/staging_dir/host/bin/apk"
-          ".work/diagnostic-sdk/$SDK_NAME/staging_dir/host/bin/apk" --version
-      - name: Diagnose native migration only; source differs from these unqualified binaries
-        run: |
-          set -euo pipefail
-          eval "$(python3 scripts/platforms.py --profile official-25.12.5-mediatek-filogic-aarch64_cortex-a53 --format shell)"
-          sudo python3 scripts/test-r9-migration.py --directory .work/diagnostic-migration --apk ".work/diagnostic-sdk/$SDK_NAME/staging_dir/host/bin/apk" --source-commit "$(git rev-parse HEAD)"

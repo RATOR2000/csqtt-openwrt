@@ -176,7 +176,7 @@ def main():
             '-netdev', f'user,id=net0,hostfwd=tcp:127.0.0.1:{port}-:22', '-device', 'virtio-net-pci,netdev=net0'],
             encoding='utf-8', timeout=180)
         try:
-            prepare_guest_console(guest, public_key, phase)
+            prepare_guest_console(guest, public_key, phase, timeout_error=pexpect.TIMEOUT)
             ssh = ['ssh', '-i', str(private_key), '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes',
                    '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=' + str(work / 'known_hosts'),
                    '-o', 'ConnectTimeout=3', '-p', str(port), 'root@127.0.0.1']
