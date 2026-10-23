@@ -62,6 +62,55 @@ def elf(machine=183, interp=False, needed=False):
 
 
 class PlatformMetadataTest(unittest.TestCase):
+    def opkg_probe_cases(self, shell, busybox=None):
+        source = (ROOT / 'scripts/platform-probe.sh').read_text(encoding='utf-8')
+        executable = pathlib.Path(busybox or AWK).as_posix()
+        awk = 'awk() { ' + shlex.quote(executable) + (' awk' if busybox else '') + ' "$@"; };\n'
+        tr = pathlib.Path(busybox or shutil.which('tr') or pathlib.Path(SH).with_name('tr.exe'))
+        if not tr.is_file():
+            self.skipTest('Native tr is required for profile construction')
+        awk += 'tr() { ' + shlex.quote(tr.as_posix()) + (' tr' if busybox else '') + ' "$@"; };\n'
+        good = 'arch all 1\narch noarch 1\narch x86_64 10\n'
+        cases = ((good, 0, True), (good.replace('x86_64', 'aarch64_cortex-a53'), 0, False),
+                 (good, 1, False), (good + 'arch x86_64 20\n', 0, False),
+                 (good.replace('x86_64 10', 'x86_64 0'), 0, False),
+                 (good.replace('x86_64 10', 'x86_64 ten'), 0, False),
+                 (good.replace('x86_64 10', 'x86/64 10'), 0, False),
+                 (good.replace('x86_64 10', 'x86_64 10\x01'), 0, False))
+        if os.name != 'nt' or busybox:
+            cases += ((good.replace('x86_64 10', 'x86_64 10\r'), 0, False),)
+        with tempfile.TemporaryDirectory(prefix='csqtt-native-arch-') as temporary:
+            root = pathlib.Path(temporary)
+            for name in ('etc/opkg', 'tmp/sysinfo', 'usr/lib/opkg', 'proc'):
+                (root / name).mkdir(parents=True, exist_ok=True)
+            (root / 'etc/openwrt_release').write_text("DISTRIB_ID='OpenWrt'\nDISTRIB_RELEASE='24.10.8'\nDISTRIB_TARGET='x86/64'\nDISTRIB_ARCH='x86_64'\n")
+            (root / 'etc/os-release').write_text('ID=openwrt\n')
+            (root / 'etc/opkg.conf').write_text('dest root /\n')
+            (root / 'tmp/sysinfo/board_name').write_text('pc,generic\n')
+            (root / 'usr/lib/opkg/status').write_text('Package: kernel\nVersion: 6.6.144~abcd-r1\nStatus: install ok installed\n')
+            (root / 'proc/meminfo').write_text('MemTotal: 262144 kB\nMemAvailable: 180000 kB\n')
+            (root / 'proc/cpuinfo').write_text('processor : 0\n')
+            for prefix in ('/etc/', '/tmp/sysinfo/', '/usr/lib/opkg/', '/proc/'):
+                source = source.replace(prefix, root.as_posix() + prefix)
+            overrides = ('\ncsqtt_has() { case "$1" in opkg|nft|fw4|ucode|procd|netifd) printf true;; *) printf false;; esac; }; '
+                         'csqtt_free_kib() { printf 65536; }; uname() { printf "6.6.144\\n"; }; '
+                         'dnsmasq() { return 1; }; '
+                         'opkg() { [ "$#" = 1 ] && [ "$1" = print-architecture ] && '
+                         '[ -z "${OPKG_CONF_DIR+x}" ] && [ -z "${OFFLINE_ROOT+x}" ] || return 99; '
+                         'printf "%s" "$CS_TEST_ARCHES"; return "$CS_TEST_ARCH_EXIT"; }; csqtt_probe_main\n')
+            self.assertFalse((root / 'etc/opkg/arch.conf').exists())
+            for output, status, accepted in cases:
+                with self.subTest(status=status, accepted=accepted, output=output, busybox=busybox is not None):
+                    result = subprocess.run(shell, input=awk + source + overrides, encoding='utf-8',
+                                            capture_output=True, timeout=10,
+                                            env={**os.environ, 'CS_TEST_ARCHES': output, 'CS_TEST_ARCH_EXIT': str(status),
+                                                 'OPKG_CONF_DIR': '/not-firmware', 'OFFLINE_ROOT': '/not-live-root'})
+                    self.assertEqual(result.returncode, 0)
+                    probe = json.loads(result.stdout)
+                    self.assertEqual(probe['package_manager'], 'opkg')
+                    self.assertEqual(probe['architecture'], 'x86_64' if accepted else '')
+                    self.assertEqual(probe['profile_id'], 'official-24.10.8-x86-64-x86_64' if accepted else '')
+
     def metadata_cases(self, shell, busybox=None):
         source = (ROOT / 'scripts/platform-probe.sh').read_text(encoding='utf-8')
         definitions = source[:source.index('\ncsqtt_has()')]
@@ -125,6 +174,10 @@ class PlatformMetadataTest(unittest.TestCase):
     def test_metadata_tokens_preserve_slashes_colons_commas_and_refuse_shell_values(self):
         self.metadata_cases([SH])
 
+    @unittest.skipUnless(SH and AWK, 'A real POSIX shell and awk are required for native architecture probing')
+    def test_opkg_probe_uses_native_arches_without_arch_conf_and_rejects_mismatch_or_failed_query(self):
+        self.opkg_probe_cases([SH])
+
     @unittest.skipUnless(AWK, 'A native awk is required for bootstrap feed filtering')
     def test_exact_bootstrap_feed_filters_preserve_official_urls_and_refuse_malformed_input(self):
         self.feed_cases([AWK])
@@ -136,6 +189,7 @@ class PlatformMetadataTest(unittest.TestCase):
         self.assertIsNotNone(busybox, 'Linux CI must install BusyBox for production awk compatibility checks')
         self.metadata_cases([busybox, 'sh'], busybox=busybox)
         self.feed_cases([busybox, 'awk'])
+        self.opkg_probe_cases([busybox, 'sh'], busybox=busybox)
 
 
 class PlatformsTest(unittest.TestCase):
