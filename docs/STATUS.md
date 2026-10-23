@@ -25,166 +25,88 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-23Oct16:54UTC. User resumed; rough release readiness estimate70% done/30% remains,
-not a guaranteed percentage/date. Asked to conserve5h quota. Fresh app snapshot:
-1% of5h used,32% weekly. Previous agents hit old quota; their edits were preserved
-and completed, not assumed correct. diagnostics_finish completed/froze console helper/drivers/contracts. No active
-subagent ownership; other old agents completed/errored. Recheck liveness.
+23Oct17:50UTC. Owner resumed. Fresh5h usage window0% at resume; conserve tokens.
+Release estimate remains rough70%done/30%remaining, not guarantee/date. Preview10
+NOT published/ready. Main README2lines; existing attached draft PR#1 only:
+https://github.com/RATOR2000/csqtt-openwrt/pull/1
+No duplicate PR or Codex schedule. Owner personally installs; no router mutations.
 
-Frozen source/dev+build06c2faf455a20f9ee6f2e85def176e0d8e6e165c,
-treee5e2fd9578a8630a6bf79e52795a643dae706eac. Source checkpoint pushed through
-connector, credential-free fetch and tree equality PASS. Previous4f21dbf candidate failed/superseded; fresh source qualifying. Preview10 NOT published; preview9/tag/assets
-immutable. Main README remains2lines; existing attached draft PR#1 is future
-delivery, no duplicate PR/schedule. Owner installs personally, no SSH mutation.
+FROZEN qualification source06c2faf455a20f9ee6f2e85def176e0d8e6e165c,
+treee5e2fd9578a8630a6bf79e52795a643dae706eac. Build branch points there. Dev
+b556cbd6491336dd139f396b1772530631435f5e is docs-only ahead. Do NOT re-freeze or
+rebuild because STATUS changes. Credential-free fetch/tree equality alreadyPASS.
+Exact metadata: .work/preview.10/candidate.json; source/package/evidence must bind
+to frozen SHA. No GITHUB_SHA override or old diagnostic proof promotion.
 
-FIRST UNFINISHED ACTION: compact CI status for frozen candidate
-06c2faf455a20f9ee6f2e85def176e0d8e6e165c, treee5e2fd9578a8630a6bf79e52795a643dae706eac.
-Official6SDK/3VM/draft run39996605422; general5regression run39996612862. Both
-started on the SAME exact source, dev/build refs updated through leased connector;
-credential-free fetch and3tree equality PASS. Source is compiled/native/public
-UNVERIFIED until these fresh gates actually pass. Do not restart or repoll old CI.
-This final STATUS checkpoint is docs-only ahead of candidate: do NOT re-freeze or
-rebuild merely because HEAD contains newer status text. Exact metadata is in
-.work/preview.10/candidate.json. Read failed logs only, bounded/redacted. No source
-changes expected during CI; fix concrete failures with a new checkpoint if needed.
+FIRST UNFINISHED ACTION: compact status for these active fresh CI runs:
+-39996605422 official6SDK/3VM/draft: contracts120561640111/native-policy120565355501 PASS.
+ 24SDK120565355792/120565355857 FAILED official rootfs download502 AFTER compile/
+ privateDNS/ISA/TUN PASS;4x25SDK stillinprogress. Local official GET4,625,134bytes
+ nowPASS with pinnedSHA6c94190246a54088e3984fc0c4cbbb518972abb2b10a28e30a0c41554eea8b9d.
+ Retry failed jobs on SAME06c after overallrun completes; connector refused now
+ with403 "This workflow is already running" (state, not permission blocker).
+-39996612862 general5regression ALL5 SUCCESS on06c: checks120561666876,
+ core120561667232,android120561667319,native-policy120561667379,openwrt120565507447.
+ No need to rerun these without source changes/failure.
+Only read bounded failed-job logs. Don't poll superseded runs or repeat tests
+without a new failure/change. No source changes expected while this runs. If a
+concrete failure occurs: fix with guards intact, checkpoint+STATUS, use connector
+push (ordinary gitpush opensOAuth). Never mistake compilation/mocks for native
+VM, physical-router, VK or public-command proof.
 
-Focused module transaction test PASS12subcases across both PMs,342.992s:
-new/existing, wrong/missing ABI, service-failure rollback, SIGKILL/resume. Log
-.work/preview.10/modules-focused.log. No test process remains. Independent final
-integration review: no blocker found. Fresh module cache needed; old diagnostics
-cannot pass full install or qualify release. No GITHUB_SHA override. When fresh
-6SDK/3VM+5regression and migration pass, review signed draft, verify publicassets,
-literal README command2VM, and existing main PR#1 below. No duplicate PR/schedule.
-User5h quota83% at last snapshot; finish coherent checkpoint before exhaustion,
-continue only on user request if this turn has ended. Owner installs personally.
+After all fresh6SDK/3VM+native migration+5regression PASS: inspect signed draft10,
+publish, independently verify public assets/tag/source/installer bytes with
+scripts/verify-published-release.py (details below). Then run literal public
+README command on24.10.8 AND25.12.6 via public-command-check.yml. Only after both
+pass finalize main README/PR#1 and tell owner installation is ready. Published9
+and tag/assets remain immutable; don't overwrite a failed public10 release.
 
-Diagnostic13 run39993383309/sourcea92a3f429016e1ed4cd7b521407824327abdfa1e:
--25.12.6 job120550565871: bootstrap + exact wrong-project-signature rejection
- PASS; firstinstall stopped at portable673 missing required dependency. Old
- verified artifact12499657002 manifest lacks kmod-nf-conntrack-netlink in cache.
- Producer closure skipped all kmods exceptTUN even when their signed-index rows
- existed; reproduced directly. No project installation occurred.
--24.10.8 job120550566248: signed feed/native staged solver nowPASS after listpath
- fix; stopped at portable132 bootstrap removal proof. Native opkg source processes
- operands in order; alphabetic libopenssl3 before openssl-util blocks removal.
- Full source references: official opkg_conf.c541-545, opkg_cmd.c862+, pkg.c
- pkg_run_script noaction/offlineroot guards at https://git.openwrt.org/project/opkg-lede/.
- Existing signed9 migration diagnostic9 PASS; don't repeat for these edits.
+Completed source/checks for this candidate:
+-BusyBox/GNU awk lexer differences fixed with dynamic regexp strings and strict
+ feed control checks. Linux BusyBox16tests PASS in diagnostics12/13; readonly
+ actual router16feedcases PASS, no files/config/network/service writes.
+-Held opkg records included; malformed/unknown installed states refuse atomically.
+ Authenticated feed lists copied inside native offline_root; all signature and
+ original-inventory checks retained. Native opkg removals plan each exact target
+ with --noaction, execute only after success, then retry blocked plans only after
+ another selected removal. No force/nodeps/autoremove. Write errors abort.
+-Complete module closure: every selected kmod proves its OWN single exact
+ kernel=ABI from signed metadata, equal TUN/manifest/running kernel. Missing,
+ nonexact, duplicate or conflicting ABI refuses. Firmware exclusions intact.
+ Rollback modules must be in verified bundle exactlyonce AND absent from baseline;
+ both staged/journal paths pass context. Bootstrap still forbids kernel modules.
+-Actual-shell module transaction12subcases PASS342.992s: both PMs new/existing,
+ wrong/missing ABI, failed-service rollback, SIGKILL/resume. Log
+ .work/preview.10/modules-focused.log; no process remains. Focused opkg bootstrap
+ success and bad-project-signature inventory restore PASS (command doubles).
+-Dependency12/release10 PASS. VM34=32PASS/2Windowsnative-dd/symlinkskips,
+ public-command7PASS, platform16=15PASS/1WindowsBBskip. Generated installer,
+ Python compile, shell/node syntax and diffPASS. Fresh native CI remainsrequired.
+-Console UID0 nonce, bounded retries, checked one-shot provisioning; <=8192byte
+ checked private log transport, bounded nested solver discovery, fixed enums only.
+ VM now also requires removed bootstrap/project journals and unchanged system
+ configs after wrong-project-signature cleanup before valid install.
+-Independent final installer/module integration and scoped prepublication audit
+ (assembly, public verifier, public workflow, README): no concrete blocker found.
+ All agents completed/frozen; root owns CI/Git/release. Recheck liveness on resume.
 
-Implemented source, native results still pending:
-- Producer traverses ALL required modules/transitive deps. EACH selected module
- proves its own exactly one positive kernel=ABI dependency in signed metadata;
- reject missing/nonexact/duplicate/conflicting declarations and duplicate-feed
- ambiguity. Record kernel_package on each module; selectedTUN still mandatory.
- Firmware/kernel/DNS/firewall/procd/netifd exclusions unchanged. Schema/installer
- require every module ABI equal manifest AND current probe kernel. All signatures,
- native package checks and unchanged-inventory proofs remain mandatory.
-- Rollback allows modules only if present exactlyonce in the verified transaction
- bundle with matching ABI AND absent from original package snapshot. Both staged
- and journal-resume paths pass this context. Bootstrap still forbids all modules.
-- opkg removals use native --noaction per exact target, then checked actual remove.
- Retry only blocked readonly plans after another selected removal succeeded;
- zero progress fails, actual write error aborts. No autoremove/force/nodeps.
- This handles dependency order without removing baseline packages. APK unchanged.
- Mock now models dependent libopenssl3/openssl-util and nonmutating --noaction.
- Focused opkg bootstrap_success + bad-project-signature full inventory restore PASS;
- earlier old offline listpath correctly fails before live writes. Native pending.
-- Private VM also now requires no pending bootstrap/project journal and preserved
- system config after invalid-project-signature rollback, before valid installation.
+Native boundary evidence (NOT current full release qualification):
+-Diagnostic13 run39993383309/sourcea92a3f4: APK25.12.6 job120550565871 reached
+ strict invalid-project-signature rejection, then firstinstall refused missing
+ kmod-nf-conntrack-netlink. Opkg24.10.8 job120550566248 staged solver PASS, removal
+ proof failed before live install. Both source defects corrected above; old
+ fixtures lack the new module cache, so fresh SDK/VM builds are necessary.
+-Diagnostic9 run39987541352 migration120530522032 PASS: actual signedr9->candidate
+ ->r9 with nativeSDK APK, complete package/world/fullDNS/6syntheticfile restore.
+ Source/package mismatch makes it diagnostic-only; final exactsource ARM migration
+ must pass again in current run. No owner device installation occurred.
+-Old4f21 run39946222767 failed migration, general39946224573 all5PASS; these are
+ superseded, not qualification for06c. Old diagnostic artifacts stay ignored.
 
-Checks: dependency12/12, release10/10, VM34=32PASS/2explicitWindowsnative skips,
-public7/7, platform16=15PASS/1WindowsBBskip (actual Linux BB PASS12/13), generated
-installer/shell syntax/nodecheck/diffPASS. New module transaction test12subcases PASS342.992s: both PMs new/existing,
-wrong/missing ABI, failed-service rollback and SIGKILL/resume. Private nested diagnostics remain bounded/redacted.
-Readonly actual router awk16feedcases PASS earlier; NO owner installation, reboot,
-service/config/network changes. Router is personal-install-only. No schedules.
-User requested quota economy: snapshot17:00UTC48%5h used; later83%5h/45%weekly,
-reset21:20UTC. Save coherent checkpoint before quota exhaustion, no new agents.
-All agent edits frozen; architecture/module producer agent completed focused
-checks, root owns installer integration/test/final Git. Recheck agents on resume.
-Preview10 NOT published/ready; rough estimate70%done/30%remaining, not guarantee.
-
-Diagnostic9 native migration already PASS; do not repeat for console-only edits.
-Both are diagnostic ONLY, old binaries differ from current source: NEVER release
-qualification; no GITHUB_SHA override. After actual clean-install/native guest/
-repeat proof, freeze new exact-source candidate and run final6SDK/3VM +5regression.
-Then signatures/draft/public downloads/literal README checks and main PR below.
-Do not launch full6SDK on each diagnostic-only edit. No owner router/network
-changes. No scheduled follow-ups.
-
-Diagnostic9 native migration job120530522032 SUCCESS: pinned SDK hostAPK present,
-actual signed r9->candidate->r9/offline-index transactions, complete inventory,
-full DNS provider,6synthetic owner files and originalworld preservation PASS.
-No Rust/project rebuild used. Still diagnostic-only source/package mismatch,
-so final exact-source ARM migration must rerun in final full candidate.
-VM job120530522383 FAILED at boot_root_check_wait after180s; banner reached
-after22s, installer never ran. Same handshake passed probes7/8; exact cause not
-proven. Current console fix retries only readonly UID0 nonce probes under180s/
-90attempt bounds and prints leading LF before every result marker, so output
-cannot join a prompt without a newline. Provisioning stays checked/one-shot.
-Diagnostic10 passed console/bounded read; proceed with strict BusyBox fix12;
-do not rerun already-passed migration simply for this console-only edit.
-
-Exact local metadata .work/preview.10/{candidate,probe}.json; probe-workflow-v9.yml
-has both diagnostic jobs. Failed original ARM artifact12499474417 is complete,
-14,428,822bytes, ZIP SHAa14b6359eec963d7066b9700431144afa10a82ead3405ad03049da5ede085545.
-SDK tools require Linux; Windows has no Rust/Docker/WSL.
-
-Current implemented fixes, remaining native gates:
-- Producer accepts legitimate unsigned official APK payloads only via exact
-  metadata + pinned official signed index + fresh offline native file:// fetch,
-  complete payload verification and exact output bytes; no --link/untrusted.
-  Native signed-index/wrong-key/metadata/payload fixtures really passed in full
-  regression39946224573 on4f21 ALL5 SUCCESS, SDK120391910853.
-- Full official39946222767 on4f21 FAILED:5SDK+contracts+native-policy SUCCESS;
-  original25.12.5ARM job120392335507 passed compile/privateDNS/ISA/TUN/signatures/
-  nativeAPK/index fixtures/50dependencycache, then failed r9 migration. No3VM/
-  publication gates ran. Other old runs/probes1-8 superseded; do not poll.
-- Shared image extraction checks whole compressed SHA, gzip CRC/EOF/size and
-  recognized bounded fwtool trailers (actual24.10.8 valid34byte trailer).
-  Framing CRC is not crypto authentication. Both pinned24.10.8/25.12.6 decode
-  126353408bytes. Actual Linux disk expansion passed in probes4-8: native offline
-  fsck/resize2fs, explicit1GiB disposable root, boot/partition1/UUID preserved,
-  no block devices/mount/root or symlink/junction/hardlink boundary escape.
-  image.test_disk disclosure required; stock104MiB capacity NOT qualified.
-- vm_console.py proves executing UID0 with fresh split128bit nonce markers,
-  hostname/ANSI/echo/stale/partial safe. Stock image has no stty, so none required.
-  Wait for existing generated network.lan; separate checked key/UCI/dropbear/
-  network steps. Boot and all SSH preparation really PASS in probes7/8.
-- Probe7 first installer exited1 in0.2s. Its earlier arbitrarynonzero signature
-  rejection was NOT evidence; now exact fixed signature-error line required.
-  Probe8 failed there with no reason. Old reader ignored tail/read return, so
-  no implicit-shell-failure cause established. Current driver checks only current
-  fixed phase log via wc/dd, <=8192rawbytes + checked sentinel/status BEFORE UTF8
-  decode; read failure emits unavailable. Private sh-x returns only known source
-  functionnames and numeric lines beforecleanup, never rawcommands/logs/keys/URLs.
-  Public-command workflow unchanged. Actual corrected transport/trace awaits
-  diagnostic12;10/11 isolated actual BusyBox parser differences.
-- Real stock24.10.8 DB has171 install-ok +4 install-hold records. Shared production
-  opkg parser now includes supported ok/hold/user installed records, rejects
-  duplicates/unknown installed flags atomically, excludes partial states. Every
-  inventory/snapshot failure checked explicitly, including rollback with errexit
-  disabled; generated install.sh synced. Focused6/6, final bothPM install PASS/
-  51.425s, signed bootstrap/SIGKILL selected2tests PASS/352.210s, independent review
-  NO BLOCKER. Native production installer/held parser still pending.
-- Migration harness incorrectly passed unsigned official dependencies as files
-  and did not root historical dnsmasq-full or prove complete cleanup. Fixed with
-  signed local indexes + pinned key lookup + native fresh verification + exact
-  missing dependency names. Seed real r9 full-DNS root, preserve all existing
-  nonproject packages and6synthetic owner files, remove introduced deps only,
-  require complete inventory + originalworld restoration. Scripts remain off.
-  Stale proof removed before attempt, fixed phase/error enums, no raw diagnostics.
-  Corrected exact hashed official-key filenames. Actual native diagnostic9 PASS;
-  final exact-source migration remains required.
-
-Focused final host checks: migration7/7 PASS, VM34tests32PASS/2explicit Windows
-native-dd/symlink SKIPs, public-command7/7, dependency8/image6/release9 PASS.
-Disk17:15PASS/2Windows SKIP; actual Linux image/disk success separately above.
-Python compile, assemble-installer.py --check, shell and diff checks PASS.
-General/portable CI now include migration host contracts. Current source has NOT
-had final full CI/native/public command acceptance. Native installer readiness
-and release remain UNVERIFIED. Router25.12.6 untouched; old72h incomplete.
-Detailed preceding diagnostic history retained in8ae767e docs/STATUS.md.
+Detailed preceding failures/probes/tooling evidence retained in Git checkpoint:
+https://github.com/RATOR2000/csqtt-openwrt/blob/b556cbd6491336dd139f396b1772530631435f5e/docs/STATUS.md
+Windows: bundled Python C:/Users/Alexander/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe;
+Go .work/tools/go/bin. No local Rust/WSL/Docker; Linux/SDK builds through Actions.
 
 ## Implemented source and verification scope
 
