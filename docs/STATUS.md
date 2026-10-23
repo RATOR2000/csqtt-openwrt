@@ -25,10 +25,12 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-Resumed2026-10-23. Frozen candidate dev/build8e1ae15a55bbaef7abef776a8271602c3e86b6c2
-(treea412e4d28af1a8db1d46f4beca76b7d495d61dc8). Checkpoint pushed through connector;
+Resumed2026-10-23. Frozen candidate dev/build4dd255ed392a3149cd3f185e9088d29e313ffd1f
+(tree86c3af427f7e8e803f3c4e738c49e7d48a2eb77e). Checkpoint pushed through connector;
 credential-free fetch and exact tree equality PASS. Official39941507237 and
-regression39941510870 RUNNING; do not treat source checkpoint as acceptance.
+regression39941510870 are superseded/failed; fresh official39942392214 and
+regression39942395478 RUNNING. Native Linux image/disk preparation step PASS in
+both fresh official contracts and diagnostic4. No guest acceptance inferred.
 Preview10 NOT published; preview9
 immutable; main README remains2lines, attached existing draft PR#1.
 
@@ -96,8 +98,30 @@ as superseded during apt (confirmed cancellation request; screenshot in .work).
 Owner disk_finish independently confirmed the cursor error, no other native
 sequence flaw found. No native pass/release claimed.
 
-FIRST UNFINISHED ACTION: push corrected test/early checks as a fresh candidate
-and updated diagnostic; inspect compact current CI/probe jobs; read only failed
+Diagnostic4 source18f8c25b076e343952d439cca292575ba232213f,
+run39942434054, job120376874228 RUNNING (apt). It uses corrected test first, old
+9358 binary artifact; never release eligible. Candidate/probe metadata updated.
+At11:02UTC: official contracts120376734801 and native-policy120378461887 SUCCESS;
+all6SDK jobs running. Regression checks120376744675/core120376744762/Android
+120376744350/native-policy120376744743 SUCCESS; SDK120379197506 running.
+Probe4 FAILED at clean_firmware_boot/TIMEOUT (11:05UTC), before any installation.
+Actual pinned24.10.8 image download, full SHA, trailer extraction, native offline
+disk expansion and SSH-key generation passed;180s wait for console did not.
+Readonly review agent now owns ONLY both VM helpers, VMacceptance test and optional
+vm_console.py: add fixed allowlisted boot signals/distinct console phases, never
+raw guest log/URLs/keys. No speculative hardware change/timeout increase yet.
+Official docs confirm combined-image VirtIO BIOS method (q35 example):
+https://openwrt.org/docs/guide-user/virtualization/qemu
+Need diagnostic5 before deciding actual boot fix. Current6SDK/regression SDK still
+running; retain exact-source qualification requirement, no diagnostic proof reuse.
+Boot diagnostic source now complete: shared vm_console.py used by both drivers,
+distinct activation/root/provision/ready phases and final64KiB fixed signal scan.
+No raw console, matched substrings, commands, keys or URLs emitted. QEMU options,
+timeouts and acceptance unchanged. VMcontract7/7, public-command7/7, pycompile
+PASS. qualification_review complete; root owns integration/Git. Push diagnostic5
+with new shared module; do not rebuild all6SDK until actual boot fix is known.
+
+FIRST UNFINISHED ACTION: inspect compact current CI/probe jobs; read only failed
 job diagnostics. Fix actual failures and checkpoint; when successful continue
 signature/draft/public download/literal README-command gates below. Keep final exact-source6SDK/3VM/signature/
 public-command gates; no reused diagnostic qualification or GITHUB_SHA override.
