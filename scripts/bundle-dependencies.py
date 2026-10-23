@@ -14,12 +14,14 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import urllib.error
 import urllib.request
 
 from platforms import load_registry, select_profile
 from release_schema import describe, require, token
 
 LIMIT = 64 * 1024 * 1024
+DOWNLOAD_STAGES = {'download', 'rootfs', 'profiles', 'feed_index', 'feed_signature', 'payload'}
 FIRMWARE = {'kernel', 'libc', 'base-files', 'busybox', 'procd', 'procd-ujail', 'netifd',
             'firewall4', 'nftables-json', 'nftables-nojson', 'dnsmasq', 'dnsmasq-full'}
 ROOTFS = {
@@ -29,15 +31,51 @@ ROOTFS = {
 }
 
 
-def download(url, path, digest=None):
+def download(url, path, digest=None, *, stage='download', index=None):
+    require(stage in DOWNLOAD_STAGES and (index is None or type(index) is int and 0 <= index < 4096),
+            'Invalid download diagnostic label')
+    label = 'stage=' + stage + ('' if index is None else ' index=' + str(index))
     require(url.startswith('https://downloads.openwrt.org/'), 'Foreign download origin')
-    with urllib.request.urlopen(url, timeout=60) as response:
-        require(response.url.startswith('https://downloads.openwrt.org/'), 'Foreign redirect')
-        data = response.read(LIMIT + 1)
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            require(response.url.startswith('https://downloads.openwrt.org/'), 'Foreign redirect')
+            data = response.read(LIMIT + 1)
+    except urllib.error.HTTPError as error:
+        status = ' http_status=' + str(error.code) if type(error.code) is int and 100 <= error.code <= 599 else ' http_error'
+        raise ValueError('Download failed ' + label + status) from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise ValueError('Download failed ' + label + ' transport_error') from None
     require(0 < len(data) <= LIMIT, 'Download exceeds bound')
     require(digest is None or hashlib.sha256(data).hexdigest() == digest, 'Download digest mismatch')
     path.write_bytes(data)
     return data
+
+
+def kernel_feed(profile, data):
+    """Discover a path only; authenticated module metadata must confirm its ABI."""
+    require(isinstance(data, bytes) and 0 < len(data) <= LIMIT, 'Invalid target profile metadata size/type')
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            require(key not in result, 'Duplicate target profile metadata key')
+            result[key] = value
+        return result
+    try:
+        document = json.loads(data.decode('utf-8'), object_pairs_hook=unique)
+    except (ValueError, UnicodeError):
+        raise ValueError('Invalid target profile metadata JSON') from None
+    require(isinstance(document, dict), 'Invalid target profile metadata type')
+    for field, expected in (('version_number', profile['openwrt']), ('target', profile['target']),
+                            ('arch_packages', profile['architecture'])):
+        require(type(document.get(field)) is str and document[field] == expected, 'Target profile tuple mismatch')
+    kernel = document.get('linux_kernel')
+    require(isinstance(kernel, dict), 'Missing target profile kernel metadata')
+    for field, pattern in (('version', r'[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,5}'),
+                           ('release', r'[1-9][0-9]{0,6}'), ('vermagic', r'[0-9a-f]{32}')):
+        require(type(kernel.get(field)) is str and re.fullmatch(pattern, kernel[field]), 'Invalid target profile kernel metadata')
+    directory = kernel['version'] + '-' + kernel['release'] + '-' + kernel['vermagic']
+    abi = kernel['version'] + '~' + kernel['vermagic'] + '-r' + kernel['release']
+    return directory, abi
 
 
 def control(text):
@@ -80,7 +118,7 @@ def module_kernel(row):
     return version
 
 
-def closure(rows, roots):
+def closure(rows, roots, *, expected_kernel=None):
     """Select exact identities; conflicting constraints fail before downloads.
 
     Version range satisfaction is decided by the native offline solver gate,
@@ -131,6 +169,8 @@ def closure(rows, roots):
         require(len(selected) <= 64, 'Dependency closure exceeds bound')
         pending.extend(split_deps(row.get('depends', [])))
     require('kmod-tun' in selected and kernel is not None, 'Missing exact kmod-tun kernel dependency')
+    require(expected_kernel is None or token(expected_kernel) and kernel == expected_kernel,
+            'Authenticated module kernel ABI differs from target profile metadata')
     return sorted(selected.values(), key=lambda r: r['name']), sorted(required), kernel
 
 
@@ -217,7 +257,7 @@ def main():
         # no x86 runtime/library is ever bundled into another architecture.
         suffix, digest = ROOTFS[version]
         archive = work / 'rootfs.tar.gz'
-        download(base + f'targets/x86/64/openwrt-{version}-x86-64-' + suffix, archive, digest)
+        download(base + f'targets/x86/64/openwrt-{version}-x86-64-' + suffix, archive, digest, stage='rootfs')
         keys = work / 'keys'
         keys.mkdir()
         with tarfile.open(archive, 'r:gz') as stream:
@@ -229,21 +269,20 @@ def main():
                     body = stream.extractfile(member).read()
                     (keys / hashlib.sha256(body).hexdigest()).write_bytes(body)
         require(any(keys.iterdir()), 'Pinned rootfs has no distribution keys')
-        listing = download(target + 'kmods/', work / 'kmods.html').decode()
-        kernels = set(re.findall(r'href="([0-9][A-Za-z0-9_.+~-]+)/"', listing))
-        require(len(kernels) == 1, 'Expected one exact release kernel feed')
-        repositories = [target + 'packages/', target + 'kmods/' + kernels.pop() + '/',
+        metadata = download(target + 'profiles.json', work / 'profiles.json', stage='profiles')
+        kernel_directory, expected_kernel = kernel_feed(profile, metadata)
+        repositories = [target + 'packages/', target + 'kmods/' + kernel_directory + '/',
                         *(base + f'packages/{arch}/{feed}/' for feed in ('base', 'luci', 'packages', 'routing'))]
         indexes, rows = [], []
         for number, repository in enumerate(repositories):
             ident = 'feed' + str(number)
             name = profile['id'] + '--' + ident + ('.adb' if fmt == 'apk' else '.Packages')
             path = out / name
-            download(repository + ('packages.adb' if fmt == 'apk' else 'Packages'), path)
+            download(repository + ('packages.adb' if fmt == 'apk' else 'Packages'), path, stage='feed_index', index=number)
             sig = None
             if fmt == 'ipk':
                 sig = out / (name + '.sig')
-                download(repository + 'Packages.sig', sig)
+                download(repository + 'Packages.sig', sig, stage='feed_signature', index=number)
             fingerprint = authenticate(tool, fmt, path, sig, keys, work)
             index = describe(path, id=ident, repository=repository.rstrip('/'),
                              format='apk-adb' if fmt == 'apk' else 'opkg', key_sha256=fingerprint)
@@ -281,12 +320,12 @@ def main():
             for package in sorted(out.glob('*.ipk')):
                 roots.extend(split_deps(module.read_ipk(package)[0].get('Depends', '')))
         require(roots, 'No application dependency metadata')
-        selected, required, kernel = closure(rows, roots)
+        selected, required, kernel = closure(rows, roots, expected_kernel=expected_kernel)
         packages = []
-        for row in selected:
+        for number, row in enumerate(selected):
             require(token(row['filename']), 'Unsafe upstream package filename')
             path = out / (profile['id'] + '--dep--' + row['filename'])
-            download(row['repository'] + row['filename'], path, row.get('digest'))
+            download(row['repository'] + row['filename'], path, row.get('digest'), stage='payload', index=number)
             if fmt == 'ipk':
                 require(path.stat().st_size == row['size'], 'Distribution package size mismatch')
             else:

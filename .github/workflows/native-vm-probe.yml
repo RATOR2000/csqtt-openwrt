@@ -1,34 +1,64 @@
-name: Diagnostic official transport only (never release evidence)
+name: Diagnostic authenticated dependency cache and VM (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]
 permissions:
   contents: read
+  actions: read
 jobs:
-  transport:
+  diagnostic:
     runs-on: ubuntu-24.04
-    timeout-minutes: 6
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ['24.10.8', '25.12.6']
     steps:
-      - name: Compare bounded verified official downloads without building binaries
+      - uses: actions/checkout@v4
+      - name: Disposable SDK host tools and VM dependencies
         run: |
-          python3 - <<'PY'
-          import hashlib,pathlib,subprocess,tempfile,urllib.request,urllib.error
-          pins={'24.10.8':'6c94190246a54088e3984fc0c4cbbb518972abb2b10a28e30a0c41554eea8b9d','25.12.6':'55e52bb34de582a1ebe56bd50f94ff54ac7c77f5bca9cae807656d1930456da4'}
-          limit=67108864
-          for version,digest in pins.items():
-              url='https://downloads.openwrt.org/releases/'+version+'/targets/x86/64/openwrt-'+version+'-x86-64-rootfs.tar.gz'
-              for label,headers in [('urllib_default',{}),('urllib_explicit',{'User-Agent':'CSQTT-build-verifier/1'})]:
-                  try:
-                      with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=25) as response:
-                          data=response.read(limit+1)
-                          origin=response.url.startswith('https://downloads.openwrt.org/')
-                      verified=origin and 0<len(data)<=limit and hashlib.sha256(data).hexdigest()==digest
-                      print(version,label,'verified='+str(verified),flush=True)
-                  except urllib.error.HTTPError as error: print(version,label,'http_status='+str(error.code),flush=True)
-                  except Exception as error: print(version,label,'exception='+type(error).__name__,flush=True)
-              with tempfile.TemporaryDirectory() as temporary:
-                  target=pathlib.Path(temporary)/'rootfs.tar.gz'
-                  result=subprocess.run(['curl','--fail','--location','--proto','=https','--proto-redir','=https','--max-time','30','--max-filesize',str(limit),'--output',str(target),'--write-out','%{url_effective}',url],capture_output=True,text=True,timeout=35)
-                  verified=result.returncode==0 and result.stdout.startswith('https://downloads.openwrt.org/') and target.is_file() and 0<target.stat().st_size<=limit and hashlib.sha256(target.read_bytes()).hexdigest()==digest
-                  print(version,'curl','exit='+str(result.returncode),'verified='+str(verified),flush=True)
-          PY
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential gawk file gettext libncurses-dev libssl-dev python3 python3-pexpect rsync swig unzip wget zlib1g-dev zstd qemu-system-x86 openssh-client e2fsprogs busybox-static
+      - uses: actions/download-artifact@v4
+        with:
+          name: candidate-official-${{ matrix.release }}-x86-64-x86_64
+          run-id: 39996605422
+          github-token: ${{ github.token }}
+          path: .work/diagnostic-vm
+      - name: Authenticate exact official feed closure without rebuilding client
+        env:
+          PROFILE_ID: official-${{ matrix.release }}-x86-64-x86_64
+        run: |
+          set -euo pipefail
+          python3 tests/release/dependency_test.py
+          ROOT="$PWD"
+          eval "$(python3 scripts/platforms.py --profile "$PROFILE_ID" --format shell)"
+          mkdir -p .work/diagnostic-sdk
+          curl --fail --location --proto '=https' --proto-redir '=https' --retry 3 "$SDK_URL" -o .work/diagnostic-sdk/sdk.tar.zst
+          printf '%s  %s\n' "$SDK_SHA" .work/diagnostic-sdk/sdk.tar.zst | sha256sum -c -
+          tar --zstd -xf .work/diagnostic-sdk/sdk.tar.zst -C .work/diagnostic-sdk
+          SDK="$ROOT/.work/diagnostic-sdk/$SDK_NAME"
+          make -C "$SDK" defconfig > .work/diagnostic-sdk/config.log 2>&1
+          USIGN="$SDK/staging_dir/host/bin/usign"
+          if [ "$PACKAGE_FORMAT" = ipk ] && [ ! -x "$USIGN" ]; then
+            if ! make -C "$SDK" tools/usign/compile -j2 V=s > .work/diagnostic-sdk/usign.log 2>&1; then
+              tail -n 60 .work/diagnostic-sdk/usign.log
+              exit 1
+            fi
+          fi
+          python3 scripts/bundle-dependencies.py --profile "$PROFILE_ID" --directory .work/diagnostic-vm --apk "$SDK/staging_dir/host/bin/apk" --usign "$USIGN"
+          python3 scripts/release-manifest.py .work/diagnostic-vm --profile "$PROFILE_ID" --registry platforms/registry.json --dependencies .work/diagnostic-vm/dependencies.json --third-party .work/diagnostic-vm/dnsmasq-source.json
+      - name: Private diagnostic fixture only; mismatched binaries never qualify
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: python3 scripts/sign-portable-release.py .work/diagnostic-vm --provisional
+      - name: Diagnose native install and rollback with complete module cache
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: python3 scripts/test-openwrt-vm.py --directory .work/diagnostic-vm --profile official-${{ matrix.release }}-x86-64-x86_64
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diagnostic-feed-vm-${{ matrix.release }}
+          path: .work/diagnostic-vm/*-vm-evidence.json
+          if-no-files-found: warn
