@@ -31,22 +31,32 @@ not a guaranteed percentage/date. Asked to conserve5h quota. Fresh app snapshot:
 and completed, not assumed correct. diagnostics_finish completed/froze console helper/drivers/contracts. No active
 subagent ownership; other old agents completed/errored. Recheck liveness.
 
-Current devc9565fe052b39d01fe02f01265a32ffdb7cd2686,
-tree89e76e7c291d91910bb564129f6f075497ca582c. Source checkpoint pushed through
-connector, credential-free fetch and tree equality PASS. Build still4f21dbf
-(failed/superseded candidate). Preview10 NOT published; preview9/tag/assets
+Frozen source/dev+build06c2faf455a20f9ee6f2e85def176e0d8e6e165c,
+treee5e2fd9578a8630a6bf79e52795a643dae706eac. Source checkpoint pushed through
+connector, credential-free fetch and tree equality PASS. Previous4f21dbf candidate failed/superseded; fresh source qualifying. Preview10 NOT published; preview9/tag/assets
 immutable. Main README remains2lines; existing attached draft PR#1 is future
 delivery, no duplicate PR/schedule. Owner installs personally, no SSH mutation.
 
-FIRST UNFINISHED ACTION: freeze/push this source checkpoint as one exact
-qualification SHA (no skip-ci), update dev and existing build branch with leases,
-run fresh6SDK/3VM+5regression. Focused module transaction test PASS:12subcases
-across both PMs,342.992s; log .work/preview.10/modules-focused.log. No process left.
-New module cache is necessary: old diagnostic artifacts cannot pass complete
-install; do not endlessly rerun or promote them. No GITHUB_SHA override. Native
-final gates remain mandatory. Once dispatched record source/tree/run IDs in
-.work/preview.10/candidate.json and STATUS. User5h quota83% at last snapshot;
-save resumable checkpoint, no schedules/new agents or physical router mutations.
+FIRST UNFINISHED ACTION: compact CI status for frozen candidate
+06c2faf455a20f9ee6f2e85def176e0d8e6e165c, treee5e2fd9578a8630a6bf79e52795a643dae706eac.
+Official6SDK/3VM/draft run39996605422; general5regression run39996612862. Both
+started on the SAME exact source, dev/build refs updated through leased connector;
+credential-free fetch and3tree equality PASS. Source is compiled/native/public
+UNVERIFIED until these fresh gates actually pass. Do not restart or repoll old CI.
+This final STATUS checkpoint is docs-only ahead of candidate: do NOT re-freeze or
+rebuild merely because HEAD contains newer status text. Exact metadata is in
+.work/preview.10/candidate.json. Read failed logs only, bounded/redacted. No source
+changes expected during CI; fix concrete failures with a new checkpoint if needed.
+
+Focused module transaction test PASS12subcases across both PMs,342.992s:
+new/existing, wrong/missing ABI, service-failure rollback, SIGKILL/resume. Log
+.work/preview.10/modules-focused.log. No test process remains. Independent final
+integration review: no blocker found. Fresh module cache needed; old diagnostics
+cannot pass full install or qualify release. No GITHUB_SHA override. When fresh
+6SDK/3VM+5regression and migration pass, review signed draft, verify publicassets,
+literal README command2VM, and existing main PR#1 below. No duplicate PR/schedule.
+User5h quota83% at last snapshot; finish coherent checkpoint before exhaustion,
+continue only on user request if this turn has ended. Owner installs personally.
 
 Diagnostic13 run39993383309/sourcea92a3f429016e1ed4cd7b521407824327abdfa1e:
 -25.12.6 job120550565871: bootstrap + exact wrong-project-signature rejection
