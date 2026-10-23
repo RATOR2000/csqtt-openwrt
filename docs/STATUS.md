@@ -25,10 +25,11 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-Resumed2026-10-23. Current remote dev9e604d5a44b7a2dc974d579926f8f3aba73429b8
-(tree0ddce445e63744e812bede2febe32c78e472e1bf). Build branch still9358c1f,
-superseded. Local commits and additional source fixes not yet pushed: inspect
-Git rather than inferring a completed release. Preview10 NOT published; preview9
+Resumed2026-10-23. Frozen candidate dev/build8e1ae15a55bbaef7abef776a8271602c3e86b6c2
+(treea412e4d28af1a8db1d46f4beca76b7d495d61dc8). Checkpoint pushed through connector;
+credential-free fetch and exact tree equality PASS. Official39941507237 and
+regression39941510870 RUNNING; do not treat source checkpoint as acceptance.
+Preview10 NOT published; preview9
 immutable; main README remains2lines, attached existing draft PR#1.
 
 Current regression39847161011 on9e604 completed: checks/core/Android/native-policy
@@ -65,7 +66,7 @@ image.test_disk (original/test bytes, expansion, physical_device=false). Stock
 root104MiB/free75.629MiB is NOT certified by this expanded test environment.
 All installer resource/rollback guards retained; no system files/package data
 changed by offline disk expansion. disk_finish completed module/tests; root owns
-integration/Git/docs. Readonly qualification_review is reviewing helper changes;
+integration/Git/docs. Readonly qualification_review found no CI-launch blockers;
 recheck agent liveness on resume. Linux real e2fsprogs and actual guest execution
 remain mandatory, mocks are not acceptance.
 Headless VM host dependencies use --no-install-recommends +e2fsprogs; observed
@@ -79,11 +80,26 @@ actual assemble-installer.py --check, native APK shell syntax and diff-check PAS
 One attempted build-installer.py check used a nonexistent filename; corrected to
 assemble-installer.py and passed. No native Linux/guest pass inferred from these.
 
-FIRST UNFINISHED ACTION: checkpoint/push all new source to dev AND build refs
-through connector after focused review. Record
-exact SHA/tree/new CI IDs and candidate.json. Also update separate diagnostic
-probe branch with shared image/disk modules and headless e2fsprogs workflow to
-reach actual guest installation early. Keep final exact-source6SDK/3VM/signature/
+Diagnostic3 pushed d78ace7064753001c2ddfd63fa2d31241ac37637,
+tree469dba48b7f5e7d763dd8af5e1b26236edaac4b9, run39941575430 RUNNING.
+It contains current helpers plus diagnostic-only workflow, Linux image/disk tests
+and headless e2fsprogs. It uses older9358 SDK24 artifact, NEVER release evidence.
+Both candidate.json/probe.json saved locally; diagnostic2 is failed/superseded.
+
+New actual Linux failure23Oct: regression39941510870 checks120373804280 FAILED
+in native disk fixture before expansion: _superblock moved the source cursor to
+2048, then fixture copied from that position. Fixed missing source.seek(0) in
+the test only; helper guards unchanged. Native tests moved to first CI step so
+future fixture failures precede expensive contracts. Local disk15PASS/2Windows
+SKIP retained; native result must be rerun. Probe39941575430 canceled in browser
+as superseded during apt (confirmed cancellation request; screenshot in .work).
+Owner disk_finish independently confirmed the cursor error, no other native
+sequence flaw found. No native pass/release claimed.
+
+FIRST UNFINISHED ACTION: push corrected test/early checks as a fresh candidate
+and updated diagnostic; inspect compact current CI/probe jobs; read only failed
+job diagnostics. Fix actual failures and checkpoint; when successful continue
+signature/draft/public download/literal README-command gates below. Keep final exact-source6SDK/3VM/signature/
 public-command gates; no reused diagnostic qualification or GITHUB_SHA override.
 New root release9/9 tests require explicit1GiB test-disk disclosure. Workflow
 checks include image/disk tests. SDK recipe7PASS/1localGNUmakeSKIP from prior

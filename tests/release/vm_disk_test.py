@@ -309,6 +309,7 @@ class NativeVmDiskTest(unittest.TestCase):
             prefix = image.read_bytes()[:ROOT_OFFSET]
             with partition.open('rb') as source, image.open('r+b') as target:
                 original = vm_disk._superblock(source, 0, root_bytes)
+                source.seek(0)
                 target.seek(ROOT_OFFSET)
                 shutil.copyfileobj(source, target)
             evidence = vm_disk.expand_disposable_root(image, boundary)
