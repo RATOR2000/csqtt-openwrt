@@ -1,4 +1,4 @@
-name: Diagnostic native platform and staged solver (never release evidence)
+name: Diagnostic prerequisite and staged source markers (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]

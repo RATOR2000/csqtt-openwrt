@@ -359,6 +359,15 @@ def run_remote(ssh, command, timeout=600, check=True):
                     print('OpenWrt project stage class: ' + category, flush=True)
                 for package in solver['packages']:
                     print('OpenWrt project stage package: ' + package, flush=True)
+                traced = installer_diagnostics(nested)
+                for name in traced['trace_functions']:
+                    print('OpenWrt project stage trace function: ' + name, flush=True)
+                if traced['trace_last_source_line'] is not None:
+                    print('OpenWrt project stage trace: generated_source_line=' + str(traced['trace_last_source_line']), flush=True)
+                for category in traced['shell_errors']:
+                    print('OpenWrt project stage shell error: ' + category, flush=True)
+                for tool in traced['missing_tools']:
+                    print('OpenWrt project stage missing tool: ' + tool, flush=True)
         raise ValueError('Disposable guest command failed; native acceptance was not granted')
     return result
 
