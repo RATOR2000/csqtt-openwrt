@@ -1,6 +1,6 @@
 # Development status — resume here
 
-Updated 2026-10-22. Read this first, then IMPLEMENTATION.md.
+Updated 2026-10-23. Read this first, then IMPLEMENTATION.md.
 Files, Git and current router evidence are authoritative. Preserve owner settings.
 Older detailed history is retained in Git at c509a1d1ad8d2126b86c2a1e502e46840b92cf86:
 https://github.com/RATOR2000/csqtt-openwrt/blob/c509a1d1ad8d2126b86c2a1e502e46840b92cf86/docs/STATUS.md
@@ -25,58 +25,73 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-Current dev SHA1697770c90396f8f31e764d17df79b7df3b52e4d,
-tree36c216d503a735736358b8cc3e5b7011a380948e. Connector push, credential-free
-fetch and exact local/remote tree equality confirmed. Build still79513c71c7763ffb7cfdf76d71bb5797bf3649f2.
-No release10 published.
-Default main remains unchanged; existing draft PR#1 is attached to this chat.
+Resumed2026-10-23. Current remote dev9e604d5a44b7a2dc974d579926f8f3aba73429b8
+(tree0ddce445e63744e812bede2febe32c78e472e1bf). Build branch still9358c1f,
+superseded. Local commits and additional source fixes not yet pushed: inspect
+Git rather than inferring a completed release. Preview10 NOT published; preview9
+immutable; main README remains2lines, attached existing draft PR#1.
 
-CURRENT CI: official39836411862/build795; regression39838900146/dev169 IN PROGRESS.
-Current contracts/native-policy and regression checks/core/android/native-policy
-PASS on795; new169 regression pending. Both25.12.6 SDKs now FAILED during
-GPL source packaging: "Patched source does not match the selected SDK recipe
-version". Actual source directory dnsmasq-full/dnsmasq-2.93; build and source
-retention SUCCESS. Failed jobs120029184868/120029190948. Release owner fixed
-exact recipe version resolution with strict version/hash/source/license checks.
-Official recipe uses literal PKG_UPSTREAM_VERSION2.93 but PKG_VERSION contains
-Make subst normalization. Read only upstream literal identity (legacy literal
-PKG_VERSION fallback), exact PKG_SOURCE mapping and literal PKG_HASH; never
-evaluate Make/shell. New real modern-recipe and legacy GPLarchive tests PASS,
-version/hash/mapping/unsafe-expression refusal retained. SDKrecipe7PASS/1local
-GNUmakeSKIP, py_compile/diffPASS. Same795 failure confirmed24.10.8 ARM120029184688.
-READONLY release audit found native VM remote commands lacked fail-fast shell:
-a failed repeat installer could be masked by successful final config hashes.
-Fixed run_remote uses set-eu; mocked SSH executes a real POSIX shell to prove
-intermediate failure cannot produce acceptance. Public GitHub release metadata
-bound raised from256KiB to4MiB for six complete bundles, with large-response and
-exact upper-bound tests. Local VM1/1/public-command7/7, py_compile/diff PASS.
-These acceptance fixes MUST be pushed as a new source before publishing;795 is
-superseded for release eligibility even if its jobs succeed. Let SDK caches
-complete, then build the exact new source. Never publish an old795 draft.
-Prior regression39812820727 ALL5 SUCCESS (Rust, Android build/tests,
-Node/Go/installer/release checks, native-policy, reference25.12.5 SDK).
-Prior official39812818202 contracts/native-policy SUCCESS, ALL6 SDK jobs FAILED,
-VM/signing/release SKIPPED. Do not retry or claim acceptance of this source.
-Older398077*/398061* runs are superseded, not current checks.
+Current regression39847161011 on9e604 completed: checks/core/Android/native-policy
+SUCCESS; reference SDK job120066943263 FAILED. All build/TUN/earlier native APK
+fixtures passed, then the NEW fixture wrongly asserted raw APK info.hashes was
+absent. Actual producer exposes it. Root removed only that unverified absence
+assertion; signed-index digest, exact metadata, fresh native offline fetch and
+wrong-key/metadata/payload corruption checks remain mandatory. Producer supports
+both raw hash representations. Local dependency8/8 PASS; actual native rerun
+still required. Do not call this failed regression accepted.
 
-FIRST UNFINISHED ACTION: checkpoint/push the tested GPL recipe version fix,
-update BOTH dev/build refs to exact source and inspect fresh runs compactly.
-Do not publish superseded795 even if jobs pass. Failed logs only.
-DNS compilation now succeeds, but SDK CONFIG_AUTOREMOVE deletes src/dnsmasq and
-patched source/COPYING before binary discovery/GPL packaging. Failed logs show
-the cleanup find/xargs immediately before "Expected exactly one SDK full dnsmasq
-binary" (jobs119945977529/x86.6,119945977656/x86.24,119945977751/ARM.6; same gate).
-Fix frozen: remove inherited assignment, append disabled CONFIG_AUTOREMOVE before
-defconfig and pass explicit CONFIG_AUTOREMOVE= to DNS/application make targets.
-SDK uses ifneq(nonempty), so 'n' would incorrectly keep deletion enabled. Exact
-binary/source/license checks retained. Focused SDKrecipe6 PASS,1 explicit local
-GNU Make SKIP (fixture runs in Linux CI), py_compile/diff PASS. Root owns STATUS/
-Git/CI integration. Recheck agent liveness; all owners frozen, no runtime changes.
+Prior9358 regression39839535419 ALL5 SUCCESS. Official39839530729: both24.10.8
+SDKs SUCCESS;25.x builds/CPU/privateDNS/TUN/project signatures passed then bundle
+producer rejected legitimate unsigned official dependency APKs. The9e604 fix
+uses exact signed file:// index + pinned official signer + fresh native APK fetch
+and exact resulting bytes. No --link/allow-untrusted. Installer already used the
+correct dependency name=version/index path and was unchanged. Independent review
+PASS; complete corrected native producer contract still pending rerun.
 
-Fix checkpoint now pushed to dev AND codex/portable-preview.10-build at the SAME
-exact source SHA with expected-head leases and tree equality. Inspect NEW runs
-compactly; read bounded FAILED logs only. No scheduled tasks. Keep acceptance strict.
-SDK Cargo restore/always-save now retains expensive compile outputs on failure.
+Diagnostic39845922812/c6db8b1 failed opaque host_preflight. Diagnostic2
+39849782402/25d42ee20b2df1c1e11e53fe43638b2b38f7ca39,job120072536918 failed
+image_extract/BadGzipFile after successful validation, fixture signing/server and
+whole pinned image SHA. Actual official24.10.8 has valid34byte FWx0 trailer after
+gzip. Shared openwrt_image.py now checks full compressed pin, gzip CRC/EOF/size
+and bounded fwtool framing/CRC, rejecting arbitrary trailing bytes. Actual pinned
+24.10.8 and25.12.6 decode126353408bytes; framing CRC is not claimed as signature
+authentication. Local image6/6 PASS; VMcontract2/2/public-command7/7 PASS.
+Diagnostic proofs are NEVER release qualification: their source differs from
+the9358 binary artifacts. Artifact12454216980 remains .work/preview.10/sdk24-x86.zip
+with verified ZIP digest a08884e212db2b4f8871facef8f0bf89537423f34a98bada1623411b54ebc027.
+
+Both VM helpers now prepare explicit1GiB disposable root filesystems and record
+image.test_disk (original/test bytes, expansion, physical_device=false). Stock
+root104MiB/free75.629MiB is NOT certified by this expanded test environment.
+All installer resource/rollback guards retained; no system files/package data
+changed by offline disk expansion. disk_finish completed module/tests; root owns
+integration/Git/docs. Readonly qualification_review is reviewing helper changes;
+recheck agent liveness on resume. Linux real e2fsprogs and actual guest execution
+remain mandatory, mocks are not acceptance.
+Headless VM host dependencies use --no-install-recommends +e2fsprogs; observed
+apt preparation improved20min to9min. Only one bounded live host-apt UI read was
+used for the earlier stall; no private guest logs/secrets were read.
+
+Focused final Windows checks23Oct: dependency8, image6, release9, VMcontract2,
+public-command7 all PASS. Disk17 tests:15 PASS,2 explicit Windows skips (actual
+Linux e2fsprogs expansion/data readback and symlink creation). Python compilation,
+actual assemble-installer.py --check, native APK shell syntax and diff-check PASS.
+One attempted build-installer.py check used a nonexistent filename; corrected to
+assemble-installer.py and passed. No native Linux/guest pass inferred from these.
+
+FIRST UNFINISHED ACTION: checkpoint/push all new source to dev AND build refs
+through connector after focused review. Record
+exact SHA/tree/new CI IDs and candidate.json. Also update separate diagnostic
+probe branch with shared image/disk modules and headless e2fsprogs workflow to
+reach actual guest installation early. Keep final exact-source6SDK/3VM/signature/
+public-command gates; no reused diagnostic qualification or GITHUB_SHA override.
+New root release9/9 tests require explicit1GiB test-disk disclosure. Workflow
+checks include image/disk tests. SDK recipe7PASS/1localGNUmakeSKIP from prior
+checkpoint; earlier general Node129/platform13 remain separate evidence.
+
+Native boot/installation/storage/runtime of the new portable installer are NOT
+yet proved. No owner router changes or Codex scheduled tasks. Owner installs
+personally only after published signed preview and actual README command tests.
 
 ## Implemented source and verification scope
 
@@ -138,10 +153,9 @@ three application packages with four configs/LAN/LuCI/system DNS preserved.
 Private HTTP CI fixture checks do NOT count as literal public command acceptance.
 No secrets/signing key in public-check jobs; never overwrite failed public assets.
 
-VM disk audit: stock root104MiB/free75.629MiB before bootstrap. If actual space
-guard fails, expand ONLY disposable VM root disk and record resize explicitly in
-evidence; keep firmware files and resource checks. Stock storage not certified by
-an expanded disk. Physical device/VK/Android/live r9 services/long duration and
+VM specification:768MiB RAM,2CPU, explicit1GiB disposable root filesystem.
+Pinned firmware bytes and installer resource checks remain mandatory. Expansion
+is recorded in image.test_disk; stock104MiB capacity is not certified. Physical device/VK/Android/live r9 services/long duration and
 boot7 remain separate gates. Owner installs personally; never SSH-install.
 
 Git pushes MUST use GitHub connector (normal git push opens GCM OAuth).

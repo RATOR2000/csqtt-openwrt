@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Dependency closure/kernel boundaries and immutable release publication gates."""
 import importlib.util
+import hashlib
+import json
 import pathlib
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -16,6 +21,106 @@ spec.loader.exec_module(bundle)
 
 
 class DependencyTest(unittest.TestCase):
+    def native_fixture(self, directory):
+        root = pathlib.Path(directory)
+        keys = root / 'keys'
+        keys.mkdir()
+        body = b'public official key fixture'
+        fingerprint = hashlib.sha256(body).hexdigest()
+        (keys / fingerprint).write_bytes(body)
+        package = root / 'unsigned.apk'
+        package.write_bytes(b'public unsigned package fixture')
+        index = root / 'packages.adb'
+        index.write_bytes(b'public signed index fixture')
+        return ({'name': 'dependency', 'version': '1-r1', 'filename': 'dependency-1-r1.apk', 'index': 'feed0',
+                 'arch': 'x86_64', 'hashes': 'public index-added digest fixture'},
+                package, {'key_sha256': fingerprint, 'path': index}, keys)
+
+    def test_unsigned_apk_is_natively_fetched_from_exact_signed_file_index_in_fresh_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            row, package, index, keys = self.native_fixture(directory)
+            def native(args, **options):
+                if 'adbdump' in args:
+                    # Some producers omit hashes in raw info. Native signed
+                    # index verification must remain authoritative.
+                    info = {field: row[field] for field in ('name', 'version', 'arch')}
+                    return subprocess.CompletedProcess(args, 0, stdout=json.dumps({'info': info}).encode(), stderr=b'')
+                self.assertIn('--no-network', args)
+                self.assertNotIn('--allow-untrusted', args)
+                self.assertNotIn('--link', args)
+                self.assertNotIn('--recursive', args)
+                self.assertEqual(args[-1], row['name'])
+                fetched = pathlib.Path(args[args.index('--output') + 1])
+                self.assertEqual(list(fetched.iterdir()), [])
+                target = pathlib.Path(args[args.index('--root') + 1])
+                self.assertEqual((target / 'etc/apk/keys/source.pem').read_bytes(), (keys / index['key_sha256']).read_bytes())
+                repositories = pathlib.Path(args[args.index('--repositories-file') + 1])
+                self.assertEqual(repositories.read_text().strip(), (fetched.parent / 'mirror/packages.adb').as_uri())
+                self.assertEqual((fetched.parent / 'mirror/packages.adb').read_bytes(), index['path'].read_bytes())
+                shutil.copyfile(package, fetched / row['filename'])
+                return subprocess.CompletedProcess(args, 0, stdout=b'', stderr=b'')
+            with mock.patch.object(bundle.subprocess, 'run', side_effect=native):
+                bundle.authenticate_apk_payload('native-apk', 'x86_64', row, package, index, keys, pathlib.Path(directory) / 'work')
+
+    def test_raw_apk_hash_representation_does_not_replace_native_index_verification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            row, package, index, keys = self.native_fixture(directory)
+            calls = []
+            def native(args, **options):
+                calls.append(args)
+                if 'adbdump' in args:
+                    info = {field: row[field] for field in ('name', 'version', 'arch')}
+                    info['hashes'] = 'raw producer metadata digest'
+                    return subprocess.CompletedProcess(args, 0, stdout=json.dumps({'info': info}).encode())
+                fetched = pathlib.Path(args[args.index('--output') + 1])
+                shutil.copyfile(package, fetched / row['filename'])
+                return subprocess.CompletedProcess(args, 0)
+            with mock.patch.object(bundle.subprocess, 'run', side_effect=native):
+                bundle.authenticate_apk_payload('native-apk', 'x86_64', row, package, index, keys,
+                                                pathlib.Path(directory) / 'work')
+            self.assertEqual(len(calls), 2)
+            self.assertIn('fetch', calls[-1])
+            self.assertIn('--no-network', calls[-1])
+
+    def test_native_apk_missing_output_corruption_rejection_and_wrong_key_pin_fail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            row, package, index, keys = self.native_fixture(directory)
+            for mode in ('missing', 'changed', 'native_rejection'):
+                def native(args, **options):
+                    if 'adbdump' in args:
+                        info = {field: row[field] for field in ('name', 'version', 'arch')}
+                        return subprocess.CompletedProcess(args, 0, stdout=json.dumps({'info': info}).encode(), stderr=b'')
+                    if mode == 'native_rejection':
+                        raise subprocess.CalledProcessError(1, args)
+                    if mode == 'changed':
+                        fetched = pathlib.Path(args[args.index('--output') + 1])
+                        (fetched / row['filename']).write_bytes(b'X' * package.stat().st_size)
+                    return subprocess.CompletedProcess(args, 0, stdout=b'', stderr=b'')
+                with mock.patch.object(bundle.subprocess, 'run', side_effect=native):
+                    with self.assertRaises((ValueError, subprocess.CalledProcessError)):
+                        bundle.authenticate_apk_payload('native-apk', 'x86_64', row, package, index, keys,
+                                                        pathlib.Path(directory) / mode)
+            (keys / index['key_sha256']).write_bytes(b'changed public key')
+            with mock.patch.object(bundle.subprocess, 'run') as native:
+                with self.assertRaises(ValueError):
+                    bundle.authenticate_apk_payload('native-apk', 'x86_64', row, package, index, keys,
+                                                    pathlib.Path(directory) / 'wrong-key')
+                native.assert_not_called()
+
+    def test_raw_apk_wrong_name_version_or_arch_refuses_before_native_fetch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            row, package, index, keys = self.native_fixture(directory)
+            for field, wrong in (('name', 'other'), ('version', '2-r1'), ('arch', 'other_arch')):
+                info = {f: row[f] for f in ('name', 'version', 'arch')}
+                info[field] = wrong
+                result = subprocess.CompletedProcess([], 0, stdout=json.dumps({'info': info}).encode(), stderr=b'')
+                with mock.patch.object(bundle.subprocess, 'run', return_value=result) as native:
+                    with self.assertRaisesRegex(ValueError, 'identity differs'):
+                        bundle.authenticate_apk_payload('native-apk', 'x86_64', row, package, index, keys,
+                                                        pathlib.Path(directory) / field)
+                    self.assertEqual(native.call_count, 1)
+                    self.assertIn('adbdump', native.call_args.args[0])
+
     def test_complete_transitive_closure_retains_exact_tun_kernel(self):
         rows = [{'name': 'kmod-tun', 'version': '6.12.112-r1', 'depends': ['kernel=6.12.112~abcd-r1']},
                 {'name': 'luci-base', 'version': '1-r1', 'depends': ['ucode-mod-fs', 'libubus>=1']},

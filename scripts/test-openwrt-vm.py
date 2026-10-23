@@ -7,7 +7,6 @@ to this test; release qualification is generated only after this command passes.
 """
 import argparse
 import functools
-import gzip
 import hashlib
 import http.server
 import importlib.util
@@ -24,6 +23,8 @@ import time
 import urllib.error
 
 from release_schema import describe, load, require, validate
+from openwrt_image import extract_openwrt_image
+from vm_disk import expand_disposable_root
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 IMAGES = {
@@ -151,8 +152,9 @@ def main():
                         compressed, IMAGES[version])
         disk = work / 'guest.img'
         phase('image_extract')
-        with gzip.open(compressed, 'rb') as source, disk.open('wb') as target:
-            shutil.copyfileobj(source, target, 1024 * 1024)
+        image_extraction = extract_openwrt_image(compressed, disk, IMAGES[version])
+        phase('disk_prepare')
+        test_disk = expand_disposable_root(disk, work)
         private_key = work / 'ssh-key'
         phase('ssh_key')
         subprocess.run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(private_key)], check=True, capture_output=True)
@@ -198,7 +200,8 @@ def main():
             result = {'schema': 1, 'kind': 'clean_openwrt_vm', 'result': 'pass',
                       'source_commit': evidence.source(), 'profile_id': args.profile, 'openwrt': version,
                       'package_manager': platform['package_manager'], 'physical_device': False,
-                      'image': {'name': image_name, 'sha256': IMAGES[version]},
+                      'image': {'name': image_name, 'sha256': IMAGES[version], 'extraction': image_extraction,
+                                'test_disk': test_disk},
                       'packages': evidence.package_binding(manifest), 'checks': sorted(evidence.VM_CHECKS)}
             output.write_text(json.dumps(result, indent=2) + '\n')
         finally:

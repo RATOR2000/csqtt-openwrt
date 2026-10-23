@@ -416,5 +416,51 @@ cp "$TMP/original-world" "$OFFLINE/etc/apk/world"
 cmp "$TMP/original-world" "$OFFLINE/etc/apk/world"
 cmp "$TMP/payloads/old/usr/share/csqtt-native-test/dns.txt" "$OFFLINE/usr/share/csqtt-native-test/dns.txt"
 [ -z "$(find "$TMP" -name native-script-ran -print)" ] || die 'A package script executed despite no-scripts.'
+python3 - "$ROOT" "$APK" "$TMP" "$PACKAGE_ARCH" "$TOOLS/etc/apk/keys/fixture.pem" "$TOOLS/etc/apk/wrong-keys/fixture.pem" <<'NATIVE_APK_FILE_INDEX'
+import hashlib, importlib.util, json, pathlib, subprocess, sys
+source, tool, temporary, architecture, public_key, wrong_key = sys.argv[1:]
+sys.path.insert(0, str(pathlib.Path(source) / 'scripts'))
+spec = importlib.util.spec_from_file_location('dependency_bundle', pathlib.Path(source) / 'scripts/bundle-dependencies.py')
+bundle = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(bundle)
+root = pathlib.Path(temporary)
+keys = root / 'file-index-keys'
+keys.mkdir()
+good = pathlib.Path(public_key).read_bytes()
+bad = pathlib.Path(wrong_key).read_bytes()
+good_hash, bad_hash = (hashlib.sha256(p).hexdigest() for p in (good, bad))
+(keys / good_hash).write_bytes(good)
+(keys / bad_hash).write_bytes(bad)
+original = root / 'repo/csqtt-native-old-1.0-r1.apk'
+document = json.loads(subprocess.run([tool, 'adbdump', '--format', 'json', str(root / 'repo/packages.adb')],
+                                     check=True, capture_output=True).stdout)
+matches = [p for p in document['packages'] if p['name'] == 'csqtt-native-old']
+assert len(matches) == 1, 'Signed fixture index identity is ambiguous'
+row = {**matches[0], 'filename': original.name, 'index': 'feed0'}
+info = json.loads(subprocess.run([tool, 'adbdump', '--format', 'json', str(original)],
+                                 check=True, capture_output=True).stdout)['info']
+assert row.get('hashes'), 'Signed fixture index must bind a package digest'
+# APK producer versions may also expose hashes in raw info. Native fetch is
+# authoritative for the signed index identity and the complete payload in both
+# representations; do not impose an unverified absence requirement here.
+index = {'key_sha256': good_hash, 'path': root / 'repo/packages.adb'}
+bundle.authenticate_apk_payload(tool, architecture, row, original, index, keys, root / 'file-index-good')
+for mode in ('wrong_key', 'metadata', 'payload'):
+    candidate = root / ('file-index-' + mode + '.apk')
+    data = original.read_bytes()
+    if mode != 'wrong_key':
+        old = b'isolated native APK fixture' if mode == 'metadata' else b'original DNS fixture\n'
+        new = b'Isolated native APK fixture' if mode == 'metadata' else b'Original DNS fixture\n'
+        assert data.startswith(b'ADB.') and data.count(old) == 1, 'Unexpected unsigned package fixture'
+        data = data.replace(old, new, 1)
+    candidate.write_bytes(data)
+    test_index = {**index, 'key_sha256': bad_hash if mode == 'wrong_key' else good_hash}
+    try:
+        bundle.authenticate_apk_payload(tool, architecture, row, candidate, test_index, keys, root / ('file-index-reject-' + mode))
+    except (ValueError, subprocess.CalledProcessError):
+        continue
+    raise SystemExit('Native signed file-index verification accepted invalid ' + mode)
+print('native APK: exact file:// signed-index fetch accepted unsigned payload; wrong key, changed metadata and changed payload rejected with fresh outputs.')
+NATIVE_APK_FILE_INDEX
 rm -f "$TMP/signing.pem" "$TMP/wrong-signing.pem"
 echo 'native APK: three SDK package signatures verified; unsigned DNS authenticated through a signed index; isolated DNS conflict/replacement, staged dependency cache, offline install and exact original DNS/world rollback passed.'

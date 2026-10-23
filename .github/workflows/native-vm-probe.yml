@@ -20,12 +20,16 @@ jobs:
       - name: Disposable VM dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 openssh-client python3-pexpect
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 openssh-client python3-pexpect e2fsprogs
+      - name: Validate bounded image preparation on Linux
+        run: |
+          python3 tests/release/openwrt_image_test.py
+          python3 tests/release/vm_disk_test.py
       - name: Private fixture only, never publish or qualify these packages
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
         run: python3 scripts/sign-portable-release.py .work/diagnostic-vm --provisional
-      - name: Diagnose clean firmware installation while APK trust is fixed
+      - name: Diagnose actual pinned image preparation and guest installation
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
         run: python3 scripts/test-openwrt-vm.py --directory .work/diagnostic-vm --profile official-24.10.8-x86-64-x86_64
