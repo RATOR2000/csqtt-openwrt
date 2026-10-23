@@ -151,7 +151,7 @@ class PortableTest(unittest.TestCase):
                 source=re.sub(r'(?<![A-Za-z0-9_])'+re.escape(prefix),posix(root)+prefix,source)
             source=source.replace('CSQTT_FIXTURE_DNS_LITERAL','/usr/libexec/csqtt/dnsmasq')
             script=base/'install.sh';script.write_text(source,newline='\n')
-            env={**os.environ,'CSQTT_FAKE_ROOT':str(root),'CSQTT_FAKE_SCENARIO':scenario,'CSQTT_WRAPPER_PATH':posix(bindir),'CSQTT_WRAPPER_SCRIPT':posix(script),'MSYS2_ENV_CONV_EXCL':'APK_CONFIG'}
+            env={**os.environ,'CSQTT_FAKE_ROOT':str(root),'CSQTT_FAKE_SCENARIO':scenario,'CSQTT_FAKE_ARCH':arch,'CSQTT_WRAPPER_PATH':posix(bindir),'CSQTT_WRAPPER_SCRIPT':posix(script),'MSYS2_ENV_CONV_EXCL':'APK_CONFIG'}
             arg='--check' if check else '--portable fixture'
             invocation=[SH,'-c','PATH="$CSQTT_WRAPPER_PATH"; export PATH; exec "'+posix(SH)+'" "$CSQTT_WRAPPER_SCRIPT" '+arg]
             if scenario=='operation_lock':
@@ -185,12 +185,18 @@ class PortableTest(unittest.TestCase):
 
     def test_probe_is_read_only_and_does_not_evaluate_release(self):
         for pm in ['apk','opkg']:
-            result,calls,_,_,executed,_=self.run_case(pm,'release_code',check=True)
+            result,calls,before,after,executed,_=self.run_case(pm,'release_code',check=True)
             self.assertEqual(result.returncode,0,result.stderr)
             probe=json.loads(result.stdout)
             self.assertEqual(probe['openwrt'],'')
             self.assertFalse(executed)
-            self.assertFalse(any(c['command']=='opkg' or c['command']=='uclient-fetch' for c in calls))
+            self.assertEqual(before,after)
+            self.assertFalse(any(c['command']=='uclient-fetch' for c in calls))
+            for call in calls:
+                if call['command']=='opkg':
+                    self.assertEqual(call['args'],['print-architecture'])
+                elif call['command']=='apk':
+                    self.assertEqual(call['args'],['query','--installed','--match','name','--fields','version','--format','json','kernel'])
 
     def test_install_both_package_backends(self):
         for pm in ['apk','opkg']:

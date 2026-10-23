@@ -19,7 +19,7 @@ stage prerequisites_release
 . /etc/openwrt_release
 case "${DISTRIB_RELEASE:-}" in 24.10.*|25.12.*) ;; *) fail ;; esac
 stage prerequisites_tools
-for tool in ucode uci ubus nft fw4 ip timeout nslookup sha256sum; do command -v "$tool" >/dev/null || fail; done
+for tool in ucode uci ubus nft fw4 ip timeout nslookup sha256sum; do command -v "$tool" >/dev/null || { printf 'CSQTT_GUEST_MISSING_TOOL=%s\n' "$tool"; fail; }; done
 stage prerequisites_enabled
 [ "$(uci -q get csqtt.main.enabled)" = 0 ] || fail
 stage prerequisites_auto_recover

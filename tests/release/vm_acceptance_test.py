@@ -588,6 +588,25 @@ class VmAcceptanceTest(unittest.TestCase):
         self.assertNotIn('/*.private.log', commands[1])
         self.assertNotIn('tail -c', commands[1])
 
+    def test_guest_missing_tool_marker_emits_only_complete_source_known_names(self):
+        private = 'private-secret-command-url-fixture'
+        cases = (('timeout', 'timeout'), ('nslookup\r', 'nslookup'),
+                 (private, None), ('timeout_suffix', None), ('timeout ' + private, None),
+                 ('timeout; ' + private, None), ('/private/timeout', None))
+        for value, expected in cases:
+            body = 'CSQTT_GUEST_MISSING_TOOL=' + value + '\n'
+            with self.subTest(value=value), mock.patch.object(native_vm, 'PHASE', 'native_runtime_dns_firewall_luci'), \
+                    mock.patch.object(native_vm.subprocess, 'run', side_effect=[
+                        subprocess.CompletedProcess(['ssh'], 1, stdout='', stderr=''),
+                        subprocess.CompletedProcess(['ssh'], 0, stdout=(body + '\n' +
+                            native_vm.DIAGNOSTIC_READ_OK + '\n').encode('utf-8'), stderr=b'')]), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                with self.assertRaises(ValueError):
+                    native_vm.run_remote(['ssh', 'synthetic-host'], 'false')
+            emitted = [line for line in output.getvalue().splitlines() if line.startswith('OpenWrt guest missing tool:')]
+            self.assertEqual(emitted, ['OpenWrt guest missing tool: ' + expected] if expected else [])
+            self.assertNotIn(private, output.getvalue())
+
     @unittest.skipUnless(SH, 'A real POSIX shell is required for exact signature rejection evidence')
     def test_signature_rejection_requires_the_actual_fixed_error_and_nonzero_exit(self):
         rejected = subprocess.CompletedProcess(['synthetic-installer'], 1)
