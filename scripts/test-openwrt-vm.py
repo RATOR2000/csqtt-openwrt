@@ -14,6 +14,7 @@ import json
 import os
 import pathlib
 import re
+import shlex
 import shutil
 import socket
 import subprocess
@@ -40,6 +41,8 @@ DIAGNOSTIC_LIMIT = 8192
 DIAGNOSTIC_SCAN_LIMIT = 1024 * 1024
 BOOTSTRAP_SOLVER_ERROR = 'CSQTT: Средства проверки недоступны без изменения системных пакетов'
 BOOTSTRAP_PACKAGES = ('openssl-util', 'jsonfilter')
+PROJECT_STAGE_ERROR = 'CSQTT: Проверка автономной установки в изолированной базе завершилась ошибкой'
+PROJECT_STAGE_PACKAGES = ('csqtt', 'csqtt-captcha', 'luci-app-csqtt') + BOOTSTRAP_PACKAGES
 OPKG_SOLVER_ERRORS = {
     'unknown_package': ('Unknown package ',),
     'cannot_install': ('opkg_install_cmd: Cannot install package ',),
@@ -50,6 +53,20 @@ OPKG_SOLVER_ERRORS = {
     'file_read': ('Could not open ', 'Failed to open ', 'No such file or directory'),
     'file_conflict': ('check_data_file_clashes:', 'already provided by package'),
     'resource_limit': ('No space left on device',),
+}
+APK_SOLVER_ERRORS = {
+    'unsupported_option': ('unrecognized option', 'unrecognized command line option', 'unknown option', 'invalid option'),
+    'unknown_package': ('(no such package)',),
+    'dependency_unsatisfied': ('unable to select packages:',),
+    'version_conflict': ('breaks:', 'conflicts:'),
+    'architecture_mismatch': ('BAD architecture', 'unsupported architecture'),
+    'signature_rejected': ('UNTRUSTED signature', 'BAD signature', 'UNTRUSTED public key'),
+    'index_rejected': ('BAD archive', 'BAD index', 'UNTRUSTED index', 'UNTRUSTED packages'),
+    'world_constraint': ('world[',),
+    'file_read': ('No such file or directory', 'could not open'),
+    'file_conflict': ('trying to overwrite ',),
+    'resource_limit': ('No space left on device',),
+    'checksum_mismatch': ('BAD checksum', 'checksum mismatch'),
 }
 PRIVATE_TRACE = "PS4='+CSQTT_XTRACE:${LINENO:-0}: '; export PS4; sh -x install.sh ci-private"
 KNOWN_TOOLS = ('uclient-fetch', 'sha256sum', 'awk', 'tar', 'sync', 'du', 'mktemp', 'wc', 'sed', 'cut',
@@ -133,7 +150,49 @@ def installer_diagnostics(private):
             traced_functions.append(name)
     return {'portable_error_lines': sorted(errors), 'missing_tools': tools, 'shell_errors': shell,
             'generated_error_lines': generated_lines, 'trace_functions': traced_functions[-8:],
-            'trace_last_source_line': last_line}
+            'trace_last_source_line': last_line, 'platform_trace': platform_trace_diagnostics(private, installer)}
+
+
+def platform_trace_diagnostics(private, installer):
+    """Classify probe assignments at their exact source lines, never print values."""
+    fields = {'CS_PROFILE': 'profile_id', 'CS_ARCH': 'architecture',
+              'CS_FAMILY': 'family', 'CS_PM': 'package_manager'}
+    locations = {}
+    for name, field in fields.items():
+        assignment = name + '=$(csqtt_j "$CS_TMP/probe.json" \'@.' + field + '\')'
+        matches = [number for number, line in enumerate(installer, 1) if assignment in line]
+        if len(matches) == 1:
+            locations[name] = matches[0]
+    result = {name: 'unobserved' for name in fields}
+    for line in private.splitlines():
+        trace = re.fullmatch(r'\++CSQTT_XTRACE:([0-9]{1,6}):\s+(.*)', line)
+        if not trace:
+            continue
+        number, command = int(trace[1]), trace[2]
+        if re.match(r'(?:csqtt_portable_cleanup|csqtt_operation_cleanup)(?:\s|$)', command):
+            break
+        # shlex decodes shell trace quoting without evaluating any command text.
+        # Only assignment-only commands at a unique source-known probe line count.
+        try:
+            words = shlex.split(command)
+        except ValueError:
+            continue
+        if not words or any(not re.match(r'^CS_[A-Z_]+=', word) for word in words):
+            continue
+        for word in words:
+            name, value = word.split('=', 1)
+            if locations.get(name) != number:
+                continue
+            if not value:
+                category = 'blank'
+            elif name in ('CS_PROFILE', 'CS_ARCH'):
+                category = 'valid' if (len(value) <= 200 and not value.startswith(('.', '-')) and
+                                      re.fullmatch(r'[A-Za-z0-9_.+~-]+', value)) else 'invalid'
+            else:
+                allowed = ('official',) if name == 'CS_FAMILY' else ('apk', 'opkg')
+                category = value if value in allowed else 'unrecognized'
+            result[name] = category
+    return result
 
 
 def _private_log_size():
@@ -158,6 +217,23 @@ def private_log_read_command():
 
 def bootstrap_solver_read_command():
     """Discover one exact traced temporary root; read only its fixed solver log."""
+    return _nested_log_read_command('bootstrap/solver.log')
+
+
+def project_stage_read_command():
+    if PHASE not in ('first_offline_install', 'repeat_install_settings_preserved'):
+        return 'exit 1'
+    source = (ROOT / 'scripts/portable-install.sh').read_text(encoding='utf-8')
+    known = ('csqtt_pm_install "$CS_TMP/stage" "$CS_TMP" 0 > "$CS_TMP/stage.log" 2>&1 || csqtt_portable_die \'' +
+             PROJECT_STAGE_ERROR.removeprefix('CSQTT: ') + '\'')
+    if source.count(known) != 1:
+        return 'exit 1'
+    return _nested_log_read_command('stage.log')
+
+
+def _nested_log_read_command(relative):
+    if relative not in ('bootstrap/solver.log', 'stage.log'):
+        return 'exit 1'
     name = PRIVATE_PHASE_LOGS.get(PHASE)
     assignments = [number for number, line in enumerate((ROOT / 'install.sh').read_text(encoding='utf-8').splitlines(), 1)
                    if line.strip() == 'CS_TMP=$(mktemp -d /tmp/csqtt-portable.XXXXXX)']
@@ -172,13 +248,15 @@ def bootstrap_solver_read_command():
                'if(line ~ "' + traced + '"){count++;sub("' + traced + '","",line); '
                'if(line !~ "' + path_pattern + '")bad=1;root=line}} '
                'END{if(count!=1 || bad)exit 1;print root}')
+    child_guard = ('[ -d "$d/bootstrap" ] && [ ! -L "$d/bootstrap" ] || exit 1; '
+                   if relative == 'bootstrap/solver.log' else '')
     return ('[ -d /tmp ] && [ ! -L /tmp ] && [ -d /tmp/csqtt-native ] && '
             '[ ! -L /tmp/csqtt-native ] || exit 1; '
             'f=/tmp/csqtt-native/' + name + '.private.log; [ -f "$f" ] && [ ! -L "$f" ] || exit 1; ' +
             _private_log_size() + '[ "$n" -le ' + str(DIAGNOSTIC_SCAN_LIMIT) + ' ] || exit 1; '
             'd=$(awk \'' + program + '\' "$f") || exit 1; '
-            '[ -d "$d" ] && [ ! -L "$d" ] && [ -d "$d/bootstrap" ] && '
-            '[ ! -L "$d/bootstrap" ] || exit 1; f="$d/bootstrap/solver.log"; ' + _private_log_tail())
+            '[ -d "$d" ] && [ ! -L "$d" ] || exit 1; ' + child_guard +
+            'f="$d/' + relative + '"; ' + _private_log_tail())
 
 
 def read_private_diagnostic(ssh, command):
@@ -199,6 +277,16 @@ def bootstrap_solver_diagnostics(private):
     private = private[-DIAGNOSTIC_LIMIT:]
     classes = [name for name, needles in OPKG_SOLVER_ERRORS.items() if any(needle in private for needle in needles)]
     packages = [name for name in BOOTSTRAP_PACKAGES if re.search(
+        r'(?<![A-Za-z0-9_.+~-])' + re.escape(name) + r'(?=$|[^A-Za-z0-9_.+~-]|[.]\r?$)', private, re.MULTILINE)]
+    return {'classes': classes or ['unclassified_output' if private else 'empty_output'], 'packages': packages}
+
+
+def project_stage_diagnostics(private):
+    """Emit only fixed native solver classes and source-known project/tool names."""
+    private = private[-DIAGNOSTIC_LIMIT:]
+    classes = sorted({name for errors in (OPKG_SOLVER_ERRORS, APK_SOLVER_ERRORS)
+                      for name, needles in errors.items() if any(needle in private for needle in needles)})
+    packages = [name for name in PROJECT_STAGE_PACKAGES if re.search(
         r'(?<![A-Za-z0-9_.+~-])' + re.escape(name) + r'(?=$|[^A-Za-z0-9_.+~-]|[.]\r?$)', private, re.MULTILINE)]
     return {'classes': classes or ['unclassified_output' if private else 'empty_output'], 'packages': packages}
 
@@ -230,6 +318,9 @@ def run_remote(ssh, command, timeout=600, check=True):
             print('OpenWrt installer trace function: ' + name, flush=True)
         if classified['trace_last_source_line'] is not None:
             print('OpenWrt installer trace: generated_source_line=' + str(classified['trace_last_source_line']), flush=True)
+        for name, category in classified['platform_trace'].items():
+            if category != 'unobserved':
+                print('OpenWrt installer platform trace: ' + name + '=' + category, flush=True)
         allowed_stages = set(re.findall(r'^stage ([a-z_]{1,50})$',
                             (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8'), re.MULTILINE))
         markers = [m for m in re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private) if m in allowed_stages]
@@ -256,6 +347,18 @@ def run_remote(ssh, command, timeout=600, check=True):
                     print('OpenWrt bootstrap solver class: ' + category, flush=True)
                 for package in solver['packages']:
                     print('OpenWrt bootstrap solver package: ' + package, flush=True)
+        if (log is not None and PHASE in ('first_offline_install', 'repeat_install_settings_preserved') and
+                re.search(r'(?m)^' + re.escape(PROJECT_STAGE_ERROR) + r'\r?$', log)):
+            nested = read_private_diagnostic(ssh, project_stage_read_command())
+            if nested is None:
+                print('OpenWrt project stage diagnostics: diagnostic_unavailable', flush=True)
+            else:
+                print('OpenWrt project stage diagnostics: bounded_read_ok', flush=True)
+                solver = project_stage_diagnostics(nested)
+                for category in solver['classes']:
+                    print('OpenWrt project stage class: ' + category, flush=True)
+                for package in solver['packages']:
+                    print('OpenWrt project stage package: ' + package, flush=True)
         raise ValueError('Disposable guest command failed; native acceptance was not granted')
     return result
 

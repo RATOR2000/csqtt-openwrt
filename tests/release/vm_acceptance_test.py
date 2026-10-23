@@ -38,7 +38,7 @@ if not SH:
 
 class VmAcceptanceTest(unittest.TestCase):
     @contextlib.contextmanager
-    def nested_solver_fixture(self):
+    def nested_solver_fixture(self, relative='bootstrap/solver.log'):
         if not SH:
             self.skipTest('A POSIX shell is required for checked nested discovery')
         tools = {}
@@ -53,19 +53,20 @@ class VmAcceptanceTest(unittest.TestCase):
             phase_log.parent.mkdir()
             root = directory / 'csqtt-portable.Ab1234'
             (root / 'bootstrap').mkdir(parents=True)
-            (root / 'bootstrap/solver.log').write_text('synthetic-private-solver', encoding='utf-8')
+            (root / relative).write_text('synthetic-private-solver', encoding='utf-8')
             source = (ROOT / 'install.sh').read_text(encoding='utf-8').splitlines()
             line = next(number for number, text in enumerate(source, 1)
                         if text.strip() == 'CS_TMP=$(mktemp -d /tmp/csqtt-portable.XXXXXX)')
             trace = '+CSQTT_XTRACE:' + str(line) + ': CS_TMP=' + root.as_posix() + '\n'
             phase_log.write_text(trace, encoding='utf-8')
             with mock.patch.object(native_vm, 'PHASE', 'first_offline_install'):
-                command = native_vm.bootstrap_solver_read_command().replace('/tmp', directory.as_posix())
+                command = (native_vm.bootstrap_solver_read_command() if relative == 'bootstrap/solver.log' else
+                           native_vm.project_stage_read_command()).replace('/tmp', directory.as_posix())
             aliases = ''.join(name + '() { ' + shlex.quote(path) + ' "$@"; }; ' for name, path in tools.items())
             # The existing native-dd test checks byte reading. This strict shell
             # double lets Windows independently exercise discovery and refusal.
             reader = ('dd() { [ "$#" = 4 ] && [ "$1" = ' +
-                      shlex.quote('if=' + (root / 'bootstrap/solver.log').as_posix()) +
+                      shlex.quote('if=' + (root / relative).as_posix()) +
                       ' ] && [ "$2" = bs=1 ] && [ "$3" = skip=0 ] && [ "$4" = count=8192 ] || return 99; '
                       'printf "%s\\n" "Unknown package openssl-util"; }; ')
             def run(prefix=''):
@@ -118,6 +119,131 @@ class VmAcceptanceTest(unittest.TestCase):
                     if path.is_symlink():
                         path.unlink()
                     backing.rename(path)
+
+    def test_project_stage_reader_requires_exact_bounded_phase_root_and_checked_read(self):
+        with self.nested_solver_fixture('stage.log') as (directory, root, log, trace, run):
+            self.assertEqual(run().returncode, 0)
+            variants = ('', trace + trace, trace.replace('CS_TMP=', 'OTHER_TMP='),
+                        trace.replace('CSQTT_XTRACE:', 'CSQTT_XTRACE:9'),
+                        trace.replace('Ab1234', 'Ab1234/escape'),
+                        trace.replace('Ab1234', '$(printf injected)'),
+                        trace + 'x' * native_vm.DIAGNOSTIC_SCAN_LIMIT)
+            for text in variants:
+                with self.subTest(text=text[:80]):
+                    log.write_text(text, encoding='utf-8')
+                    result = run()
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn(native_vm.DIAGNOSTIC_READ_OK, result.stdout)
+                    self.assertNotIn('injected', result.stdout)
+            log.write_text(trace, encoding='utf-8')
+            for prefix in ('wc() { return 1; }; ', 'wc() { printf "not-numeric\\n"; }; ',
+                           'awk() { return 1; }; ', 'dd() { return 1; }; '):
+                result = run(prefix)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn(native_vm.DIAGNOSTIC_READ_OK, result.stdout)
+            (root / 'stage.log').unlink()
+            result = run()
+            self.assertNotEqual(result.returncode, 0)
+            self.assertNotIn(native_vm.DIAGNOSTIC_READ_OK, result.stdout)
+        for phase in ('host_preflight', 'bootstrap_and_signature_rejection', 'native_runtime_dns_firewall_luci'):
+            with self.subTest(phase=phase), mock.patch.object(native_vm, 'PHASE', phase):
+                self.assertEqual(native_vm.project_stage_read_command(), 'exit 1')
+        self.assertEqual(native_vm._nested_log_read_command('../private.log'), 'exit 1')
+
+    def test_project_stage_reader_refuses_symlinked_stage_log_and_each_directory(self):
+        with self.nested_solver_fixture('stage.log') as (directory, root, log, trace, run):
+            for path in (root / 'stage.log', root, log, log.parent):
+                backing = path.with_name(path.name + '-backing')
+                path.rename(backing)
+                try:
+                    try:
+                        path.symlink_to(backing, target_is_directory=backing.is_dir())
+                    except OSError:
+                        if sys.platform == 'win32':
+                            self.skipTest('Windows symlink privilege unavailable; Linux CI exercises every path guard')
+                        raise
+                    result = run()
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn(native_vm.DIAGNOSTIC_READ_OK, result.stdout)
+                finally:
+                    if path.is_symlink():
+                        path.unlink()
+                    backing.rename(path)
+
+    def test_project_stage_classification_exposes_only_fixed_native_classes_and_source_known_names(self):
+        private = 'private-password-key-url-identity'
+        text = ('ERROR: unable to select packages:\n  csqtt (no such package)\n'
+                '  csqtt-captcha-0.1: breaks: luci-app-csqtt\n'
+                'UNTRUSTED signature\nNo space left on device\n'
+                ' * opkg_install_cmd: Cannot install package openssl-util.\n'
+                'Unknown package ' + private + '\n')
+        result = native_vm.project_stage_diagnostics(text)
+        self.assertEqual(result['classes'], ['cannot_install', 'dependency_unsatisfied', 'resource_limit',
+                                            'signature_rejected', 'unknown_package', 'version_conflict'])
+        self.assertEqual(result['packages'], ['csqtt', 'luci-app-csqtt', 'openssl-util'])
+        self.assertNotIn(private, str(result))
+        source = (ROOT / 'scripts/portable-install.sh').read_text(encoding='utf-8')
+        for name in native_vm.PROJECT_STAGE_PACKAGES:
+            self.assertIn(name, source)
+        self.assertIn("csqtt_portable_die '" + native_vm.PROJECT_STAGE_ERROR.removeprefix('CSQTT: ') + "'", source)
+        for text in (private, 'private-csqtt-package', 'csqtt.private-package', 'x' * 2 + 'jsonfilter-suffix'):
+            self.assertEqual(native_vm.project_stage_diagnostics(text),
+                             {'classes': ['unclassified_output'], 'packages': []})
+        self.assertEqual(native_vm.project_stage_diagnostics('')['classes'], ['empty_output'])
+        self.assertEqual(native_vm.project_stage_diagnostics(
+            'apk: unrecognized option --private\nBAD index\nworld[csqtt]\n'
+            'trying to overwrite private\nNo such file or directory\nBAD checksum\n')['classes'],
+            ['checksum_mismatch', 'file_conflict', 'file_read', 'index_rejected',
+             'unsupported_option', 'world_constraint'])
+
+    def test_project_stage_transport_is_bounded_checked_and_never_prints_private_values(self):
+        private = 'private-password-key-url-identity'
+        sentinel = ('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n').encode('ascii')
+        main = subprocess.CompletedProcess(['ssh'], 0,
+                 stdout=native_vm.PROJECT_STAGE_ERROR.encode('utf-8') + sentinel, stderr=b'')
+        body = ('ERROR: unable to select packages:\ncsqtt (no such package)\n' + private).encode('utf-8')
+        cases = ((subprocess.CompletedProcess(['ssh'], 0, stdout=body + sentinel, stderr=b''), True),
+                 (subprocess.CompletedProcess(['ssh'], 1, stdout=body + sentinel, stderr=body), False),
+                 (subprocess.CompletedProcess(['ssh'], 0, stdout=body, stderr=body), False),
+                 (subprocess.CompletedProcess(['ssh'], 0, stdout=b'x' * (native_vm.DIAGNOSTIC_LIMIT + 1) + sentinel,
+                                              stderr=body), False),
+                 (subprocess.TimeoutExpired(private, 15), False))
+        for nested, success in cases:
+            with self.subTest(success=success, kind=type(nested).__name__), \
+                    mock.patch.object(native_vm, 'PHASE', 'first_offline_install'), \
+                    mock.patch.object(native_vm.subprocess, 'run', side_effect=[
+                        subprocess.CompletedProcess(['ssh'], 1, stdout='', stderr=''), main, nested]) as transport, \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                with self.assertRaises(ValueError):
+                    native_vm.run_remote(['ssh', 'synthetic-host'], 'false')
+            self.assertEqual(transport.call_count, 3)
+            command = transport.call_args_list[-1].args[0][-1]
+            self.assertIn('/stage.log', command)
+            self.assertNotIn('/bootstrap/', command)
+            self.assertNotIn('eval', command)
+            self.assertIn('OpenWrt project stage diagnostics: ' +
+                          ('bounded_read_ok' if success else 'diagnostic_unavailable'), output.getvalue())
+            self.assertNotIn(private, output.getvalue())
+            if success:
+                self.assertIn('OpenWrt project stage class: dependency_unsatisfied', output.getvalue())
+                self.assertIn('OpenWrt project stage package: csqtt', output.getvalue())
+
+    def test_project_stage_read_requires_complete_exact_error_in_checked_current_phase_log(self):
+        sentinel = ('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n').encode('ascii')
+        for phase, log in (('first_offline_install', ''),
+                           ('first_offline_install', native_vm.PROJECT_STAGE_ERROR + ' private-suffix'),
+                           ('first_offline_install', 'private-prefix ' + native_vm.PROJECT_STAGE_ERROR),
+                           ('bootstrap_and_signature_rejection', native_vm.PROJECT_STAGE_ERROR),
+                           ('native_runtime_dns_firewall_luci', native_vm.PROJECT_STAGE_ERROR)):
+            with self.subTest(phase=phase, log=log), mock.patch.object(native_vm, 'PHASE', phase), \
+                    mock.patch.object(native_vm.subprocess, 'run', side_effect=[
+                        subprocess.CompletedProcess(['ssh'], 1, stdout='', stderr=native_vm.PROJECT_STAGE_ERROR),
+                        subprocess.CompletedProcess(['ssh'], 0, stdout=log.encode('utf-8') + sentinel, stderr=b'')
+                    ]) as transport, contextlib.redirect_stdout(io.StringIO()) as output:
+                with self.assertRaises(ValueError):
+                    native_vm.run_remote(['ssh', 'synthetic-host'], 'false')
+            self.assertEqual(transport.call_count, 2)
+            self.assertNotIn('project stage diagnostics:', output.getvalue())
 
     def test_nested_solver_classification_has_only_fixed_classes_and_source_known_packages(self):
         private = 'private-password-key-url-identity'
@@ -183,6 +309,68 @@ class VmAcceptanceTest(unittest.TestCase):
         self.assertIn('sh -x install.sh ci-private', native_vm.PRIVATE_TRACE)
         self.assertIn('${LINENO:-0}', native_vm.PRIVATE_TRACE)
         self.assertNotIn('sh -x', (ROOT / 'scripts/test-public-command.py').read_text(encoding='utf-8'))
+
+    def test_platform_probe_trace_classifies_blank_invalid_valid_and_known_family_manager_only(self):
+        private = 'private-password-key-url-identity'
+        installer = (ROOT / 'install.sh').read_text(encoding='utf-8').splitlines()
+        fields = {'CS_PROFILE': 'profile_id', 'CS_ARCH': 'architecture',
+                  'CS_FAMILY': 'family', 'CS_PM': 'package_manager'}
+        def traced(values):
+            lines = []
+            for name, field in fields.items():
+                assignment = name + '=$(csqtt_j "$CS_TMP/probe.json" \'@.' + field + '\')'
+                number = next(number for number, line in enumerate(installer, 1) if assignment in line)
+                lines.append('+CSQTT_XTRACE:' + str(number) + ': ' + name + '=' + shlex.quote(values[name]))
+            return '\n'.join(lines)
+        cases = (({'CS_PROFILE': '', 'CS_ARCH': '', 'CS_FAMILY': '', 'CS_PM': ''},
+                  {'CS_PROFILE': 'blank', 'CS_ARCH': 'blank', 'CS_FAMILY': 'blank', 'CS_PM': 'blank'}),
+                 ({'CS_PROFILE': 'official-profile', 'CS_ARCH': 'x86_64', 'CS_FAMILY': 'official', 'CS_PM': 'opkg'},
+                  {'CS_PROFILE': 'valid', 'CS_ARCH': 'valid', 'CS_FAMILY': 'official', 'CS_PM': 'opkg'}),
+                 ({'CS_PROFILE': private + '/invalid', 'CS_ARCH': private + ' invalid',
+                   'CS_FAMILY': private, 'CS_PM': private},
+                  {'CS_PROFILE': 'invalid', 'CS_ARCH': 'invalid', 'CS_FAMILY': 'unrecognized', 'CS_PM': 'unrecognized'}),
+                 ({'CS_PROFILE': '.invalid', 'CS_ARCH': '-invalid', 'CS_FAMILY': 'official', 'CS_PM': 'apk'},
+                  {'CS_PROFILE': 'invalid', 'CS_ARCH': 'invalid', 'CS_FAMILY': 'official', 'CS_PM': 'apk'}),
+                 ({'CS_PROFILE': 'x' * 201, 'CS_ARCH': 'aarch64_cortex-a53', 'CS_FAMILY': 'official', 'CS_PM': 'apk'},
+                  {'CS_PROFILE': 'invalid', 'CS_ARCH': 'valid', 'CS_FAMILY': 'official', 'CS_PM': 'apk'}))
+        for values, expected in cases:
+            with self.subTest(expected=expected):
+                diagnostic = native_vm.installer_diagnostics(traced(values))
+                self.assertEqual(diagnostic['platform_trace'], expected)
+                self.assertNotIn(private, str(diagnostic))
+        values = {'CS_PROFILE': 'official-profile', 'CS_ARCH': 'x86_64', 'CS_FAMILY': 'official', 'CS_PM': 'opkg'}
+        trace = traced(values)
+        unobserved = {name: 'unobserved' for name in fields}
+        for text in (re.sub(r'CSQTT_XTRACE:[0-9]+:', 'CSQTT_XTRACE:1:', trace),
+                     trace.replace(': CS_', ': echo CS_'),
+                     '+CSQTT_XTRACE:1: csqtt_portable_cleanup\n' + trace):
+            self.assertEqual(native_vm.installer_diagnostics(text)['platform_trace'], unobserved)
+        # Multiple assignment xtrace formats are accepted only at the source line
+        # that contains each individual probe assignment.
+        grouped = {}
+        for line in trace.splitlines():
+            prefix, assignment = line.rsplit(': ', 1)
+            grouped.setdefault(prefix, []).append(assignment)
+        combined = '\n'.join(prefix + ': ' + ' '.join(assignments) for prefix, assignments in grouped.items())
+        self.assertEqual(native_vm.installer_diagnostics(combined)['platform_trace'],
+                         {'CS_PROFILE': 'valid', 'CS_ARCH': 'valid', 'CS_FAMILY': 'official', 'CS_PM': 'opkg'})
+
+    def test_platform_probe_trace_public_output_contains_only_fixed_enums(self):
+        private = 'private-password-key-url-identity'
+        installer = (ROOT / 'install.sh').read_text(encoding='utf-8').splitlines()
+        number = next(number for number, line in enumerate(installer, 1)
+                      if 'CS_PROFILE=$(csqtt_j "$CS_TMP/probe.json" \'@.profile_id\')' in line)
+        trace = '+CSQTT_XTRACE:' + str(number) + ': CS_PROFILE=' + private + '\n'
+        sentinel = ('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n').encode('ascii')
+        with mock.patch.object(native_vm, 'PHASE', 'bootstrap_and_signature_rejection'), \
+                mock.patch.object(native_vm.subprocess, 'run', side_effect=[
+                    subprocess.CompletedProcess(['ssh'], 1, stdout='', stderr=''),
+                    subprocess.CompletedProcess(['ssh'], 0, stdout=trace.encode('utf-8') + sentinel, stderr=b'')]), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            with self.assertRaises(ValueError):
+                native_vm.run_remote(['ssh', 'synthetic-host'], 'false')
+        self.assertIn('OpenWrt installer platform trace: CS_PROFILE=valid', output.getvalue())
+        self.assertNotIn(private, output.getvalue())
 
     @unittest.skipUnless(SH, 'A real POSIX shell is required for private xtrace classification')
     def test_real_private_trace_keeps_commands_values_and_cleanup_out_of_public_output(self):

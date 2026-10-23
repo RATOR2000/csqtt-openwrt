@@ -38,11 +38,34 @@ requires a fresh candidate after diagnostic proof; STATUS alone never does.
 Exact metadata: .work/preview.10/candidate.json; source/package/evidence must bind
 to frozen SHA. No GITHUB_SHA override or old diagnostic proof promotion.
 
-FIRST UNFINISHED ACTION: validate exact kernel-feed discovery fix with short
-diagnostic15 (workflow .work/preview.10/probe-workflow-v15.yml), then freeze and
+FIRST UNFINISHED ACTION: finish focused native probe/solver diagnostics, run
+diagnostic16 (workflow .work/preview.10/probe-workflow-v16.yml), then freeze and
 run fresh exact-source qualification. Diagnostic reuses compiled06c packages;
 it MUST NOT qualify a release or override evidence source. No client rebuild
 needed to diagnose authenticated feed cache and both native VM transactions.
+Fix checkpoint pushed3e599facb7f3d89a29efa3f48a11c302b7b79024,
+treea83b652d7d05abf6d6898499d539039770d7150e, local tree/fetch equality PASS.
+Diagnostic15 run40004512219/source53bedbed15a870bd6cda37dd6999b720f8276152
+completed: both authenticated dependency caches PASS;24cached51,25cached53.
+24VM120588878038 refused before signature marker: tuple guard/empty arch likely;
+probe reads arch.conf not present in pinned clean image. Nativeprint-architecture
+fix pending actual guest proof; tests must not fabricate required config files.
+25VM120588878363 strict wrongsignature PASS; first_offline_install refused native
+staged install (portableline731), stage.log needs bounded classified diagnostics.
+No native completePASS granted. Pinned SDK HOST tools only, compiled06c packages,
+no Rust rebuild; mismatched source/package diagnostics NEVER qualify release.
+General5regression
+run40004427785 tests actual3e599fix. Check these compactly, logs only on failure.
+Native probe fix implemented: successful native opkg print-architecture replaces
+arch.conf assumption; failed/partial/malformed/duplicate/mismatched query refuses.
+Focused PlatformMetadataTest3PASS/1WindowsBusyBoxskip; shell/compile/whitespace
+PASS. Generated install.sh refreshed and assemble-installer.py --check PASS.
+VM diagnostics classify source-known probe assignments and gated stage.log only:
+exact phase/error, checked8192B read/sentinel,1MiBscan, symlink refusal, fixed
+classes/package names. vm_acceptance_test.py41=38PASS/3Windowsnative-dd/symlink
+skips; py_compilePASS. Agent diagnostics_finish/native_failure_diagnostics both
+frozen/completed. Root owns remaining Git/CI/release. Fresh5h usage55% at18:44UTC;
+conserve tokens. Neither focused check nor diagnostic grants native releasePASS.
 -39996605422 attempt1 all6SDK compiled/privateDNS/ISA/TUN PASS, then generic
  dependency HTTP502. Attempt2 reproduced on24ARM120576950052/x86120576949514
  and25.12.6x86120576949698. Remaining jobs cancellation requested in GitHub UI;

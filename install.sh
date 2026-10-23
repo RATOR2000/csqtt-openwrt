@@ -94,6 +94,19 @@ csqtt_metadata_line() {
     awk 'NR==1 { sub(/\r$/, ""); if ($0 ~ "^[A-Za-z0-9_.+:/,@-]+$" && length($0)<=160) print; exit }' "$1"
 }
 csqtt_has() { if command -v "$1" >/dev/null 2>&1; then printf true; else printf false; fi; }
+csqtt_opkg_arch() (
+    # Query the native/default configuration, including compiled-in arches.
+    # Never parse partial stdout from a failed query or inherit installer roots.
+    unset OPKG_CONF_DIR OFFLINE_ROOT
+    CS_ARCH_QUERY=$(opkg print-architecture 2>/dev/null) || exit 1
+    printf '%s\n' "$CS_ARCH_QUERY" | awk -v wanted="$1" '
+      { raw=$0; gsub(/[ \t]/,"",raw);
+        if(raw ~ "[^A-Za-z0-9_.+~-]" || NF!=3 || $1!="arch" ||
+           $2 !~ "^[A-Za-z0-9][A-Za-z0-9_.+~-]*$" || $3 !~ /^[0-9]+$/ || length($3)>9) {bad=1;next}
+        if($2==wanted) {matches++;priority=$3}
+      }
+      END {if(bad || matches!=1 || priority+0<=0)exit 1;print wanted}'
+)
 csqtt_free_kib() {
     df -Pk "$1" 2>/dev/null | awk 'NR==2 && $4 ~ /^[0-9]+$/ { print $4; found=1 } END { if (!found) print 0 }'
 }
@@ -127,7 +140,7 @@ csqtt_probe_main() (
     elif [ "$CS_APK:$CS_OPKG" = false:true ]; then
         CS_PM=opkg CS_FORMAT=ipk
         CS_KERNEL_PACKAGE=$(awk 'BEGIN { RS=""; FS="\n" } /(^|\n)Package: kernel(\n|$)/ { for(i=1;i<=NF;i++) if($i ~ /^Version: [A-Za-z0-9_.+~-]+$/) { print substr($i,10); exit } }' /usr/lib/opkg/status 2>/dev/null || true)
-        CS_OPKG_ARCH=$(awk -v wanted="$CS_ARCH" '$1=="arch" && $2==wanted { print $2; exit }' /etc/opkg.conf /etc/opkg/arch.conf 2>/dev/null || true)
+        CS_OPKG_ARCH=$(csqtt_opkg_arch "$CS_ARCH") || CS_OPKG_ARCH=
         [ "$CS_OPKG_ARCH" = "$CS_ARCH" ] || CS_ARCH=
     fi
     case "$CS_KERNEL_PACKAGE" in *[!A-Za-z0-9_.+~-]*) CS_KERNEL_PACKAGE= ;; esac

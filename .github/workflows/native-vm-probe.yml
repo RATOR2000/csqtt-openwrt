@@ -1,4 +1,4 @@
-name: Diagnostic authenticated dependency cache and VM (never release evidence)
+name: Diagnostic native platform and staged solver (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]
