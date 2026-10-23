@@ -63,6 +63,12 @@ else if (command.startsWith('service:')) {
   if(command==='apk' && !staged && ['add','del'].includes(action) && !args.includes('--preserve-env')) fail('APK would strip lifecycle ownership from maintainer scripts');
   if (action === 'update') {
     if(scenario === 'bootstrap_signature') fail('Native feed signature rejected');
+    if(command === 'opkg') {
+      const lists=native(opt('--lists-dir'));
+      fs.mkdirSync(lists,{recursive:true});
+      fs.writeFileSync(path.join(lists,'openwrt_base'),'authenticated official fixture index');
+      fs.writeFileSync(path.join(lists,'openwrt_base.sig'),'authenticated official fixture signature');
+    }
     process.exit(0);
   }
   if (action === 'verify') {
@@ -92,6 +98,13 @@ else if (command.startsWith('service:')) {
     if (staged && command === 'apk' && !args.includes('--no-scripts')) fail('Staging scripts enabled');
     if (staged && scenario === 'dependency') fail('Dependency unavailable offline');
     if (staged && bootstrap && scenario === 'bootstrap_signature') fail('Native feed signature rejected');
+    if(command === 'opkg' && staged && bootstrap) {
+      // Native opkg prefixes even absolute lists_dir paths with offline_root.
+      const lists=path.join(base,(opt('--lists-dir') || '').replace(/^\/+/,''));
+      for(const [file,content] of [['openwrt_base','authenticated official fixture index'],['openwrt_base.sig','authenticated official fixture signature']]) {
+        if(!fs.existsSync(path.join(lists,file)) || fs.readFileSync(path.join(lists,file),'utf8') !== content) fail('Authenticated lists missing from native offline root');
+      }
+    }
     const packages = args.slice(args.indexOf(action)+1);
     for (const file of packages) {
       if (file.includes('=')) { const [name, version] = file.split('='); db[name]=version; continue; }

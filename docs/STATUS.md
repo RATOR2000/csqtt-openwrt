@@ -31,40 +31,54 @@ not a guaranteed percentage/date. Asked to conserve5h quota. Fresh app snapshot:
 and completed, not assumed correct. diagnostics_finish completed/froze console helper/drivers/contracts. No active
 subagent ownership; other old agents completed/errored. Recheck liveness.
 
-Current devdb558774c294c85d1ec2f12cf18421b97a1cd95e,
-tree46adf66ad2d4659dd34dca8b66f2271ad9abc7fa. Source checkpoint pushed through
+Current dev1223a8abbcca4654bfd2a9b9a1526c0f95fda19e,
+tree062a8f18eb9be0c96abd3ea8cbdc3cae39564c2e. Source checkpoint pushed through
 connector, credential-free fetch and tree equality PASS. Build still4f21dbf
 (failed/superseded candidate). Preview10 NOT published; preview9/tag/assets
 immutable. Main README remains2lines; existing attached draft PR#1 is future
 delivery, no duplicate PR/schedule. Owner installs personally, no SSH mutation.
 
-FIRST UNFINISHED ACTION: launch/read VM-only diagnostic12 using
-.work/preview.10/probe-workflow-v12.yml after this parser checkpoint/push.
-Diagnostic11 run39990262937/source ed0d08d85b72e2ccbd013ba77efeeae8f83bf66c,
-job120539909201 FAILED the new actual BusyBox host test: escaped slash inside
-literal classes also admitted BACKSLASH on BusyBox; opkg field splitting hid
-trailing CR. This caught real parser differences before any VM installation.
-All four filters now use dynamic regexp STRINGS (same exact allowlists, no slash
-literal lexer ambiguity); opkg additionally validates raw line after removing
-only permitted spaces/tabs, so CR/FF/VT cannot disappear during field splitting.
-Readonly native router awk verification (stdin only, no files/services/config
-writes): dynamic token accepts x86/64/rejects backslash; dynamic feed likewise;
-16 exact production feed cases PASS, stderr empty (valid official + foreign/
-backslash/CR/FF/VT/control/query refusals, both PM formats). Windows full platform
-16tests15PASS/1explicitBBskip; Linux BB mandatory. Generated installer synced.
-Diagnostic10 run39988985205/source d32ff26cad287a459131b079b8e33da2533e26bb,
-job120535521156: boot/UID0/provision/SSH/bounded private reader and Linux image/
-disk/30VM/publiccommand host tests PASS; failed early metadata parser, source81.
-Original BusyBox literal regex failure proved by readonly router tests; local
-GNU awk accepted it. First root Windows test rerun caught absent bareawk PATH
-(exit127); test wrapper now uses resolved AWK, complete rerun PASS. No install,
-config, network or service changes on owner router. No secrets printed.
-Diagnostic12 runs BB boundary tests then actual clean guest installer using old
-9358 SDK24 artifact only as fixture. No Rust/SDK/migration rebuild. Diagnostic9
-migration already PASS. These old binaries NEVER release qualification; no
-GITHUB_SHA override. After clean-install/native guest/repeat proof freeze exact
-source candidate, final6SDK/3VM +5regression; then signatures/draft/public assets/
-literal README command/main PR gates below. No scheduled tasks. Agents frozen.
+FIRST UNFINISHED ACTION: launch/read diagnostic13 from
+.work/preview.10/probe-workflow-v13.yml after this checkpoint/push. Two parallel
+clean VMs:24.10.8 old9358 SDK fixture run39839530729/artifact12454216980 and
+25.12.6 old4f21 SDK fixture run39946222767/artifact12499657002 (15,311,357bytes,
+ZIP SHA687d9fc0f616f1c6901b4381e8b340da52d500f4d6661a8237655475a5669024).
+This tests BOTH PM bootstrap paths before another expensive6SDK rebuild; no
+project binaries rebuilt and diagnostic source/package mismatch NEVER qualifies
+release. No GITHUB_SHA override. Migration9 already PASS; do not repeat it here.
+
+Diagnostic12 run39990760246/source49f610f5ae07d9ae9f4d58c15095d53a0f6802f3,
+job120541593877 FAILED native opkg bootstrap solver (portable source118 at12).
+Actual Linux BusyBox16/image6/disk17/VM30/public7 host contracts PASS. Actual
+24.10.8 boot/UID0/network/SSH, checked private reader, package inventory including
+held entries and signed official feed update PASS; strict project signature
+rejection NOT reached and therefore not counted. Native source confirmed opkg
+always prefixes lists_dir with offline_root (opkg_conf.c541-545):
+https://lxr.openwrt.org/source/opkg-lede/libopkg/opkg_conf.c
+Existing update wrote outside that root. Copy only already authenticated lists
+into root/tmp/csqtt-bootstrap-lists, pass rootrelative lists_dir to offline solver.
+Focused actual-shell fixture bootstrap SUCCESS, deliberately old list argument
+FAILS before live mutation with exact inventory preserved. Native result awaits13.
+No trust/inventory/lifecycle checks weakened. Generated installer synced.
+
+Private VM diagnostic now reads the exact bootstrap/solver.log only after that
+fixed error: current-phase/source-line CS_TMP assignment exactlyonce, strict
+6alnum temp basename,<=1MiB discovery, symlink refusal, checked8KiB byte tail.
+Only fixed solver enums and two source-known package names print, or unavailable.
+LF/CRLF discovery checked; no rawpaths/logs/URLs/config/keys. Windows VM34tests
+32PASS/2explicitnative-dd/symlinkskips, public7PASS, shell/assemble/diffPASS.
+
+BusyBox parser differences fixed with dynamic regexp STRINGS for all4allowlists;
+opkg validates raw controls before field splitting. Actual readonly router awk
+16feedcases PASS (no files/service/config writes); Linux BB boundaries PASS12.
+Probe11 had caught unwanted backslash admission and hidden CR; those refusals
+remain tested. Original metadata failure isolated10 (GNU awk had accepted it).
+First Windows root test run caught runner PATH issue; resolved AWK wrapper PASS.
+No owner install/config/network/service changes. All agents frozen/completed.
+User quota snapshot17:00UTC:48%5h used/52%remaining, weekly39%; reset21:20UTC.
+Conserve by focused diagnostics and no unchanged/full log reads. No schedules.
+After both clean-install/nativeguest/repeat proofs, freeze exactsource candidate,
+final6SDK/3VM +5regression, then signed/public/literal README/main PR gates below.
 
 Diagnostic9 native migration already PASS; do not repeat for console-only edits.
 Both are diagnostic ONLY, old binaries differ from current source: NEVER release
@@ -139,8 +153,8 @@ Current implemented fixes, remaining native gates:
   Corrected exact hashed official-key filenames. Actual native diagnostic9 PASS;
   final exact-source migration remains required.
 
-Focused final host checks: migration7/7 PASS, VM30tests29PASS/1explicit Windows
-native-dd SKIP, public-command7/7, earlier dependency8/image6/release9 PASS.
+Focused final host checks: migration7/7 PASS, VM34tests32PASS/2explicit Windows
+native-dd/symlink SKIPs, public-command7/7, dependency8/image6/release9 PASS.
 Disk17:15PASS/2Windows SKIP; actual Linux image/disk success separately above.
 Python compile, assemble-installer.py --check, shell and diff checks PASS.
 General/portable CI now include migration host contracts. Current source has NOT

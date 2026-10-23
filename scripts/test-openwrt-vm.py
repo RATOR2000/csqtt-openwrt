@@ -37,6 +37,20 @@ PHASE = 'host_preflight'
 SIGNATURE_REJECTION = 'CSQTT: Подпись выпуска недействительна'
 DIAGNOSTIC_READ_OK = 'CSQTT_PRIVATE_LOG_READ_OK'
 DIAGNOSTIC_LIMIT = 8192
+DIAGNOSTIC_SCAN_LIMIT = 1024 * 1024
+BOOTSTRAP_SOLVER_ERROR = 'CSQTT: Средства проверки недоступны без изменения системных пакетов'
+BOOTSTRAP_PACKAGES = ('openssl-util', 'jsonfilter')
+OPKG_SOLVER_ERRORS = {
+    'unknown_package': ('Unknown package ',),
+    'cannot_install': ('opkg_install_cmd: Cannot install package ',),
+    'dependency_unsatisfied': ('cannot find dependency ', 'Cannot satisfy the following dependencies'),
+    'architecture_mismatch': ('incompatible with the architectures configured',),
+    'download_failed': ('Failed to download ',),
+    'signature_rejected': ('Signature check failed', 'Signature verification failed'),
+    'file_read': ('Could not open ', 'Failed to open ', 'No such file or directory'),
+    'file_conflict': ('check_data_file_clashes:', 'already provided by package'),
+    'resource_limit': ('No space left on device',),
+}
 PRIVATE_TRACE = "PS4='+CSQTT_XTRACE:${LINENO:-0}: '; export PS4; sh -x install.sh ci-private"
 KNOWN_TOOLS = ('uclient-fetch', 'sha256sum', 'awk', 'tar', 'sync', 'du', 'mktemp', 'wc', 'sed', 'cut',
                'cat', 'cp', 'mkdir', 'rm', 'mv', 'rmdir', 'chmod', 'grep', 'sort', 'tr', 'date', 'sleep',
@@ -122,19 +136,71 @@ def installer_diagnostics(private):
             'trace_last_source_line': last_line}
 
 
-def private_log_read_command():
-    name = PRIVATE_PHASE_LOGS.get(PHASE)
-    if name is None:
-        return 'exit 1'
+def _private_log_size():
+    return ('n=$(wc -c < "$f") || exit 1; set -- $n; [ "$#" = 1 ] || exit 1; n=$1; '
+            'case "$n" in ""|*[!0-9]*) exit 1;; esac; ')
+
+
+def _private_log_tail():
     # Baseline BusyBox wc/dd suffice; tail -c is not a required capability.
     # The byte count and read must both succeed before the sentinel is emitted.
     # No earlier phase log may supply a reason for the current failure.
-    return ('f=/tmp/csqtt-native/' + name + '.private.log; [ -f "$f" ] || exit 1; '
-            'n=$(wc -c < "$f") || exit 1; set -- $n; [ "$#" = 1 ] || exit 1; n=$1; '
-            'case "$n" in ""|*[!0-9]*) exit 1;; esac; '
+    return ('[ -f "$f" ] && [ ! -L "$f" ] || exit 1; ' + _private_log_size() +
             'skip=0; [ "$n" -le 8192 ] || skip=$((n-8192)); '
             'dd if="$f" bs=1 skip="$skip" count=8192 2>/dev/null || exit 1; '
             'printf "\\n' + DIAGNOSTIC_READ_OK + '\\n"')
+
+
+def private_log_read_command():
+    name = PRIVATE_PHASE_LOGS.get(PHASE)
+    return 'exit 1' if name is None else 'f=/tmp/csqtt-native/' + name + '.private.log; ' + _private_log_tail()
+
+
+def bootstrap_solver_read_command():
+    """Discover one exact traced temporary root; read only its fixed solver log."""
+    name = PRIVATE_PHASE_LOGS.get(PHASE)
+    assignments = [number for number, line in enumerate((ROOT / 'install.sh').read_text(encoding='utf-8').splitlines(), 1)
+                   if line.strip() == 'CS_TMP=$(mktemp -d /tmp/csqtt-portable.XXXXXX)']
+    if name is None or len(assignments) != 1:
+        return 'exit 1'
+    traced = '^[+]+CSQTT_XTRACE:' + str(assignments[0]) + ': CS_TMP='
+    path_pattern = '^/tmp/csqtt-portable[.]' + '[A-Za-z0-9]' * 6 + '$'
+    # Read no package-selected path and never evaluate trace text as shell code.
+    # Discovery scans only a bounded completed phase log; it prints no log text.
+    program = ('{line=$0; sub(/\\r$/,"",line); total+=length(line)+1; '
+               'if(total>' + str(DIAGNOSTIC_SCAN_LIMIT) + '){bad=1;exit} '
+               'if(line ~ "' + traced + '"){count++;sub("' + traced + '","",line); '
+               'if(line !~ "' + path_pattern + '")bad=1;root=line}} '
+               'END{if(count!=1 || bad)exit 1;print root}')
+    return ('[ -d /tmp ] && [ ! -L /tmp ] && [ -d /tmp/csqtt-native ] && '
+            '[ ! -L /tmp/csqtt-native ] || exit 1; '
+            'f=/tmp/csqtt-native/' + name + '.private.log; [ -f "$f" ] && [ ! -L "$f" ] || exit 1; ' +
+            _private_log_size() + '[ "$n" -le ' + str(DIAGNOSTIC_SCAN_LIMIT) + ' ] || exit 1; '
+            'd=$(awk \'' + program + '\' "$f") || exit 1; '
+            '[ -d "$d" ] && [ ! -L "$d" ] && [ -d "$d/bootstrap" ] && '
+            '[ ! -L "$d/bootstrap" ] || exit 1; f="$d/bootstrap/solver.log"; ' + _private_log_tail())
+
+
+def read_private_diagnostic(ssh, command):
+    try:
+        result = subprocess.run(ssh + [command], capture_output=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    sentinel = ('\n' + DIAGNOSTIC_READ_OK + '\n').encode('ascii')
+    if (result.returncode != 0 or not result.stdout.endswith(sentinel) or
+            len(result.stdout) > DIAGNOSTIC_LIMIT + len(sentinel)):
+        return None
+    # Check the original byte bound before decoding a possibly partial UTF-8 tail.
+    return result.stdout[:-len(sentinel)].decode('utf-8', errors='replace')
+
+
+def bootstrap_solver_diagnostics(private):
+    """Expose fixed opkg classes and only requested, source-known package names."""
+    private = private[-DIAGNOSTIC_LIMIT:]
+    classes = [name for name, needles in OPKG_SOLVER_ERRORS.items() if any(needle in private for needle in needles)]
+    packages = [name for name in BOOTSTRAP_PACKAGES if re.search(
+        r'(?<![A-Za-z0-9_.+~-])' + re.escape(name) + r'(?=$|[^A-Za-z0-9_.+~-]|[.]\r?$)', private, re.MULTILINE)]
+    return {'classes': classes or ['unclassified_output' if private else 'empty_output'], 'packages': packages}
 
 
 def run_remote(ssh, command, timeout=600, check=True):
@@ -144,23 +210,12 @@ def run_remote(ssh, command, timeout=600, check=True):
         print(f'OpenWrt VM failure: stage={PHASE} exit={result.returncode}', flush=True)
         # Capture only bounded private diagnostics into host memory;
         # emit fixed enums, never package logs or configuration text.
-        try:
-            diagnostics = subprocess.run(ssh + [private_log_read_command()],
-                capture_output=True, timeout=15)
-        except (OSError, subprocess.SubprocessError):
-            diagnostics = None
-        sentinel = ('\n' + DIAGNOSTIC_READ_OK + '\n').encode('ascii')
-        if (diagnostics is None or diagnostics.returncode != 0 or
-                not diagnostics.stdout.endswith(sentinel) or
-                len(diagnostics.stdout) > DIAGNOSTIC_LIMIT + len(sentinel)):
+        log = read_private_diagnostic(ssh, private_log_read_command())
+        if log is None:
             print('OpenWrt guest diagnostics: diagnostic_unavailable', flush=True)
             private = result.stderr[-DIAGNOSTIC_LIMIT:]
         else:
             print('OpenWrt guest diagnostics: bounded_read_ok', flush=True)
-            # A bounded byte tail may begin inside a UTF-8 character. Validate
-            # transport framing before decoding so replacement cannot inflate
-            # the measured byte count and reject an otherwise valid read.
-            log = diagnostics.stdout[:-len(sentinel)].decode('utf-8', errors='replace')
             private = (log + result.stderr[-DIAGNOSTIC_LIMIT:])[-DIAGNOSTIC_LIMIT:]
         classified = installer_diagnostics(private)
         for line in classified['portable_error_lines']:
@@ -190,6 +245,17 @@ def run_remote(ssh, command, timeout=600, check=True):
         for reason, needles in reasons.items():
             if any(needle in private for needle in needles):
                 print('OpenWrt guest reason: ' + reason, flush=True)
+        if log is not None and re.search(r'(?m)^' + re.escape(BOOTSTRAP_SOLVER_ERROR) + r'\r?$', log):
+            nested = read_private_diagnostic(ssh, bootstrap_solver_read_command())
+            if nested is None:
+                print('OpenWrt bootstrap solver diagnostics: diagnostic_unavailable', flush=True)
+            else:
+                print('OpenWrt bootstrap solver diagnostics: bounded_read_ok', flush=True)
+                solver = bootstrap_solver_diagnostics(nested)
+                for category in solver['classes']:
+                    print('OpenWrt bootstrap solver class: ' + category, flush=True)
+                for package in solver['packages']:
+                    print('OpenWrt bootstrap solver package: ' + package, flush=True)
         raise ValueError('Disposable guest command failed; native acceptance was not granted')
     return result
 

@@ -9,6 +9,14 @@ jobs:
   diagnostic:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - release: '24.10.8'
+            artifact_run: 39839530729
+          - release: '25.12.6'
+            artifact_run: 39946222767
     steps:
       - uses: actions/checkout@v4
       - name: Disposable VM dependencies
@@ -24,8 +32,8 @@ jobs:
           python3 tests/release/public_command_test.py
       - uses: actions/download-artifact@v4
         with:
-          name: candidate-official-24.10.8-x86-64-x86_64
-          run-id: 39839530729
+          name: candidate-official-${{ matrix.release }}-x86-64-x86_64
+          run-id: ${{ matrix.artifact_run }}
           github-token: ${{ github.token }}
           path: .work/diagnostic-vm
       - name: Private fixture only, never publish or qualify these packages
@@ -35,4 +43,4 @@ jobs:
       - name: Diagnose actual pinned image preparation and guest installation
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
-        run: python3 scripts/test-openwrt-vm.py --directory .work/diagnostic-vm --profile official-24.10.8-x86-64-x86_64
+        run: python3 scripts/test-openwrt-vm.py --directory .work/diagnostic-vm --profile official-${{ matrix.release }}-x86-64-x86_64

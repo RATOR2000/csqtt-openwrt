@@ -279,7 +279,11 @@ csqtt_bootstrap() {
         done
         command -v usign >/dev/null || csqtt_portable_die 'В прошивке отсутствует usign для проверки официальных репозиториев'
         OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_TMP/bootstrap/opkg.conf" --lists-dir "$CS_TMP/bootstrap/lists" update > "$CS_TMP/bootstrap/update.log" 2>&1 || csqtt_portable_die 'Не прошла проверка подписанных репозиториев OpenWrt'
-        OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_TMP/bootstrap/opkg.conf" --lists-dir "$CS_TMP/bootstrap/lists" --cache "$CS_TMP/bootstrap/cache" --offline-root "$CS_TMP/bootstrap/root" install $CS_NEED > "$CS_TMP/bootstrap/solver.log" 2>&1 || csqtt_portable_die 'Средства проверки недоступны без изменения системных пакетов'
+        # Native opkg prefixes lists_dir with offline_root, even for an absolute
+        # argument. Copy the already authenticated lists into that private root.
+        mkdir -p "$CS_TMP/bootstrap/root/tmp/csqtt-bootstrap-lists"
+        cp -a "$CS_TMP/bootstrap/lists/." "$CS_TMP/bootstrap/root/tmp/csqtt-bootstrap-lists/"
+        OPKG_CONF_DIR="$CS_TMP/no-repositories" opkg --conf "$CS_TMP/bootstrap/opkg.conf" --lists-dir tmp/csqtt-bootstrap-lists --cache "$CS_TMP/bootstrap/cache" --offline-root "$CS_TMP/bootstrap/root" install $CS_NEED > "$CS_TMP/bootstrap/solver.log" 2>&1 || csqtt_portable_die 'Средства проверки недоступны без изменения системных пакетов'
     fi
     csqtt_inventory "$CS_TMP/bootstrap/root" > "$CS_TMP/bootstrap/after" || csqtt_portable_die 'Не удалось проверить состав средств проверки в изолированной базе'
     csqtt_preserve_inventory "$CS_TMP/bootstrap/before" "$CS_TMP/bootstrap/after" || csqtt_portable_die 'Установка средств проверки потребовала бы обновления системных пакетов'

@@ -37,6 +37,138 @@ if not SH:
 
 
 class VmAcceptanceTest(unittest.TestCase):
+    @contextlib.contextmanager
+    def nested_solver_fixture(self):
+        if not SH:
+            self.skipTest('A POSIX shell is required for checked nested discovery')
+        tools = {}
+        for name in ('wc', 'awk'):
+            path = shutil.which(name) or str(pathlib.Path(SH).with_name(name + '.exe'))
+            if not pathlib.Path(path).is_file():
+                self.skipTest('Native wc/awk are required for checked nested discovery')
+            tools[name] = pathlib.Path(path).as_posix()
+        with tempfile.TemporaryDirectory(prefix='csqtt-nested-') as temporary:
+            directory = pathlib.Path(temporary)
+            phase_log = directory / 'csqtt-native/install.private.log'
+            phase_log.parent.mkdir()
+            root = directory / 'csqtt-portable.Ab1234'
+            (root / 'bootstrap').mkdir(parents=True)
+            (root / 'bootstrap/solver.log').write_text('synthetic-private-solver', encoding='utf-8')
+            source = (ROOT / 'install.sh').read_text(encoding='utf-8').splitlines()
+            line = next(number for number, text in enumerate(source, 1)
+                        if text.strip() == 'CS_TMP=$(mktemp -d /tmp/csqtt-portable.XXXXXX)')
+            trace = '+CSQTT_XTRACE:' + str(line) + ': CS_TMP=' + root.as_posix() + '\n'
+            phase_log.write_text(trace, encoding='utf-8')
+            with mock.patch.object(native_vm, 'PHASE', 'first_offline_install'):
+                command = native_vm.bootstrap_solver_read_command().replace('/tmp', directory.as_posix())
+            aliases = ''.join(name + '() { ' + shlex.quote(path) + ' "$@"; }; ' for name, path in tools.items())
+            # The existing native-dd test checks byte reading. This strict shell
+            # double lets Windows independently exercise discovery and refusal.
+            reader = ('dd() { [ "$#" = 4 ] && [ "$1" = ' +
+                      shlex.quote('if=' + (root / 'bootstrap/solver.log').as_posix()) +
+                      ' ] && [ "$2" = bs=1 ] && [ "$3" = skip=0 ] && [ "$4" = count=8192 ] || return 99; '
+                      'printf "%s\\n" "Unknown package openssl-util"; }; ')
+            def run(prefix=''):
+                return subprocess.run([SH], input=aliases + reader + prefix + command,
+                                      encoding='utf-8', capture_output=True, timeout=10)
+            yield directory, root, phase_log, trace, run
+
+    def test_nested_solver_discovery_checks_exact_source_assignment_and_bounded_scan(self):
+        with self.nested_solver_fixture() as (directory, root, log, trace, run):
+            for ending in ('\n', '\r\n'):
+                log.write_text(trace.rstrip('\n') + ending, encoding='utf-8', newline='')
+                result = run()
+                self.assertEqual(result.returncode, 0)
+                self.assertTrue(result.stdout.endswith('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n'))
+            variants = ('', trace + trace, trace.replace('CS_TMP=', 'OTHER_TMP='),
+                        trace.replace('Ab1234', 'Ab1234/escape'), trace.replace('Ab1234', 'A_1234'),
+                        trace.replace('CSQTT_XTRACE:', 'CSQTT_XTRACE:9'),
+                        trace + 'x' * native_vm.DIAGNOSTIC_SCAN_LIMIT)
+            for text in variants:
+                with self.subTest(text=text[:80]):
+                    log.write_text(text, encoding='utf-8')
+                    result = run()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn(native_vm.DIAGNOSTIC_READ_OK, result.stdout)
+            log.write_text(trace, encoding='utf-8')
+            for tool in ('wc', 'awk', 'dd'):
+                with self.subTest(tool=tool):
+                    result = run(tool + '() { return 1; }; ')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn(native_vm.DIAGNOSTIC_READ_OK, result.stdout)
+            with mock.patch.object(native_vm, 'PHASE', 'host_preflight'):
+                self.assertEqual(native_vm.bootstrap_solver_read_command(), 'exit 1')
+
+    def test_nested_solver_reader_refuses_symlinked_log_and_each_directory(self):
+        with self.nested_solver_fixture() as (directory, root, log, trace, run):
+            for path in (root / 'bootstrap/solver.log', root / 'bootstrap', root, log, log.parent):
+                backing = path.with_name(path.name + '-backing')
+                path.rename(backing)
+                try:
+                    try:
+                        path.symlink_to(backing, target_is_directory=backing.is_dir())
+                    except OSError:
+                        if sys.platform == 'win32':
+                            self.skipTest('Windows symlink privilege unavailable; Linux CI exercises every path guard')
+                        raise
+                    result = run()
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn(native_vm.DIAGNOSTIC_READ_OK, result.stdout)
+                finally:
+                    if path.is_symlink():
+                        path.unlink()
+                    backing.rename(path)
+
+    def test_nested_solver_classification_has_only_fixed_classes_and_source_known_packages(self):
+        private = 'private-password-key-url-identity'
+        text = ("Unknown package 'openssl-util'.\n * opkg_install_cmd: Cannot install package jsonfilter.\n"
+                'Could not open /private/' + private + '\nUnknown package ' + private + '\n')
+        result = native_vm.bootstrap_solver_diagnostics(text)
+        self.assertEqual(result['classes'], ['unknown_package', 'cannot_install', 'file_read'])
+        self.assertEqual(result['packages'], ['openssl-util', 'jsonfilter'])
+        self.assertNotIn(private, str(result))
+        source = (ROOT / 'scripts/portable-install.sh').read_text(encoding='utf-8')
+        for name in native_vm.BOOTSTRAP_PACKAGES:
+            self.assertIn(name, source)
+        self.assertIn("csqtt_portable_die '" + native_vm.BOOTSTRAP_SOLVER_ERROR.removeprefix('CSQTT: ') + "'", source)
+        self.assertEqual(native_vm.bootstrap_solver_diagnostics('private-openssl-util-package')['packages'], [])
+        self.assertEqual(native_vm.bootstrap_solver_diagnostics('jsonfilter.private-package')['packages'], [])
+        self.assertEqual(native_vm.bootstrap_solver_diagnostics(private)['classes'], ['unclassified_output'])
+        self.assertEqual(native_vm.bootstrap_solver_diagnostics('')['classes'], ['empty_output'])
+
+    def test_nested_solver_transport_checks_framing_status_bound_and_never_prints_private_values(self):
+        private = 'private-password-key-url-identity'
+        sentinel = ('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n').encode('ascii')
+        main = subprocess.CompletedProcess(['ssh'], 0,
+                 stdout=native_vm.BOOTSTRAP_SOLVER_ERROR.encode('utf-8') + sentinel, stderr=b'')
+        body = ("Unknown package 'openssl-util'.\nCould not open /private/" + private).encode('utf-8')
+        cases = ((subprocess.CompletedProcess(['ssh'], 0, stdout=body + sentinel, stderr=b''), True),
+                 (subprocess.CompletedProcess(['ssh'], 1, stdout=body + sentinel, stderr=body), False),
+                 (subprocess.CompletedProcess(['ssh'], 0, stdout=body, stderr=body), False),
+                 (subprocess.CompletedProcess(['ssh'], 0, stdout=b'x' * (native_vm.DIAGNOSTIC_LIMIT + 1) + sentinel,
+                                              stderr=body), False),
+                 (subprocess.TimeoutExpired(private, 15), False))
+        for nested, success in cases:
+            with self.subTest(success=success, kind=type(nested).__name__), \
+                    mock.patch.object(native_vm, 'PHASE', 'first_offline_install'), \
+                    mock.patch.object(native_vm.subprocess, 'run', side_effect=[
+                        subprocess.CompletedProcess(['ssh'], 1, stdout='', stderr=''), main, nested]) as transport, \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                with self.assertRaises(ValueError):
+                    native_vm.run_remote(['ssh', 'synthetic-host'], 'false')
+            self.assertEqual(transport.call_count, 3)
+            command = transport.call_args_list[-1].args[0][-1]
+            self.assertIn('/bootstrap/solver.log', command)
+            self.assertNotIn('eval', command)
+            self.assertIn('OpenWrt bootstrap solver diagnostics: ' +
+                          ('bounded_read_ok' if success else 'diagnostic_unavailable'), output.getvalue())
+            self.assertNotIn(private, output.getvalue())
+            self.assertNotIn('/private/', output.getvalue())
+            if success:
+                self.assertIn('OpenWrt bootstrap solver class: unknown_package', output.getvalue())
+                self.assertIn('OpenWrt bootstrap solver class: file_read', output.getvalue())
+                self.assertIn('OpenWrt bootstrap solver package: openssl-util', output.getvalue())
+
     def test_private_trace_classification_uses_fixed_functions_and_stops_before_cleanup(self):
         private = 'private_secret_command_key_url'
         trace = ('+CSQTT_XTRACE:40: csqtt_portable_main ' + private + '\n'
