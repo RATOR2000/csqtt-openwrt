@@ -1,6 +1,6 @@
 # Development status — resume here
 
-Updated 2026-10-24. Read this first, then IMPLEMENTATION.md.
+Updated 2026-10-25. Read this first, then IMPLEMENTATION.md.
 Files, Git and current router evidence are authoritative. Preserve owner settings.
 Older detailed history is retained in Git at c509a1d1ad8d2126b86c2a1e502e46840b92cf86:
 https://github.com/RATOR2000/csqtt-openwrt/blob/c509a1d1ad8d2126b86c2a1e502e46840b92cf86/docs/STATUS.md
@@ -25,169 +25,55 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-Preview10 is NOT published/ready. Owner installs personally. No router SSH,
-configuration/service mutation, reboot or Codex scheduled task this turn.
-Preserve preview9. DraftPR#1/main README await final public-command proof.
-Historical diagnostics23-30:
-https://github.com/RATOR2000/csqtt-openwrt/blob/f4e6bdca58277e9d1ed3e56eb49a1f6ca5b83ab0/docs/STATUS.md
+25Oct: both diagnostic runtime scenarios now PASS. Preview10 is not yet published.
+Owner priority GL-MT6000 on official25.12.6, ARM64/filogic. Owner installs personally;
+no SSH mutations, reboot or Codex schedules. Preserve immutable preview9.
 
-FIRST UNFINISHED: inspect diagnostic34 ONLY24.10.8 with current runtime.uc AND
-current packaged platform-probe script overlay. Do NOT repeat successful25.12.6. Exact run/source IDs in
-.work/preview.10/candidate.json. Root owns Git/CI/release. Agents
-release_path_audit and lan_cause completed/frozen; no outstanding source owner.
-Recheck liveness before delegation. Use compact current-run status, no old logs.
+FIRST UNFINISHED: final exact-source official-preview + five general checks.
+This checkpoint freezes source for six SDK builds, three native x86 VMs,
+native ARM signed9 migration, signature/catalogue validation and draft10 creation.
+Current candidate IDs are in .work/preview.10/candidate.json. Root owns Git/CI/release;
+release_docs_audit owns read-only final user-documentation review. Other agents
+completed/frozen; recheck liveness before delegation. No duplicate CI launches.
 
-Dev f4e6bdca58277e9d1ed3e56eb49a1f6ca5b83ab0,
-tree18f4149f87ed04bec04190577f4b515d11b9118f; local/fetch equal.
-General40112405377 on e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d ALL5SUCCESS:
-checks/core/native-policy/android/openwrt. Do not poll or rerun for docs-only.
-Production code unchanged since6545: APK RAM staging acknowledgement isolated
-from live install, and has_control lexical binding fixed; general/native
-regressions and both diagnostic installations/status/RPC have passed.
+Completed diagnostics (mixed payloads, NOT release qualification):
+-25.12.6 run40116109265/job120937603549 FULLPASS.
+-24.10.8 run40117458738/job120941624649 FULLPASS.
+Both boot pinned clean firmware and pass signed install/signature rejection,
+status/RPC/LuCI login, UDP+TCP/localDNS/nftset, automatic LAN+Helper discovery,
+apply+DNS readiness, semantic IPv6/MAC reject and guarded routes, fw4reload,
+Stop, cleanup and reinstall with preserved configs/manual18. These reuse06c
+compiled payloads with current runtime.uc (and current platform-probe for24);
+explicit diagnostic kinds cannot be promoted to final clean-VM evidence.
 
-Latest native diagnostic30 run40114548232/sourcefebec8e1be8a3372aa9cdc340315744cc9e858ac:
-25job120933017955 INSTALL/status/RPC/LuCI HTTP and ALL private-DNS checks PASS
-(UDP/TCP forwarding, nftset insertion, local DNS); next failure automatic_lan,
-guestsource407 scope_ready==1.24 outcome not yet read. No false runtime PASS.
-Root fixed earlier test-only problems: native uclient lacks-S; anonymous LuCI
-returns403 + login-requiredyes and full form; FIFO holds nc stdin until response;
-HTML end tags optional. Strict403/header/type/fullPOSTusername/password form,
-framing/length/128KiB/deadline checks remain. Generic403/200/500/malformed/truncated
-forms still refuse. Actual Linux BusyBox delayed-peer/no-early-FIN regression
-passed in diagnostic29 HOST58 tests ALLPASS. Host executable wrapper necessary
-because C execvp cannot call a shell function. No certificate/trust bypass.
+General40112405377 on e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d ALL5PASS.
+No production code changed after the existing fixes: isolated staged-APK tmpfs
+acknowledgement, ucode has_control binding, native opkg architecture query.
+The subsequent source changes correct the test harness without relaxing guards:
+stock LuCI403 login/form contract, bounded FIFO HTTP with real BusyBox regression,
+optional HTML end tags, netifd-owned empty LAN bridge, semantic same-rule nftJSON
+IPv6+exactMAC+reject including canonical icmpv6. Test failure diagnostics expose
+only fixed reasons/booleans/publicsource locations, no secrets or raw private logs.
+Node semantic tests, Linux native deadline/FIFO tests and actual guest proofs PASS.
+Historical exact debugging/checkpoints retained here (do not repeat old runs):
+https://github.com/RATOR2000/csqtt-openwrt/blob/9e1c8ccd243cdc3ea2b4f72feb6795f28694061c/docs/STATUS.md
 
-LAN failure concrete cause, verified against BOTH firmware-pinned netifd:
-25.12.6 cbb83a1857407a28a63dc09412a1f209195914ef;
-24.10.8 7901e66c5f273bceee8981bc8a0c8b0e60945f60.
-device_create_default adopts externally created bridge as simple device;
-system_if_clear_state deletes that pre-existing bridge. Static force_link is
-already default; musl regex supports\s, so neither guessed production change used.
-Fixture now declares UCI device type=bridge,name=br-csqtt-test,bridge_empty=1;
-netifd owns creation, no manual iplink bridge. Empty-bridge presence is explicit.
-Production discovery predicates remain unchanged. Fixed boolean LAN diagnostics
-(auto/present/up/proto/device/address/no_default/trusted) distinguish any next
-readiness failure without raw config/network dump. Privacy parser test PASS;
-actualAWK HTML-parser PASS0.668s, shell/Python/diff PASS; full native31 pending.
-Primary pinned sources:
-https://github.com/openwrt/netifd/blob/cbb83a1857407a28a63dc09412a1f209195914ef/system-linux.c
-https://github.com/openwrt/netifd/blob/7901e66c5f273bceee8981bc8a0c8b0e60945f60/system-linux.c
+Next after all final-source checks: inspect signed draft and source/package binding,
+publish prerelease10, verify every public asset with verify-published-release.py,
+then run literal README HTTPS command on clean24.10.8 and25.12.6 via existing
+public-command-check workflow. Only those PASS permit PR#1/main README delivery.
+Never reuse an existing tag or alter published9. Docs-only later checkpoints do
+not require refreezing/rebuilding the candidate. Physical/VK/Android/stable/boot7
+and old72h remain unverified; no unconditional all-routers claim.
 
-All diagnostic payloads are old06c compiled packages + current runtime.uc overlay
-AFTER install; explicit kind diagnostic_runtime_overlay, release_eligible=false.
-No clean/source-qualified final acceptance. Buildbranch still old failed06c.
-Only after BOTH diagnosticVM PASS: freeze exact final source withoutskipci; one
-official workflow handles6SDK/3x86VM/nativeARM signed9migration/signatures/catalogue
-and draft10; fresh general on same exact source. Docs-only later commits never
-force rebuild. Then inspect/publish -> independent public assets verifier ->
-literal README HTTPS command on clean24.10.8+25.12.6 -> PR#1/main README.
-Physical/VK/Android/stable/boot7/old72h remain unverified. No unattended schedules.
-Connector status occasionally lagged UI: compare one current-run browser snapshot
-if needed, then only completed bounded logs. Current browser tab handle ghTab in
-cua_repl, browser2/tab1, GitHub owner session available; connector lacks release
-publication endpoint, use UI only for final publication after all gates.
-Diagnostic31run40115346234/sourceedd7e50d327915ae7e61729eb9ac2af24bca3f4a:
-25job120935365710 now LAN/helper/manageapply/dns-ready PASS. Next assertion454
-literal 'meta nfproto ipv6' failed. policy.uc has NO diff06c..HEAD. Exact pinned
-nft1.1.6 source test tests/py/inet/reject.t proves canonicalization:
-meta nfproto ipv6 reject -> reject with icmpv6 port-unreachable; JSON removes
-meta match and retains reject.type=icmpv6. Archive SHA256
-372931bda8556b310636a2f9020adc710f9bab66f47efe0ce90bff800ac2530c.
-No production relaxation. Test now reads native nftJSON and requires SAME
-inet/csqtt/forward_guard rule with exact fixtureMAC equality + reject + IPv6
-evidence (explicit nfproto, EtherType, or canonical icmpv6 reject). Rejects any
-other MAC/table/chain, negation, absentverdict, or split evidence acrossrules.
-Node2 tests exercise extracted actualucodeSUT with12cases PASS; shell/diffPASS.
-Actualnativeucode/nft equivalence and remainingfw4/Stop/repeat acceptance pending32.
-Fixed guard boolean diagnostic only; no raw rules/table/config printed.
-Dev fbd59f2f857325684a35fff4868457b1375c1c87/treeebbbdb03 equal.
-Diagnostic32run40116109265/source04ffc5d9ea0baa52aaa237c527d7bcaa759e2775:
-25job120937603549 FULL DIAGNOSTIC PASS including first install, native status/RPC,
-LuCI login, UDP/TCP/nftset/localDNS, automaticLAN/Helper, actual apply/dnsready,
-semanticIPv6+MACreject, guarded routes, fw4reload, Stop, cleanup and repeat install
-with preserved4configs/manual18. Mixed-source evidence remains nonrelease.
-24job120937603899 failed manageapply at449, after LuCI/DNS/LAN pass. No ucode
-error surfaced because manage redirects actual error into known private RUNlogs.
-Next33 adds fixed public manage-stage enums from actual source error strings,
-reads only bounded8KiB known compile/dns-test/nft/firewall/dns-stop logs for fixed
-class/source markers, never rawconfig/identity/logs. Only24 matrix, no duplicate25.
-Dev d2a411d59b3cb5c671830f55bd5da02d56fa2a8c/tree7858f964 equal.
-Diagnostic33run40116681094/source07cef61f3a614e2073a2d13638be4358d8f4f963,
-24job120939296435 exactstage platform_qualification. Concrete reuse-fixture bug:
-old06c compiled package contains OLD scripts/platform-probe.sh (Makefile copies
-CSQTT_PLATFORM_PROBE into /usr/libexec/csqtt/platform-probe). That old script
-reads nonexistent /etc/opkg/arch.conf; installed grant uses latest embedded
-installer probe (native opkg print-architecture), so refreshed architecture
-mismatches grant. This production source fix ALREADY exists and has regression
-proof; runtime-only diagnostic overlay had missed the packaged probe. No new
-production change required. All openwrt files except runtime.uc unchanged06c..HEAD;
-platform-probe is the other installed-source delta, copied from scripts/ by build.
-Diagnostic34 overlays current runtime.uc AND current platform-probe only in
-private disposable guest, kind diagnostic_current_scripts_overlay, never release.
-25FULLPASS32 retained; next24 fullpolicy proof after correcting stale script.
-Dev3ab1aeaebb7188dcfc3a64df6a89198094ff44e9/treef6f67aab equal.
-Current5h window52%used at last check; economy priority, save next precise gate.
-
-Confirmed blockers/evidence (do not rerun old CI):
--24.10.8: actual signed install + strict wrongprojectsignature PASS repeatedly;
- runtime smoke fails ONLY prerequisites_tools -> fixed missingtool timeout.
- Diagnostic18 run40009117008/sourcedecdc35f5953221928b62b9639bc07cc32d89018,
- job120604594219. Both pinned rootfs archives lack timeout executable. Production
- does not use timeout; add test tooling after the clean install, preserve command
- deadlines/process-group cleanup, never add unnecessary production dependencies.
--25.12.6: wrongprojectsignature PASS, staged native APK command fails before live
- CSQTT mutation. Diagnostic17 run40007934424/sourcea0ba424f57d63638cffd6cb155f7f2d3dec92a87,
- job120600536738. Checked stage.log8192B tail unclassified; exact last source
- install.sh544 = apk --root ... --no-network --no-scripts add. Need the first
- bounded native output after this source-known command; long help may hide error.
- No forcedepends/allow-untrusted/no-scripts removal or signature/ABI bypass.
- Root implements source-bound <=8192B native head, <=1MiB scan, checked sentinel,
- symlink rejection and fixed classifications; native_head focusedPOSIX testPASS.
--Test-only C/Python deadline tool implemented: static host-built x86 ELF, SHA256
- checked transfer to private /tmp only AFTER successful installer; no firmware
- packages changed. Monotonic deadline/group TERM+KILL/status124; normal services
- retained. Agent vm_timeout completed/frozen; root owns remaining Git/CI/release.
- Local vm_timeout7=2PASS/5LinuxSKIP; VM43=40PASS/3WindowsSKIP; publiccommand7PASS,
- Python/shell/diffPASS. Linux native deadline tests wired to workflows, pending.
- Native head1focusedPOSIXtestPASS; <=8192B transport/1MiBscan/sourceknownAPK,
- missing/duplicate markers/oversize/nexttrace handled; no raw native output.
-
-Implemented preceding fixes and exact checks:
--Kernel feed discovery: all6 kmods/ HTML listings return502, exact files work.
- Strict profiles.json version/target/arch + directory VERSION-RELEASE-HASH and
- signed module ABI VERSION~HASH-rRELEASE. All6 actual metadata parsePASS;
- dependency17/17PASS. Actual native signed caches PASS (24=51,25=53deps).
--Platform probe uses successful native opkg print-architecture, not nonexistent
- arch.conf. Reject partial/malformed/mismatched queries. Actual24 installPASS.
--BusyBox dynamic-regexp fixes, opkg held states, copied authenticated offline
- lists, dependency-ordered planned removal, full own-ABI module closure/rollback
- baseline proof implemented. Module transaction12subcasesPASS342.992s (bothPMs
- install/existing/wrongABI/service rollback/SIGKILL-resume); no live process.
--Generated installer --check, source compilation/syntax/whitespacePASS.
- VM helper43tests:40PASS/3Windowsnative-dd/symlinkskips; missingtool expectation
- updated for test timeout. Head test
- checks first8192B, nexttrace stop, duplicate/missingmarker and oversizes refuse.
--Opkg command doubles updated for exact readonly nativequery; readonly2PM/opkg
- success/catalogue_signature/service_failure rollbackPASS. No production change.
--General9898run40006282226: core/android/native-policyPASS, checks failed old
- opkg-double assumption (nowfixed); openwrt skipped. NOT ALL5PASS.
--Prior06c general39996612862 ALL5PASS; official39996605422 compiled all6SDK and
- privateDNS/ISA/TUNPASS then dependency directory502. Attempt2 reproduced, cancelled
- remaining jobs. These are historical, not proof for new source. Do not poll them.
--Diagnostics15/16/17/18 all ended. No CI watcher or scheduled Codex task active.
-
-Next gates after diagnostic PASS: fresh exact-source6SDK,3nativeVM, native signed
-r9 migration and5generalchecks. Then inspect/publish new signed draft10, verify
-all public assets via verify-published-release.py, run literal tagged README
-command on24.10.8 AND25.12.6. Only both public VM PASS permits main README/PR#1
-final delivery. Preview9/tag/assets immutable. Physical router/VK/Android, stable
-boot7 and long duration remain separate. Do not call project ready before gates.
-
-Tooling: bundled Python
-C:/Users/Alexander/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe;
-Go .work/tools/go/bin; MSYS sh under bundled native/git/usr/bin/sh.exe.
-No local Linux/Rust/WSL/Docker; Linux/SDK through Actions. New window11%used at
-resume; conserve tokens, compact snapshots and bounded failed logs only.
+Push through GitHub connector. Export committed delta, preserve modes, verify
+remote/local tree equality, leased update_ref then credential-free fetch and
+same-tree local update-ref (no reset). Ordinary gitpush opens GCM OAuth.
+Connector status may lag UI; one current-run browser snapshot resolves this.
+Browser owner session available; no connector release-publish endpoint, so UI is
+final publication fallback after gates. Existing CUA ghTab/browser2/tab1 may be
+reused if live; read CUA documentation when a session has been reset/compacted.
+New five-hour window reset at this resume; latest quota used0%, no hidden schedule.
 
 ## Implemented source and verification scope
 
