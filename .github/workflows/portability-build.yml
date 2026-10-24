@@ -35,6 +35,7 @@ jobs:
           python3 tests/firmware/firmware_test.py
           python3 tests/firmware/resources_test.py
           python3 tests/release/release_test.py
+          python3 tests/release/draft_publication_test.py
           python3 tests/installer/installer_test.py
           python3 tests/installer/portable_test.py
           python3 tests/release/dependency_test.py

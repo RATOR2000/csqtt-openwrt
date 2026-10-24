@@ -8,6 +8,8 @@ import sys
 import tempfile
 import unittest
 
+from signing_test import PortableSigningTest
+
 REPO = pathlib.Path(__file__).resolve().parents[2]
 
 

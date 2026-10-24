@@ -43,7 +43,7 @@ def main():
     # Sign exact final manifest bytes before their hashes enter the catalogue.
     command('sign-portable-release.py', args.inputs)
     command('release-catalogue.py', args.inputs, *qualified, '--require-qualified')
-    command('sign-portable-release.py', args.inputs)
+    command('sign-portable-release.py', args.inputs, '--catalogue-only')
     args.output.mkdir(parents=True)
     for path in qualified:
         m = validate(load(path), path.parent)
@@ -61,6 +61,7 @@ def main():
         shutil.copyfile(args.inputs / name, args.output / name)
     shutil.copyfile(ROOT / 'install.sh', args.output / 'install.sh')
     shutil.copyfile(ROOT / 'release/csqtt-public.pem', args.output / 'csqtt-public.pem')
+    command('sign-portable-release.py', args.output, '--verify-only')
     notes = ('Экспериментальный CSQTT для официальной OpenWrt: установка одной командой и мастер настройки в LuCI. '
              'Установщик выбирает подписанный комплект, проверяет совместимость, устанавливает зависимости и сохраняет настройки. '
              'Штатные DHCP/DNS остаются на месте; для CSQTT используется отдельный DNS-процесс.\n\n'

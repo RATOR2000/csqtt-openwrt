@@ -25,74 +25,65 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-25Oct: both diagnostic runtime scenarios now PASS. Preview10 is not yet published.
-Owner priority GL-MT6000 on official25.12.6, ARM64/filogic. Owner installs personally;
-no SSH mutations, reboot or Codex schedules. Preserve immutable preview9.
+25Oct current five-hour deadline: publish verified preview10 + literal installation
+command, owner priority GL-MT6000 official25.12.6. Owner installs personally; no
+SSH mutations/reboot/Codex schedules. Preserve all published tags/assets, especially9.
 
-FIRST UNFINISHED: monitor only final exact-source runs below; no new build.
-Frozen source d62af169f1f811ab534d9ef8769ca7c817cf0c9d,
-tree0309eb76f0e917a8f39c076726fd9e83720de215.
-Official40135841236: contracts/native-policy and ALL SIX SDK jobs PASS, including
-native ARM signed9 migration. Fresh nativeVM25.12.6/job121004995525 PASS; nativeVM
-24.10.8/job121004995557 and25.12.5/job121004995511 active. These are exact-source
-fresh packages with no diagnostic overlays. General40135840918 ALL FIVE PASS.
-Next remaining: other twoVMs -> signed draft -> Helper3files -> publish/public
-verifier -> two literal command VMs -> mainREADME/PR#1. Do not rebuild frozenD62.
-Never refreeze due to this docs-only checkpoint. Buildbranch remains frozenD62.
+FIRST UNFINISHED: new exact-source qualification after packaging-signature fix.
+Root owns Git/CI/release. signing_fix and release_docs_audit completed/frozen;
+no outstanding file owner. Recheck liveness before delegation.
+Old frozen d62af169f1f811ab534d9ef8769ca7c817cf0c9d PASSED all6SDK/3nativeVM,
+native ARM signed9 migration and all5general: official40135841236/general40135840918.
+It produced UNPUBLISHED draft10 id423017524, targetd62, 414assets, no public tag.
+Independent local verification caught a packaging-only bug before publication:
+prepare signed manifests -> catalogue captured signature hashes -> second signer
+call re-signed ECDSA manifests, making all6 catalogue signature descriptors stale.
+The signatures themselves verify; their signed descriptors do not. DO NOT publish
+that draft or use old signed artifact12577604118 as final release.
 
-Exact-source Android Helper prepared from general artifact12576903574, verified
-ZIP SHA2561d448c8d969b4281f47d422d24f7192c23c81699c43b57e12fcabaf547ef6440.
-.work/preview.10/helper/ contains csqtt-helper-preview.10.apk, matching .sha256,
-android-helper-provenance.json. APK SHA256
-884604a79a0738e4bc57b413dbbefad4ad13daba3b8a8da4207e013599de75c6.
-Attach these THREE files to draft10 before publication (docs/USAGE says Helper
-is in release). This is debug Android build; physical/VK acceptance not claimed.
-PR#1 is draft/open/mergeable, base main, head frozenD62 at last check.
+Fix now: sign-portable-release --catalogue-only verifies/preserves tuple signatures;
+--verify-only checks copied final catalogue/P256 signatures/source/qualification/
+all referenced hashes without a key. prepare uses both. Six real OpenSSL tests
+cover full six-tuple assembly, randomized signatures, tamper, key/source/gate
+refusals. Local10existing release tests PASS, crypto6 explicitSKIP (no local
+OpenSSL); they MUST pass on Linux via existing release_test.py. Syntax/diffPASS.
+New draft-publication helper: only preview>=10, no existing tag, only same source
+or explicit known oldd62 draft. Rechecks draft/source before/after upload,
+compares GitHub asset digests, uploads changed files only, refuses published or
+foreign drafts, failed uploads or wrong uploaded hashes. Local5 behavioral tests
+PASS. This updates the private failed draft without touching published releases.
+Workflow guard explicitly names oldd62 as sole permitted previous draft source.
+Fresh source freeze + all6SDK/3VM/5general is required; do not weaken evidence or
+change GITHUB_SHA to promote old source. No installed application/protocol changes.
 
-This checkpoint freezes source for six SDK builds, three native x86 VMs,
-native ARM signed9 migration, signature/catalogue validation and draft10 creation.
-Current candidate IDs are in .work/preview.10/candidate.json. Root owns Git/CI/release;
-release_docs_audit owns read-only final user-documentation review. Other agents
-completed/frozen; recheck liveness before delegation. No duplicate CI launches.
+After final runs: independently inspect signed artifact ZIP and all descriptors,
+append exact-source Helper APK + .sha256 + provenance to draft, publish, run
+verify-published-release.py against a NEW public output directory (not local
+artifact cache), then both literal README command VMs, then PR#1/main README.
+PR#1 draft/open/mergeable; main README still2lines. Update main only after final
+public-command passes. Browser ghTab owner session available; connector can
+list drafts via releases collection (GET by tag404 while draft), and download
+workflow artifacts. CUA file chooser documentation already read this session.
 
-Completed diagnostics (mixed payloads, NOT release qualification):
--25.12.6 run40116109265/job120937603549 FULLPASS.
--24.10.8 run40117458738/job120941624649 FULLPASS.
-Both boot pinned clean firmware and pass signed install/signature rejection,
-status/RPC/LuCI login, UDP+TCP/localDNS/nftset, automatic LAN+Helper discovery,
-apply+DNS readiness, semantic IPv6/MAC reject and guarded routes, fw4reload,
-Stop, cleanup and reinstall with preserved configs/manual18. These reuse06c
-compiled payloads with current runtime.uc (and current platform-probe for24);
-explicit diagnostic kinds cannot be promoted to final clean-VM evidence.
+Old Helper .work/preview.10/helper/ is FROMd62 general artifact12576903574;
+replace it from NEW exact-source general android-helper-debug before attaching.
+ZIP SHA1d448c8d969b4281f47d422d24f7192c23c81699c43b57e12fcabaf547ef6440,
+APK SHA884604a79a0738e4bc57b413dbbefad4ad13daba3b8a8da4207e013599de75c6.
+Debug build only, no physical Android/VK acceptance claim. No keys/identities inGit.
 
-General40112405377 on e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d ALL5PASS.
-No production code changed after the existing fixes: isolated staged-APK tmpfs
-acknowledgement, ucode has_control binding, native opkg architecture query.
-The subsequent source changes correct the test harness without relaxing guards:
-stock LuCI403 login/form contract, bounded FIFO HTTP with real BusyBox regression,
-optional HTML end tags, netifd-owned empty LAN bridge, semantic same-rule nftJSON
-IPv6+exactMAC+reject including canonical icmpv6. Test failure diagnostics expose
-only fixed reasons/booleans/publicsource locations, no secrets or raw private logs.
-Node semantic tests, Linux native deadline/FIFO tests and actual guest proofs PASS.
-Historical exact debugging/checkpoints retained here (do not repeat old runs):
-https://github.com/RATOR2000/csqtt-openwrt/blob/9e1c8ccd243cdc3ea2b4f72feb6795f28694061c/docs/STATUS.md
+Both diagnostic runtime scenarios and old fresh-source VMs passed all installation,
+LuCI/DNS/nftset/LAN/Helper/IPv6/routes/fw4/Stop/reinstall preservation checks.
+Historical exact debug evidence:
+https://github.com/RATOR2000/csqtt-openwrt/blob/c0c7543deebf2ac33c47ccf03fdbad08e1c465b2/docs/STATUS.md
+No unconditional all-routers/physical/stable/72h claim; six verified ABI/version
+profiles, no board lock. Original protocol amurcanov/csqtt v2.1.9 unchanged.
 
-Next after all final-source checks: inspect signed draft and source/package binding,
-publish prerelease10, verify every public asset with verify-published-release.py,
-then run literal README HTTPS command on clean24.10.8 and25.12.6 via existing
-public-command-check workflow. Only those PASS permit PR#1/main README delivery.
-Never reuse an existing tag or alter published9. Docs-only later checkpoints do
-not require refreezing/rebuilding the candidate. Physical/VK/Android/stable/boot7
-and old72h remain unverified; no unconditional all-routers claim.
-
-Push through GitHub connector. Export committed delta, preserve modes, verify
-remote/local tree equality, leased update_ref then credential-free fetch and
-same-tree local update-ref (no reset). Ordinary gitpush opens GCM OAuth.
-Connector status may lag UI; one current-run browser snapshot resolves this.
-Browser owner session available; no connector release-publish endpoint, so UI is
-final publication fallback after gates. Existing CUA ghTab/browser2/tab1 may be
-reused if live; read CUA documentation when a session has been reset/compacted.
-New five-hour window reset at this resume; latest quota used0%, no hidden schedule.
+Save exact new source/run IDs in .work/preview.10/candidate.json and this STATUS.
+Push through connector, verify tree equality, fetch without credential helper,
+align same-tree local ref; never ordinary gitpush (opensOAuth). No duplicate runs.
+Source-freeze remains fixed across later docs-only checkpoints. User quota
+window resets05:47:23 Moscow25Oct (current task started00:47); minimize model work
+while CI runs. No Codex schedules or unattended follow-up tasks.
 
 ## Implemented source and verification scope
 

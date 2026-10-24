@@ -53,6 +53,7 @@ jobs:
       - name: Release artifact integrity
         run: |
           python3 tests/release/release_test.py
+          python3 tests/release/draft_publication_test.py
           python3 tests/release/dependency_test.py
           python3 tests/release/migration_test.py
           python3 tests/release/published_test.py

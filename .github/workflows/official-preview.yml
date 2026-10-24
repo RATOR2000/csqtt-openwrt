@@ -82,12 +82,4 @@ jobs:
           PACKAGE_RELEASE: ${{ inputs.package_release || '10' }}
         run: |
           python3 scripts/check-preview-tag.py "$RELEASE_TAG" "$PACKAGE_RELEASE"
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo 'An existing immutable release/tag must not be replaced.' >&2
-            exit 1
-          fi
-          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            echo 'An existing tag must not be moved or reused.' >&2
-            exit 1
-          fi
-          gh release create "$RELEASE_TAG" dist/publish/* --target "$GITHUB_SHA" --draft --prerelease --title "CSQTT $RELEASE_TAG - official OpenWrt preview" --notes-file dist/publish/RELEASE_NOTES.md
+          python3 scripts/publish-preview-draft.py dist/publish --tag "$RELEASE_TAG" --revision "$PACKAGE_RELEASE" --previous-draft-source d62af169f1f811ab534d9ef8769ca7c817cf0c9d
