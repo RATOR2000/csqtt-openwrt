@@ -28,7 +28,7 @@ def publish(directory, tag, revision, source, previous='', repository='RATOR2000
     directory = pathlib.Path(directory)
     files = sorted(directory.iterdir())
     require(files and all(p.is_file() and not p.is_symlink() and
-                         re.fullmatch('[A-Za-z0-9][A-Za-z0-9._+-]*', p.name) for p in files),
+                         re.fullmatch('[A-Za-z0-9][A-Za-z0-9._+~-]*', p.name) for p in files),
             'Only flat regular publication files are allowed')
     require({'catalogue.json', 'catalogue.sig', 'install.sh', 'SHA256SUMS', 'RELEASE_NOTES.md'} <=
             {p.name for p in files}, 'Incomplete publication directory')
@@ -88,8 +88,12 @@ if __name__ == '__main__':
     parser.add_argument('--tag', required=True)
     parser.add_argument('--revision', required=True)
     parser.add_argument('--previous-draft-source', default='')
+    parser.add_argument('--source-commit', default=os.environ.get('GITHUB_SHA', ''),
+                        help='Exact qualified artifact source for a separate publication workflow')
     args = parser.parse_args()
     try:
-        publish(args.directory, args.tag, args.revision, os.environ.get('GITHUB_SHA', ''), args.previous_draft_source)
-    except (ValueError, OSError, KeyError, json.JSONDecodeError):
+        publish(args.directory, args.tag, args.revision, args.source_commit, args.previous_draft_source)
+    except ValueError as error:
+        raise SystemExit('Draft publication refused: ' + str(error)) from None
+    except (OSError, KeyError):
         raise SystemExit('Draft publication refused; inspect public workflow checks. No diagnostic secrets printed.') from None

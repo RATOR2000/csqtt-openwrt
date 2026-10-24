@@ -29,7 +29,21 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 command, owner priority GL-MT6000 official25.12.6. Owner installs personally; no
 SSH mutations/reboot/Codex schedules. Preserve all published tags/assets, especially9.
 
-FIRST UNFINISHED: monitor fixed exact-source candidate6c70e490585651b9a65d7d128ecc551415c32f4e
+FIRST UNFINISHED: publication-only repair workflow on codex/portable-preview.10-publish.
+QUALIFIED payload remains6c70e490585651b9a65d7d128ecc551415c32f4e; do NOT rebuild SDK.
+Official40139753900 ALL6SDK/3VM/signing+copyverification PASS; only final upload
+step failed because new publication filename guard omitted valid OpenWrt '~'.
+Fixed allowlist to match real package version names, added regression. Local5
+publication tests PASS. Installer/client/policies and signed artifact unchanged.
+Signed artifact12579223101 ZIP SHA256
+24d2d80ae6ee2bf72f1522e174dd01b5d5d2f2b9103f06713616cbb82aaf1aa0.
+New publication-only workflow downloads this exact-source run artifact, separately
+checks all pinned P256 signatures/hashes/proofs/source6c and installer bytes from
+checkout6c, then passes explicit --source-commit6c to transport helper. GITHUB_SHA
+is NOT overridden. This is upload transport repair, not promotion of other code.
+Preserve tag source6c and all existing qualification proofs. No full SDK rerun.
+
+Historical fixed qualification candidate6c70e490585651b9a65d7d128ecc551415c32f4e
 (treec118b04d979ae8a4caf8f6186daca34d772fc447), official40139753900 and
 general40139752629. Official contracts/native-policy PASS, sixSDK active.
 General core/native-policy/android/checks PASS, openwrt active. Completed checks

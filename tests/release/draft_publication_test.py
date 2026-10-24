@@ -42,6 +42,7 @@ class DraftPublicationTest(unittest.TestCase):
             self.calls = calls
 
     def test_creates_new_private_draft_and_resumes_only_identified_draft(self):
+        (self.directory / 'ucode_2026.01.01~abcdef-r1_all.ipk').write_text('valid OpenWrt version fixture')
         self.perform()
         self.assertTrue(any(c[:3] == ['gh', 'release', 'create'] for c in self.calls))
         old = {'id': 7, 'tag_name': 'v0.1.0-preview.10', 'draft': True, 'target_commitish': PREVIOUS}
