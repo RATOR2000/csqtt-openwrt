@@ -32,8 +32,12 @@ no SSH mutations, reboot or Codex schedules. Preserve immutable preview9.
 FIRST UNFINISHED: monitor only final exact-source runs below; no new build.
 Frozen source d62af169f1f811ab534d9ef8769ca7c817cf0c9d,
 tree0309eb76f0e917a8f39c076726fd9e83720de215.
-Official run40135841236: contracts + native-policy PASS; all six SDK jobs active.
-General run40135840918: core/native-policy/android/checks PASS, openwrt active.
+Official40135841236: contracts/native-policy and ALL SIX SDK jobs PASS, including
+native ARM signed9 migration. Fresh nativeVM25.12.6/job121004995525 PASS; nativeVM
+24.10.8/job121004995557 and25.12.5/job121004995511 active. These are exact-source
+fresh packages with no diagnostic overlays. General40135840918 ALL FIVE PASS.
+Next remaining: other twoVMs -> signed draft -> Helper3files -> publish/public
+verifier -> two literal command VMs -> mainREADME/PR#1. Do not rebuild frozenD62.
 Never refreeze due to this docs-only checkpoint. Buildbranch remains frozenD62.
 
 Exact-source Android Helper prepared from general artifact12576903574, verified
