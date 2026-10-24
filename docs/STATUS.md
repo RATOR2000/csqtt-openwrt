@@ -29,7 +29,22 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 Owner priority GL-MT6000 on official25.12.6, ARM64/filogic. Owner installs personally;
 no SSH mutations, reboot or Codex schedules. Preserve immutable preview9.
 
-FIRST UNFINISHED: final exact-source official-preview + five general checks.
+FIRST UNFINISHED: monitor only final exact-source runs below; no new build.
+Frozen source d62af169f1f811ab534d9ef8769ca7c817cf0c9d,
+tree0309eb76f0e917a8f39c076726fd9e83720de215.
+Official run40135841236: contracts + native-policy PASS; all six SDK jobs active.
+General run40135840918: core/native-policy/android/checks PASS, openwrt active.
+Never refreeze due to this docs-only checkpoint. Buildbranch remains frozenD62.
+
+Exact-source Android Helper prepared from general artifact12576903574, verified
+ZIP SHA2561d448c8d969b4281f47d422d24f7192c23c81699c43b57e12fcabaf547ef6440.
+.work/preview.10/helper/ contains csqtt-helper-preview.10.apk, matching .sha256,
+android-helper-provenance.json. APK SHA256
+884604a79a0738e4bc57b413dbbefad4ad13daba3b8a8da4207e013599de75c6.
+Attach these THREE files to draft10 before publication (docs/USAGE says Helper
+is in release). This is debug Android build; physical/VK acceptance not claimed.
+PR#1 is draft/open/mergeable, base main, head frozenD62 at last check.
+
 This checkpoint freezes source for six SDK builds, three native x86 VMs,
 native ARM signed9 migration, signature/catalogue validation and draft10 creation.
 Current candidate IDs are in .work/preview.10/candidate.json. Root owns Git/CI/release;
