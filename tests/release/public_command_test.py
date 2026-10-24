@@ -5,7 +5,9 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,6 +26,83 @@ COMMAND = 'uclient-fetch -O /tmp/csqtt-install.sh ' + BASE + 'install.sh && sh /
 
 
 class PublicCommandTest(unittest.TestCase):
+    def test_native_opkg_fixture_partial_removal_requires_progress_and_stops_on_refusal(self):
+        shell = shutil.which('sh')
+        if not shell and shutil.which('git'):
+            candidate = pathlib.Path(shutil.which('git')).parents[1] / 'usr/bin/sh.exe'
+            shell = str(candidate) if candidate.is_file() else None
+        if not shell:
+            self.skipTest('POSIX shell unavailable for native fixture command regression')
+        binary = self.root / 'bin'
+        binary.mkdir()
+        fake = binary / 'opkg'
+        fake.write_bytes(b'''#!/bin/sh
+case "$1" in
+list-installed) while IFS= read -r name; do [ -z "$name" ] || printf '%s - 1\\n' "$name"; done < "$FIXTURE_STATE";;
+remove)
+ printf 'pass\\n' >> "$FIXTURE_CALLS"; shift; status=0
+ for name do
+  if [ "$FIXTURE_MODE" = blocked ]; then status=255; continue; fi
+  if [ "$name" = luci-base ] && grep -qx luci-mod-admin-full "$FIXTURE_STATE"; then
+   echo 'Package luci-base is depended upon by packages: luci-mod-admin-full'; status=255; continue
+  fi
+  grep -vx "$name" "$FIXTURE_STATE" > "$FIXTURE_STATE.next" || true
+  mv "$FIXTURE_STATE.next" "$FIXTURE_STATE"
+ done
+ exit "$status";;
+*) exit 99;;
+esac
+''')
+        fake.chmod(0o755)
+        state, calls = self.root / 'installed', self.root / 'calls'
+        env = {**os.environ, 'PATH': str(binary) + os.pathsep + str(pathlib.Path(shell).parent) + os.pathsep + os.environ['PATH'],
+               'FIXTURE_STATE': state.as_posix(), 'FIXTURE_CALLS': calls.as_posix()}
+        for mode, expected_passes in (('partial', 2), ('blocked', 1)):
+            with self.subTest(mode=mode):
+                state.write_bytes(b'luci-base\nluci-mod-admin-full\nuhttpd\nfirewall4\n')
+                calls.write_bytes(b'')
+                result = subprocess.run([shell, '-c', 'set -eu; ' + public.opkg_fixture_removal()],
+                                        env={**env, 'FIXTURE_MODE': mode}, capture_output=True, text=True, timeout=15)
+                self.assertEqual(result.returncode == 0, mode == 'partial', result.stderr)
+                self.assertEqual(len(calls.read_text().splitlines()), expected_passes)
+                if mode == 'partial':
+                    self.assertEqual(state.read_text().splitlines(), ['firewall4'])
+                else:
+                    self.assertIn('CSQTT_FIXTURE_NO_PROGRESS', result.stdout)
+
+    def test_fixture_diagnostics_distinguish_transport_from_opkg_without_raw_logs(self):
+        self.assertEqual(public.fixture_failure_classes('ssh: connect to host 127.0.0.1 port 1234: Connection refused', ''),
+                         ['ssh_transport'])
+        private = 'private-runtime-secret\n* print_dependents_warning: Package luci-base is depended upon by packages: luci-mod-admin-full'
+        self.assertEqual(public.fixture_failure_classes('', private), ['fixture_opkg_dependency_refusal'])
+        self.assertEqual(public.fixture_failure_classes('', 'private-runtime-secret'), ['fixture_failure_unclassified'])
+
+    def test_ssh_readiness_requires_consecutive_read_only_success_after_disconnect(self):
+        now = [0]
+        responses = [subprocess.CompletedProcess([], code) for code in (255, 0, 255, 0, 0, 0)]
+        remote = mock.Mock(side_effect=[subprocess.TimeoutExpired('ssh', 6), *responses])
+        with mock.patch.object(public.time, 'monotonic', side_effect=lambda: now[0]), mock.patch.object(
+                public.time, 'sleep', side_effect=lambda seconds: now.__setitem__(0, now[0] + seconds)):
+            public.await_ssh_ready(remote)
+        self.assertEqual(remote.call_count, 7)
+        for call in remote.call_args_list:
+            self.assertEqual(call.args, ('true',))
+            self.assertFalse(call.kwargs['check'])
+            self.assertLessEqual(call.kwargs['timeout'], 6)
+
+    def test_ssh_readiness_deadline_fails_without_mutating_fixture(self):
+        now = [0]
+        remote = mock.Mock(return_value=subprocess.CompletedProcess([], 255))
+        with mock.patch.object(public.time, 'monotonic', side_effect=lambda: now[0]), mock.patch.object(
+                public.time, 'sleep', side_effect=lambda seconds: now.__setitem__(0, now[0] + seconds)):
+            with self.assertRaisesRegex(ValueError, 'readiness timeout'):
+                public.await_ssh_ready(remote, timeout=5)
+        self.assertEqual(now[0], 5)
+        self.assertEqual(remote.call_count, 3)
+        for call in remote.call_args_list:
+            self.assertEqual(call.args, ('true',))
+            self.assertFalse(call.kwargs['check'])
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)

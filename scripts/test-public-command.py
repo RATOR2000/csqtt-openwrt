@@ -42,6 +42,54 @@ def import_script(name, filename):
     return result
 
 
+def await_ssh_ready(remote, timeout=90, consecutive=3, interval=2):
+    """Require stable read-only SSH probes after the boot network restart."""
+    deadline = time.monotonic() + timeout
+    successes = 0
+    while True:
+        remaining = deadline - time.monotonic()
+        require(remaining > 0, 'Public VM SSH readiness timeout')
+        try:
+            result = remote('true', timeout=min(6, remaining), check=False)
+            successes = successes + 1 if result.returncode == 0 else 0
+        except subprocess.TimeoutExpired:
+            successes = 0
+        require(time.monotonic() < deadline, 'Public VM SSH readiness timeout')
+        if successes >= consecutive:
+            return
+        time.sleep(min(interval, max(0, deadline - time.monotonic())))
+
+
+def fixture_failure_classes(stderr, fixture_log):
+    """Return fixed public labels, never arbitrary SSH or package log bytes."""
+    errors, fixture = (stderr or '')[-8192:].lower(), (fixture_log or '')[-8192:].lower()
+    labels = []
+    if any(marker in errors for marker in ('ssh: connect to host', 'connection refused', 'connection timed out',
+                                           'connection reset by', 'connection closed by', 'no route to host',
+                                           'kex_exchange_identification', 'permission denied (publickey')):
+        labels.append('ssh_transport')
+    if any(marker in fixture for marker in ('is depended upon by', 'refusing to remove', 'print_dependents_warning')):
+        labels.append('fixture_opkg_dependency_refusal')
+    if any(marker in fixture for marker in ('unable to select packages', 'unsatisfiable constraints')):
+        labels.append('fixture_package_solver_refusal')
+    if 'csqtt_fixture_no_progress' in fixture:
+        labels.append('fixture_opkg_no_progress')
+    return labels or ['fixture_failure_unclassified']
+
+
+def opkg_fixture_removal():
+    """Remove only the fixture allowlist, requiring inventory progress each pass."""
+    return ('fixture_names() { installed=$(opkg list-installed) || return 1; printf "%s\\n" "$installed" | cut -d " " -f 1 | '
+            'awk \'/^luci($|-)|^uhttpd($|-)|^openssl-util$|^kmod-tun$/ {print}\'; }; '
+            'fixture_count() { printf "%s\\n" "$1" | awk \'NF {n++} END {print n+0}\'; }; '
+            'remove=$(fixture_names); count=$(fixture_count "$remove"); limit=$((count+1)); pass=0; '
+            'while [ "$count" -gt 0 ]; do pass=$((pass+1)); '
+            '[ "$pass" -le "$limit" ] || { echo CSQTT_FIXTURE_BOUND; exit 1; }; '
+            'opkg remove $remove || true; next=$(fixture_names); remaining=$(fixture_count "$next"); '
+            '[ "$remaining" -lt "$count" ] || { echo CSQTT_FIXTURE_NO_PROGRESS; exit 1; }; '
+            'remove=$next; count=$remaining; done')
+
+
 def readme_command(text, tag):
     blocks = re.findall(r'^```sh\r?\n(.*?)\r?\n```', text, flags=re.MULTILINE | re.DOTALL)
     require(blocks, 'Released README contains no installation shell block')
@@ -188,9 +236,14 @@ def main():
                 result = subprocess.run(ssh + ['set -eu; ' + script], input=input_text, capture_output=True, text=True, timeout=timeout)
                 if check and result.returncode:
                     print(f'Public command failure: stage={PHASE} exit={result.returncode}', flush=True)
-                    diagnostics = subprocess.run(ssh + ['for f in /tmp/csqtt-public/*.private.log; do [ ! -f "$f" ] || tail -c 8192 "$f"; done'],
+                    diagnostic_command = ('[ ! -f /tmp/csqtt-public/fixture.private.log ] || tail -c 8192 /tmp/csqtt-public/fixture.private.log'
+                                          if PHASE == 'missing_dependencies_fixture' else
+                                          'for f in /tmp/csqtt-public/*.private.log; do [ ! -f "$f" ] || tail -c 8192 "$f"; done')
+                    diagnostics = subprocess.run(ssh + [diagnostic_command],
                                                  capture_output=True, text=True, timeout=15)
                     private = diagnostics.stdout
+                    if PHASE == 'missing_dependencies_fixture':
+                        print('Public guest reason: ' + ','.join(fixture_failure_classes(result.stderr, private)), flush=True)
                     markers = re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private)
                     if markers:
                         print('Public guest substage: ' + markers[-1], flush=True)
@@ -214,17 +267,14 @@ def main():
                     raise ValueError('Public README command acceptance failed')
                 return result
 
-            deadline = time.monotonic() + 90
-            while remote('true', timeout=6, check=False).returncode:
-                require(time.monotonic() < deadline, 'Public VM SSH readiness timeout')
-                time.sleep(1)
+            phase('ssh_readiness')
+            await_ssh_ready(remote)
             phase('missing_dependencies_fixture')
             remote('mkdir -p /tmp/csqtt-public; test ! -x /usr/bin/csqtt-client; '
                    'if command -v apk >/dev/null; then names=$(apk --no-network info --from installed); '
-                   'else names=$(opkg list-installed | cut -d " " -f 1); fi; '
                    'remove=$(printf "%s\\n" "$names" | awk \'/^luci($|-)|^uhttpd($|-)|^openssl-util$|^kmod-tun$/ {print}\'); '
-                   'if [ -n "$remove" ]; then if command -v apk >/dev/null; then apk --no-network del $remove; '
-                   'else opkg remove $remove; fi; fi > /tmp/csqtt-public/fixture.private.log 2>&1; '
+                   '{ if [ -n "$remove" ]; then apk --no-network del $remove; fi; } > /tmp/csqtt-public/fixture.private.log 2>&1; '
+                   'else { ' + opkg_fixture_removal() + '; } > /tmp/csqtt-public/fixture.private.log 2>&1; fi; '
                    'rmmod tun >/dev/null 2>&1 || true; '
                    'test ! -x /usr/bin/openssl; test ! -x /usr/sbin/uhttpd; test ! -f /www/luci-static/resources/ui.js; '
                    '! grep -q "^tun " /proc/modules; '

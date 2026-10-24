@@ -32,13 +32,23 @@ General40139752629 ALL5 PASS; official40139753900 ALL6SDK +3nativeVM PASS,
 including25.12.6 ARM owner tuple and signed native ARM9->10->9 package migration.
 No physical owner install, actual VK/Android, boot7 or72h pass claimed.
 
-FIRST UNFINISHED: wait public-command workflow on branch
-codex/portable-preview.10-public-check pointing EXACTLY6c70 (created after public
-release), both24.10.8/25.12.6 jobs must PASS. Concurrent readonly host public
-verification running: scripts/verify-published-release.py --tag v0.1.0-preview.10
---source-commit6c70... --output .work/preview.10/public-6c70e49 (fresh directory).
-Then verify all downloaded public bytes/Helper/provenance and deliver README to
-main through PR#1 (currently draft). Owner installs personally; no SSH changes.
+FIRST UNFINISHED: repair public-command host harness, then both literal HTTPS
+command VMs, then PR#1/main README. Initial run40143890684:24.10.8 failed at
+missing_dependencies_fixture exit255 BEFORE installer;25.12.6 still active.
+Do not assume255isSSH: opkg native dependency-order removal mayreturn255 too.
+signing_fix owns ONLYtest-public-command.py/public_command_test.py: consecutive
+readonly readiness + bounded native fixture removal passes requiring inventory
+progress, noforce/dependencybypass; add failure classes. Root owns orchestration.
+These are host-test fixes; release/tag/assets immutable. Do not rebuild SDK.
+Docs final text in README/PREVIEW_NOTES/BUILD is local and HELD until both PASS.
+
+Independent public verification COMPLETE PASS: fresh public-6c70e49 output,
+all6profiles/396referencedassets + manifests/catalogue/installer/tag/source pinned
+P256 checks PASS. Additional7 public assets downloaded from public HTTPS and
+compared byte-exact: Helper3, signed publication provenance, SHA256SUMS, key,
+notes. Cross-directory comparison covers ALL415base files +3Helper =418; no
+missing/different bytes. Evidence public-6c70e49/.verification.json/public-extra.
+Owner installs personally; no SSH changes. No schedules.
 
 Raw signed artifact12579223101 from40139753900 independently PASS:414files,
 ZIP72635488bytes SHA25624d2d80ae6ee2bf72f1522e174dd01b5d5d2f2b9103f06713616cbb82aaf1aa0;
