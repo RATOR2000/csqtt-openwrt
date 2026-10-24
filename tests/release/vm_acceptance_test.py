@@ -37,6 +37,18 @@ if not SH:
 
 
 class VmAcceptanceTest(unittest.TestCase):
+    def test_first_install_native_errors_excludes_traces_and_redacts_values(self):
+        private = 'private-password-key-url-identity'
+        text = ('+CSQTT_XTRACE:1: apk ' + private + '\nERROR: opening /tmp/' + private +
+                ' password="' + private + '" https://example.invalid/' + private + '\n' +
+                'ERROR: checksum ' + 'a' * 64 + '\n' + 'WARNING: fixed\n' * 10)
+        result = native_vm.first_install_native_errors(text)
+        self.assertEqual(len(result), 6)
+        self.assertNotIn(private, repr(result))
+        self.assertNotIn('CSQTT_XTRACE', repr(result))
+        self.assertNotIn('a' * 64, repr(result))
+        self.assertIn('ERROR: opening <path> password=<redacted> <url>', result)
+
     def test_guest_trace_metadata_handles_shell_variants_without_exposing_arguments(self):
         private = 'private-password-key-url-identity'
         for prefix, expected in (('+CSQTT_GUEST_TRACE:90: ', 'owned'), ('++CSQTT_GUEST_TRACE:0: ', 'owned'), ('+ ', 'default')):
@@ -374,6 +386,43 @@ class VmAcceptanceTest(unittest.TestCase):
         self.assertIn('sh -x install.sh ci-private', native_vm.PRIVATE_TRACE)
         self.assertIn('${LINENO:-0}', native_vm.PRIVATE_TRACE)
         self.assertNotIn('sh -x install.sh', (ROOT / 'scripts/test-public-command.py').read_text(encoding='utf-8'))
+
+    def test_guest_ucode_awk_emits_only_fixed_classes_and_public_locations(self):
+        private = 'private-key-url-config-fixture'
+        guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
+        program = re.search(r"\n    awk '([\s\S]+?)' \"\$TMP/status.checked\"", guest).group(1)
+        awk = shutil.which('awk') or (str(pathlib.Path(SH).with_name('awk.exe')) if SH else '')
+        if not pathlib.Path(awk).is_file():
+            self.skipTest('A native awk is required for safe guest diagnostics')
+        commands = [[awk]]
+        if shutil.which('busybox'):
+            commands.append([shutil.which('busybox'), 'awk'])
+        body = ('Syntax error: Unable to compile module ' + private + '\nReference error: ' + private +
+                '\nType error: ' + private + '\n  | In /usr/share/csqtt/health.uc, line 1, byte 1:\n' +
+                'In function(), file /usr/share/csqtt/runtime.uc, line 2, byte 3:\n' +
+                'In /private/policy.uc, line 3, byte 1:\nIn /usr/share/csqtt/policy.uc, line 9999999, byte 1:\n' + private)
+        for command in commands:
+            result = subprocess.run(command + [program], input=body, capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0)
+            self.assertNotIn(private, result.stdout)
+            self.assertEqual(native_vm.guest_ucode_diagnostics(result.stdout), {
+                'classes': ['module_error', 'reference_error', 'syntax_error', 'type_error'],
+                'locations': [('health.uc', 1), ('runtime.uc', 2)]})
+
+    def test_guest_ucode_markers_reject_unknown_classes_paths_and_unowned_lines(self):
+        private = 'private-key-url-config-fixture'
+        body = ('CSQTT_GUEST_UCODE_CLASS=' + private + '\nCSQTT_GUEST_UCODE_CLASS=type_error ' + private +
+                '\nCSQTT_GUEST_UCODE_SOURCE=runtime.uc:999999\nCSQTT_GUEST_UCODE_SOURCE=runtime.uc:0\n' +
+                'CSQTT_GUEST_UCODE_SOURCE=/private/runtime.uc:1\nCSQTT_GUEST_UCODE_SOURCE=runtime.uc:1 ' + private + '\n')
+        self.assertEqual(native_vm.guest_ucode_diagnostics(body), {'classes': [], 'locations': []})
+        with tempfile.TemporaryDirectory() as temporary:
+            source = pathlib.Path(temporary)
+            target = source / 'openwrt/csqtt/files/runtime.uc'
+            target.parent.mkdir(parents=True)
+            target.write_text('public line\n', encoding='utf-8')
+            self.assertEqual(native_vm.guest_ucode_diagnostics(
+                'CSQTT_GUEST_UCODE_SOURCE=runtime.uc:2\nCSQTT_GUEST_UCODE_SOURCE=runtime.uc:1\n', source),
+                {'classes': [], 'locations': [('runtime.uc', 1)]})
 
     def test_guest_trace_returns_only_a_source_owned_assertion_before_fail_or_cleanup(self):
         private = 'private-key-url-config-fixture'
