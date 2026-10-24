@@ -31,8 +31,8 @@ release qualification/date. Owner installs personally; no router mutations,
 Codex schedules or old72h restart. Historical details up to this resume:
 https://github.com/RATOR2000/csqtt-openwrt/blob/9f6a860b2fa36fe2d63cf35bde58b6dfdb599c77/docs/STATUS.md
 
-FIRST UNFINISHED ACTION: run diagnostic20 with guest source/error locations and
-expanded literal official APK error classes, against compiled06c packages. Only after BOTH
+FIRST UNFINISHED ACTION: run diagnostic21 public-input target-native APK fixture
+and guest trace fallback, against compiled06c packages. Only after BOTH
 native24/25 diagnostic VMs pass, freeze a new exact source and run6SDK+5regression.
 Never promote mixed-source diagnostic packages/proofs to release qualification.
 Metadata .work/preview.10/candidate.json; prior frozen06c/treee5e2fd9 failed and
@@ -54,6 +54,19 @@ Public classifier binds released guest source. Optional import.log reader deferr
 until actual failing line known. VM47=44PASS/3WindowsSKIP, compile/diffPASS;
 agent vm_timeout frozen. APKclasses include verified pinned target strings and
 fixed POSIXerrno classes; native error output remains private. No production edit.
+Diagnostic20 completed40088836768/source32b9d6e5456450241d95eb23efa83c664ca837a8,
+dev checkpointa4f1b4dbd01efe99122f21fbc4fb3dd5dd5b25dc/tree7cb3db089bb80cd4ebfce9aa95f5cab03cebc669;
+local/fetch trees equal.25native APK stillHEAD/TAIL unclassified;24native_imports
+assertion unknown. No gate bypass. New fallback reports only fixed command/trace
+format and bounded source line (supports noLINENO/defaultPS4), VM48=45PASS/3skip.
+Public-only probe .work/preview.10/native-apk-probe.py ready (diagnosticbranch only):
+pinned official25rootfs APK+6ELF/libs/publicDB/world/keys, hash-bound buildassets,
+targetAPK viaQEMU --no-network --no-scripts stagedadd. No privateconfig/identity,
+no inherited secrets. Its bounded native CLI output is public-input diagnostic,
+NOT a private guest log. Local extraction/escapecheck/compilePASS; Linux pending.
+Workflow .work/preview.10/probe-workflow-v21.yml copies diagnosticbranch helper
+from .github/native-apk-public-probe.py to ignored .work before signingsecretstep.
+General19 run40087842202 ALL5SUCCESS on3b6 (openwrt120855924464 nowPASS).
 No full6SDK launch; compact jobs only, bounded failed logs if concrete failure.
 
 Confirmed blockers/evidence (do not rerun old CI):

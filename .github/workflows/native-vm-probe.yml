@@ -1,4 +1,4 @@
-name: Diagnostic guest source and native APK classes (never release evidence)
+name: Diagnostic public target APK fixture and guest trace (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]
@@ -18,7 +18,7 @@ jobs:
       - name: Disposable SDK host tools and VM dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential gawk file gettext libncurses-dev libssl-dev python3 python3-pexpect rsync swig unzip wget zlib1g-dev zstd qemu-system-x86 openssh-client e2fsprogs busybox-static
+          sudo apt-get install -y --no-install-recommends build-essential gawk file gettext libncurses-dev libssl-dev python3 python3-pexpect rsync swig unzip wget zlib1g-dev zstd qemu-user qemu-system-x86 openssh-client e2fsprogs busybox-static
       - name: Native deadline and private diagnostic host boundaries
         run: |
           python3 tests/release/vm_timeout_test.py
@@ -52,6 +52,12 @@ jobs:
           fi
           python3 scripts/bundle-dependencies.py --profile "$PROFILE_ID" --directory .work/diagnostic-vm --apk "$SDK/staging_dir/host/bin/apk" --usign "$USIGN"
           python3 scripts/release-manifest.py .work/diagnostic-vm --profile "$PROFILE_ID" --registry platforms/registry.json --dependencies .work/diagnostic-vm/dependencies.json --third-party .work/diagnostic-vm/dnsmasq-source.json
+      - name: Public-input target-native APK staged command (no private runtime)
+        if: matrix.release == '25.12.6'
+        run: |
+          mkdir -p .work/preview.10
+          cp .github/native-apk-public-probe.py .work/preview.10/native-apk-probe.py
+          python3 .work/preview.10/native-apk-probe.py
       - name: Private diagnostic fixture only; mismatched binaries never qualify
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}

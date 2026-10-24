@@ -352,6 +352,35 @@ def guest_trace_diagnostics(private, source=None):
     return None
 
 
+def guest_trace_metadata(private):
+    """Keep fixed command names when a firmware shell lacks assertion LINENO."""
+    commands = {'ucode': 'ucode', 'jsonfilter': 'jsonfilter', 'grep': 'grep',
+                '/usr/libexec/csqtt/manage': 'manage', '/usr/libexec/rpcd/csqtt': 'rpc',
+                'timeout': 'timeout', '[': 'test', 'cat': 'cat'}
+    result = {'format': 'missing', 'command': 'unknown', 'source_line': None}
+    size = len((ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8').splitlines())
+    for line in private[-DIAGNOSTIC_LIMIT:].splitlines():
+        owned = re.fullmatch(r'\++CSQTT_GUEST_TRACE:([0-9]{1,6}):\s*(.*)', line)
+        fallback = re.fullmatch(r'\+\s+(.*)', line) if not owned else None
+        if not owned and not fallback:
+            continue
+        command = owned[2] if owned else fallback[1]
+        try:
+            words = shlex.split(command)
+        except ValueError:
+            continue
+        if not words:
+            continue
+        if words[0] in ('fail', 'cleanup'):
+            break
+        if words[0] in commands:
+            result['format'] = 'owned' if owned else 'default'
+            result['command'] = commands[words[0]]
+            number = int(owned[1]) if owned else 0
+            result['source_line'] = number if 0 < number <= size else None
+    return result
+
+
 def guest_smoke_command(directory):
     """Tracing follows PASS with an exit trace, so verify the complete PASS line."""
     require(directory in ('/tmp/csqtt-native', '/tmp/csqtt-public'), 'Unknown disposable guest directory')
@@ -399,6 +428,11 @@ def run_remote(ssh, command, timeout=600, check=True):
             assertion = guest_trace_diagnostics(private)
             print('OpenWrt guest assertion: ' + ('source_line=' + str(assertion) if assertion is not None else
                   'unknown'), flush=True)
+            trace = guest_trace_metadata(private)
+            print('OpenWrt guest trace format: ' + trace['format'], flush=True)
+            print('OpenWrt guest trace command: ' + trace['command'], flush=True)
+            if trace['source_line'] is not None:
+                print('OpenWrt guest trace source_line=' + str(trace['source_line']), flush=True)
         guest_tools = {tool for group in re.findall(r'^for tool in ([a-z0-9 _-]+); do command -v "\$tool"',
                                                     guest_source, re.MULTILINE) for tool in group.split()}
         for tool in sorted(set(re.findall(r'(?m)^CSQTT_GUEST_MISSING_TOOL=([a-z0-9_-]{1,50})\r?$', private)) & guest_tools):
