@@ -37,6 +37,15 @@ if not SH:
 
 
 class VmAcceptanceTest(unittest.TestCase):
+    def test_guest_trace_metadata_handles_shell_variants_without_exposing_arguments(self):
+        private = 'private-password-key-url-identity'
+        for prefix, expected in (('+CSQTT_GUEST_TRACE:90: ', 'owned'), ('++CSQTT_GUEST_TRACE:0: ', 'owned'), ('+ ', 'default')):
+            result = native_vm.guest_trace_metadata(prefix + 'ucode ' + private + '\n' + prefix + 'fail\n' + prefix + 'grep cleanup\n')
+            self.assertEqual(result['format'], expected)
+            self.assertEqual(result['command'], 'ucode')
+            self.assertNotIn(private, repr(result))
+        self.assertEqual(native_vm.guest_trace_metadata('+CSQTT_GUEST_TRACE:99999: ' + private)['command'], 'unknown')
+
     def test_pinned_apk_setup_templates_emit_fixed_classes_without_native_values(self):
         private = 'private-password-key-url-identity'
         for category, message in (
