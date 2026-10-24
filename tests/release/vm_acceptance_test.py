@@ -166,6 +166,12 @@ class VmAcceptanceTest(unittest.TestCase):
     def test_guest_luci_actual_nc_keeps_request_open_until_delayed_response(self):
         busybox = shutil.which('busybox')
         self.assertIsNotNone(busybox, 'Native Linux acceptance requires busybox-static')
+        capability = subprocess.run([busybox, 'nc', '--help'], capture_output=True, timeout=3)
+        help_output = capability.stdout + capability.stderr
+        if capability.returncode in (1, 127) and re.search(rb'(?m)^nc: applet not found\r?$', help_output):
+            self.skipTest('Host BusyBox omits nc; required Linux FIFO test and real OpenWrt guest nc acceptance still run')
+        self.assertIn(b'Usage: nc', help_output,
+                      'Host nc capability failure rc=' + str(capability.returncode) + ' stderr=' + repr(capability.stderr[:1024]))
         guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
         functions = guest[guest.index('login_response() {'):guest.index('stage luci_http\n')]
         response = self.login_http_fixture()
@@ -175,10 +181,18 @@ class VmAcceptanceTest(unittest.TestCase):
             server = socket.socket()
             server.bind(('127.0.0.1', 0))
             server.listen(1)
-            server.settimeout(5)
+            server.settimeout(0.1)
+            stopping = threading.Event()
             def handle():
                 try:
-                    connection, _ = server.accept()
+                    while not stopping.is_set():
+                        try:
+                            connection, _ = server.accept()
+                            break
+                        except socket.timeout:
+                            continue
+                    else:
+                        return
                     with connection:
                         connection.settimeout(3)
                         data = b''
@@ -203,9 +217,11 @@ class VmAcceptanceTest(unittest.TestCase):
             try:
                 yield server.getsockname()[1], result
             finally:
-                thread.join(4)
+                stopping.set()
                 server.close()
-                self.assertFalse(thread.is_alive(), 'HTTP fixture must finish without a sleeping writer')
+                thread.join(1)
+                if sys.exc_info()[0] is None:
+                    self.assertFalse(thread.is_alive(), 'HTTP fixture must finish without a sleeping writer')
         with tempfile.TemporaryDirectory() as temporary:
             directory = pathlib.Path(temporary)
             binary = vm_timeout.build_timeout(directory)
@@ -213,9 +229,9 @@ class VmAcceptanceTest(unittest.TestCase):
             with peer() as (port, state):
                 old = subprocess.run([str(binary), '2', busybox, 'nc', '127.0.0.1', str(port)],
                                      input=request, capture_output=True, timeout=4)
-            self.assertEqual(old.returncode, 0)
-            self.assertEqual(old.stdout, b'')
-            self.assertEqual(state, ['early_fin'])
+                self.assertEqual(old.returncode, 0, 'Host nc start rc=' + str(old.returncode) + ' stderr=' + repr(old.stderr[:1024]))
+                self.assertEqual(old.stdout, b'')
+                self.assertEqual(state, ['early_fin'])
             with peer() as (port, state):
                 harness = ('set -eu\nTMP=' + shlex.quote(directory.as_posix()) + '\n' +
                            'timeout() { ' + shlex.quote(str(binary)) + ' "$@"; }\n' +
@@ -226,8 +242,8 @@ class VmAcceptanceTest(unittest.TestCase):
                 start = time.monotonic()
                 fixed = subprocess.run([SH], input=harness, capture_output=True, text=True, timeout=5)
                 elapsed = time.monotonic() - start
-            self.assertEqual(fixed.returncode, 0, fixed.stdout + fixed.stderr)
-            self.assertEqual(state, ['response'])
+                self.assertEqual(fixed.returncode, 0, fixed.stdout + fixed.stderr)
+                self.assertEqual(state, ['response'])
             self.assertLess(elapsed, 3, 'Successful probes must not wait for the ten-second deadline')
             self.assertFalse((directory / 'web-input').exists())
 

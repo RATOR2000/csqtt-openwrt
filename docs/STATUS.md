@@ -31,9 +31,16 @@ Keep preview9 immutable, draft PR#1 open, and main README pending public proof.
 Historical diagnostics and exact preceding checkpoints:
 https://github.com/RATOR2000/csqtt-openwrt/blob/e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d/docs/STATUS.md
 
-FIRST UNFINISHED: inspect diagnostic27 with test-only FIFO transport correction
+FIRST UNFINISHED: inspect diagnostic28 with test-only FIFO transport correction
 and both native VMs. Agent release_path_audit completed/frozen. Root owns STATUS,
 Git, CI and release; no outstanding source ownership. Recheck liveness on resume.
+Diagnostic27 run40113295831/sourcefb7d9bc7807bf235b64dc1b23ad4ec5b2d41a677
+failed HOST supplementary nc case before VM: server finalizer4s masked original
+client return code while accept timeout was5s. Test now preflights nc capability,
+skips only verified missing applet, preserves other actual rc/stderr, uses bounded
+server-stop polling so cleanup cannot mask failure. Localfocused3=2PASS/1LinuxSKIP;
+Python/diff PASS. Actual guest acceptance and production unchanged.
+Dev bbad584348a6e590d2d7a65d45f1fb9016ec74bf/treebf87da1c equal.
 No full six-SDK rebuild yet. Never qualify mixed diagnostic packages as a release.
 IDs and generated diagnostic overlays: .work/preview.10/candidate.json.
 
@@ -75,7 +82,9 @@ The remaining observed failure is in the VM HTTP test, not an installer refusal:
   Real Linux BusyBox-nc delayed-peer/no-early-FIN regression is required in the
   next diagnostic host job; Windows cannot prove it. Existing local parser,
   privacy, shell/Python checks pass. Focused7=5PASS/2Linux FIFO/native SKIP locally
-  (0.584s). Both native Linux cases must run before the next VM, never skipped.
+  (0.584s). Linux FIFO behavioral test and BOTH actual native VM HTTP proofs
+  stay mandatory. Supplementary host BusyBox-nc test may skip ONLY exact
+  missing nc applet, never count as native PASS. No new dependency for this test.
 - Fixed ucode error class/public source-line diagnostics also cover known
   devices/helper/apply/dns-ready logs. Every read stays bounded and private;
   no raw HTML, URLs, config, identities, pairing grants or logs are emitted.
