@@ -365,6 +365,36 @@ def guest_ucode_diagnostics(private, source=ROOT):
     return {'classes': classes, 'locations': sorted(locations)[:8]}
 
 
+def guest_web_diagnostics(private):
+    """Only fixed disposable-guest web states; never HTML, headers or log text."""
+    private = private[-DIAGNOSTIC_LIMIT:]
+    def values(marker, pattern):
+        return sorted(set(re.findall(r'(?m)^CSQTT_GUEST_WEB_' + marker + '=' + pattern + r'\r?$', private)))
+    codes = lambda marker: [int(n) for n in values(marker, r'([0-9]{1,3})') if int(n) <= 255]
+    return {
+        'exit': codes('EXIT'), 'service_exit': codes('SERVICE_EXIT'), 'cgi_exit': codes('CGI_EXIT'),
+        'status': [int(n) for n in values('STATUS', r'([1-5][0-9][0-9])')],
+        'checks': values('CHECK', r'(uhttpd_running|uhttpd_stopped|port80_listening|port80_closed|'
+                         r'port443_listening|port443_closed|cgi_executable|cgi_not_executable|'
+                         r'uhttpd_ucode_present|uhttpd_ucode_missing|root_http_ok|root_http_failed)'),
+        'files': values('FILE', r'((?:cgi|dispatcher|runtime|template|http):(?:present|missing))'),
+        'modules': values('MODULE', r'((?:fs|ubus|uci|uloop|math|html):(?:loaded|failed))'),
+        'classes': values('CLASS', r'(connection_refused|timeout|permission_denied|cgi_execute|cgi_gateway|option_unsupported|'
+                          r'syntax_error|reference_error|type_error|runtime_error|module_error)'),
+        'locations': [(name, int(number)) for name, number in values('SOURCE',
+                      r'((?:luci[.](?:cgi|dispatcher|runtime|template|http)|csqtt[.](?:runtime|policy|health))):([1-9][0-9]{0,4})')
+                      if int(number) <= 20000][:8],
+    }
+
+
+def print_guest_web_diagnostics(private, prefix):
+    for field, values in guest_web_diagnostics(private).items():
+        for value in values:
+            if isinstance(value, tuple):
+                value = value[0] + ':' + str(value[1])
+            print(prefix + ' web ' + field + ': ' + str(value), flush=True)
+
+
 def guest_trace_diagnostics(private, source=None):
     """Expose only an owned assertion call line, before fail/cleanup internals."""
     if source is None:
@@ -471,6 +501,7 @@ def run_remote(ssh, command, timeout=600, check=True):
                 print('OpenWrt guest ucode class: ' + category, flush=True)
             for filename, number in ucode['locations']:
                 print('OpenWrt guest ucode source: ' + filename + ':' + str(number), flush=True)
+            print_guest_web_diagnostics(private, 'OpenWrt guest')
         guest_tools = {tool for group in re.findall(r'^for tool in ([a-z0-9 _-]+); do command -v "\$tool"',
                                                     guest_source, re.MULTILINE) for tool in group.split()}
         for tool in sorted(set(re.findall(r'(?m)^CSQTT_GUEST_MISSING_TOOL=([a-z0-9_-]{1,50})\r?$', private)) & guest_tools):

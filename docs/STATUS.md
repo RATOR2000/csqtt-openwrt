@@ -25,99 +25,48 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-24Oct resume (owner timezone Europe/Moscow). Preview10 is NOT published/ready.
-Keep attached draftPR#1; main README still2lines. Rough70% estimate is not a
-release qualification/date. Owner installs personally; no router mutations,
-Codex schedules or old72h restart. Historical details up to this resume:
-https://github.com/RATOR2000/csqtt-openwrt/blob/9f6a860b2fa36fe2d63cf35bde58b6dfdb599c77/docs/STATUS.md
+24Oct resume: preview10 is NOT published/ready. DraftPR#1 and mainREADME still
+pending final delivery; owner installs personally, no SSH/mutations/schedules.
+Historical diagnostics19-23 and exact preceding checkpoints remain in Git:
+https://github.com/RATOR2000/csqtt-openwrt/blob/c889158ef0a8936204fea01109fc74c0903e6625/docs/STATUS.md
 
-FIRST UNFINISHED ACTION: read diagnostic23 (new installer, runtime source overlay
-in disposable guest only) +fresh general checks. Both production fixes below now
-implemented. Only after BOTH
-native24/25 diagnostic VMs pass, freeze a new exact source and run6SDK+5regression.
-Never promote mixed-source diagnostic packages/proofs to release qualification.
-Metadata .work/preview.10/candidate.json; prior frozen06c/treee5e2fd9 failed and
-build branch still points there. Latest dev at resume9f6a860 (docs-only after
-456d725), working tree/fetch clean. Ordinary gitpush opensOAuth; use connector.
-24Oct10:56UTC checkpoint pushed3b6f44d384f77330c64b5b94d5424d4d3d844024,
-treec6e48216d5579a279a8007d43b56d0a80b5de320; local/fetch trees equal.
-Diagnostic19 run40087858978/source25cd5e44fac111205d39cc8d7fcb6fc386ebcce7
-completed bothVM fail: host static deadline/process-group/bounded diagnostic tests
-PASS both;24job120854341998 installer/provision PASS, runtime now native_imports
-failure (newpreciseguesttrace/ucodeclass being added).25job120854342130 still
-native APK staged fail; checked HEAD+TAIL bothunclassified. Pinned officialAPK
-binary literal message catalogue reveals missing DB/cache/repository/format/root
-classes; added fixedclasses+focused9casePASS, never raw guest values. General
-40087842202 on3b6: core/native-policy/android/checks PASS, openwrt120855924464 active.
-Diagnostic20 source nowready: guest sh-x with source-owned fail-call location;
-strict successful return plus exact anchored PASS, not lastline after xtrace.
-Public classifier binds released guest source. Optional import.log reader deferred
-until actual failing line known. VM47=44PASS/3WindowsSKIP, compile/diffPASS;
-agent vm_timeout frozen. APKclasses include verified pinned target strings and
-fixed POSIXerrno classes; native error output remains private. No production edit.
-Diagnostic20 completed40088836768/source32b9d6e5456450241d95eb23efa83c664ca837a8,
-dev checkpointa4f1b4dbd01efe99122f21fbc4fb3dd5dd5b25dc/tree7cb3db089bb80cd4ebfce9aa95f5cab03cebc669;
-local/fetch trees equal.25native APK stillHEAD/TAIL unclassified;24native_imports
-assertion unknown. No gate bypass. New fallback reports only fixed command/trace
-format and bounded source line (supports noLINENO/defaultPS4), VM48=45PASS/3skip.
-Public-only probe .work/preview.10/native-apk-probe.py ready (diagnosticbranch only):
-pinned official25rootfs APK+6ELF/libs/publicDB/world/keys, hash-bound buildassets,
-targetAPK viaQEMU --no-network --no-scripts stagedadd. No privateconfig/identity,
-no inherited secrets. Its bounded native CLI output is public-input diagnostic,
-NOT a private guest log. Local extraction/escapecheck/compilePASS; Linux pending.
-Workflow .work/preview.10/probe-workflow-v21.yml copies diagnosticbranch helper
-from .github/native-apk-public-probe.py to ignored .work before signingsecretstep.
-General19 run40087842202 ALL5SUCCESS on3b6 (openwrt120855924464 nowPASS).
-Diagnostic21 active40089983266/source844545093be4def36b3a74abcb142aba1ca19c1e,
-dev eba13d4a1a86ec705c8c082e554cbbb7b94aeb5b/tree22309c0042484432095bdd032b316f0a97906e14,
-local/fetch equal. APKpublic probe matches APK_CONFIG=/dev/null and nosecret child
-environment; first/tail bounded output from public-only target-native command.
-No .work files tracked: public diagnostic helper exists ONLY on diagnosticbranch
-at.github/native-apk-public-probe.py and is copied to ignored .work for execution.
-Diagnostic21 nowFAILED bothVM; PUBLIC target-native APK fixture PASSED native
-exact stagedadd (15installs, no stderr). Thus closure/signatures/CLIwork with
-public firmware baseline; actual VM environment/bootstrap differs.25samefailure.
-24failed manage status specifically (guesttrace owned/source91), after pure
-policy/health imports PASS. Agent vm_timeout adding only fixed UCODEclass and
-verified public sourcefile/line from boundedstatus.log; no config/error snippets.
-Root first-install-only extractor can show <=6redacted native ERROR/WARNING/apk
-lines (clean test DB/public packages, --no-scripts, no user/runtimeidentity yet);
-traces/paths/URLs/secretfields/longvalues removed; focusedprivacytestPASS. Never
-apply this to repeat/upgrade/user logs. Native privatefull logs remain undisclosed.
-No repeat public APK baseline probe22: it alreadyPASS and no production change.
-Diagnostic22 source ready: manage-status failure reads checkedregularstatus.log
-<=8192B and emits fixed UCODEclass/public sourcefile+numericline, max8markers;
-driverrevalidates sourcefiles/lines, publicboundstaggedsource. ActualGNUawk
-formats/privacy/refusaltestsPASS, BusyBoxCI pending. FullVM51=48PASS/3WindowsSKIP;
-shell/Python/diffPASS. Agent vm_timeout frozen; root ownsremainingGit/CI/release.
-Diagnostic22 active40090862978/source9883af145f284007440c901ef659873e21980ea6,
-dev d28f68c4034b7864e06c1e9291d2ee1c8fa3e068/treed2fd87af63cd56111980565ecd04bcf8e5da3c58,
-local/fetch equalityPASS. Read compactjobs then bounded failure details; no oldCI
-polling/rebuild. PublicAPKprobe21alreadyPASS, omitted22. Same06c compiledpayloads.
-Diagnostic22 bothFAILED with concrete causes (no need rerun):
--25job120863057135 exactAPKerror: non-repository archives on tmpfs wouldbe lost
- afterreboot. Publichostfixture21 onpersistentfsPASS explainsdifference. Fixed
- csqtt_pm_install ONLY isolated--root/no-scripts branch with
- --force-non-repository (only RAM persistence acknowledgement, NOT dependencies/
- signatures/world bypass). Livebranchretainsnativeguard. Officialapkdocs confirm:
- https://github.com/alpinelinux/apk-tools/blob/master/doc/apk.8.scd
- Installer regenerated; headmatcher updated. Double nowmodels nativeRAMrefusal,
- rejectsackoutside isolatedscriptfreeadd. Focused4 actualshellAPKcasesPASS109.384s
- (new+upgrade xsuccess/servicefailure rollback); directrefusal/bootstrapPASS;
- Node/Python/diffPASS. Noallowuntrusted/forceworld/forcedeps.
--24job120863056983 nativeucode type_error runtime.uc84, manage status. platform()
- calls laterdeclaredhas_control; JSadapterhoistsfunctions and missednativebinding.
- Movedunchangedhelper beforeplatform; addedactualnativeucode platform metadata/
- controlcharbehavior regression in native-runtime.mjs. Nativeexecution pending
- freshgeneral/nativepolicy; Nodeportability12PASS, assemblercheck/diffPASS.
- Diagnostic23 willoverlayONLY correctedruntime.uc afterinstall in disposableVM,
- and label evidence diagnostic_runtime_overlay, NEVER cleanfirmware/releaseproof.
- This avoids6SDKrebuild merely toverify interpretedsource. OnceBOTHdiagpass,
- freezeexact devsource(newcommit, no[skipci]) andrunfresh6SDK+3VM/migration;
- generalall5source mustmatch. No tag/assets publicationyet. NoownerrouterSSH.
- Agent vm_timeout completed/frozen. Window89%used at11:52UTC; save/checkpoint now,
- no broad/duplicatework. NoCodex schedules. Fullsource/nativequalgates remain.
-No full6SDK launch; compact jobs only, bounded failed logs if concrete failure.
+Latest production code6545d9ceb07eba45c0690def5921e492b4d142fb,
+tree895cec1ae616e476731c1b65effe9651bd57eaa3. General40091736716 ALL5SUCCESS:
+checks/core/native-policy/android/openwrt, including actual nativeucode platform
+metadata/controlchar regression. Preserve this evidence; no rerun for docs-only.
+Docs checkpoint c889158 pushed; local/fetch trees092a2ee equal.
+
+Diagnostic23 run40091923076/sourcef164df5f36c3ae61d94a2ba4488c0f8cc8ac8570:
+BOTH24.10.8/25.12.6 passed signed install, native imports, manage status, RPC list,
+LuCI asset assertions; BOTH fail guestsource136 HTTP LuCI request.25 stagedAPK
+RAMroot fix and24 nativehas_control binding fix therefore progress confirmed.
+Mixed06c compiledpayloads+6545 runtime sourceoverlay remain DIAGNOSTIC ONLY.
+No cleanfirmware/sourcequalified release proof. No need reread oldlogs/runs.
+Next action: diagnostic24 bounded fixed web markers identify HTTP/uhttpd failure,
+then fix concrete cause. Root owns Git/CI/release. Agent release_path_audit is
+completed/frozen; no source ownership outstanding. Webdiagnostic captures fixed
+HTTP/exit/service/listener/CGI/module states and bounded error classes/source
+aliases only; no HTML/headers/config/raw logs. FullVM54=51PASS/3WindowsSKIP,
+publiccommand7PASS, Pythoncompile/shell/diffPASS. Original assertions preserved.
+
+Two preceding production fixes in6545:
+- ONLY isolated--root/no-network/no-scripts APKadd acknowledges temporary RAM
+ archive persistence with --force-non-repository. Live guard preserved; no trust,
+ dependency/world bypass. Focused4 actualPOSIXshell new/upgrade xsuccess/rollback
+ PASS109.384s; commanddouble enforces narrowplacement and nativeRAMrefusal.
+- Move unchanged has_control before platform for actualucode lexical binding.
+ Node12PASS and new actualnativeucode regression generalCI PASS.
+Superseded firstdiag23run40091757016 failed ignoredoverlaydriver Windowsencoding;
+UTF8fixed in correctedrun. ProductionUTF8 source was correct.
+
+Only after both diagnosticVMs pass: freeze exact final code; single official
+workflow already runs6SDK,3x86VMs, ARM signedr9migration, signatures/catalogue and
+draft10. Avoid duplicate manual stages/general reruns on docs-only checkpoints.
+Then inspect/publish -> independent verify-published-release.py -> literal public
+README command on clean24.10.8+25.12.6 -> PR#1/main README. Not stable/VK/physical.
+Buildbranch remains oldfailed06c; .work/preview.10/candidate.json authoritative
+IDs. Preserve preview9 assets. No old72h claims or silent newwindow.
+Current5h window was2%used at this resume (previous window89% has reset).
 
 Confirmed blockers/evidence (do not rerun old CI):
 -24.10.8: actual signed install + strict wrongprojectsignature PASS repeatedly;

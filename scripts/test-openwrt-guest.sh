@@ -133,8 +133,105 @@ if [ -x /usr/libexec/csqtt/dnsmasq ]; then
     [ -s /usr/share/licenses/csqtt/dnsmasq-COPYING ] || fail
     [ -s /usr/share/licenses/csqtt/dnsmasq-NOTICE ] || fail
 fi
-timeout 10 wget -q -O "$TMP/luci-before" http://127.0.0.1/cgi-bin/luci/ || fail
-[ -s "$TMP/luci-before" ] || fail
+# Keep HTTP failures useful without copying private HTML, headers or system logs.
+# This runs only in a disposable clean guest, before synthetic user configuration.
+web_filter() {
+    awk '
+      BEGIN {
+        paths["/www/cgi-bin/luci"]="luci.cgi"
+        paths["/usr/share/ucode/luci/dispatcher.uc"]="luci.dispatcher"
+        paths["/usr/share/ucode/luci/runtime.uc"]="luci.runtime"
+        paths["/usr/share/ucode/luci/template.uc"]="luci.template"
+        paths["/usr/share/ucode/luci/http.uc"]="luci.http"
+        paths["/usr/share/csqtt/runtime.uc"]="csqtt.runtime"
+        paths["/usr/share/csqtt/policy.uc"]="csqtt.policy"
+        paths["/usr/share/csqtt/health.uc"]="csqtt.health"
+      }
+      match($0,/HTTP\/[0-9][.][0-9][ \t]+[1-5][0-9][0-9]/) {
+        value=substr($0,RSTART,RLENGTH); sub(/^HTTP\/[^ \t]+[ \t]+/,"",value); status[value]=1
+      }
+      match($0,/HTTP error [1-5][0-9][0-9]/) { status[substr($0,RSTART+11,3)]=1 }
+      index($0,"Connection refused") { classes["connection_refused"]=1 }
+      index($0,"timed out") { classes["timeout"]=1 }
+      index($0,"Permission denied") { classes["permission_denied"]=1 }
+      index($0,"Exec format error") || index($0,"Failed to execute") || index($0,"Unable to execute") { classes["cgi_execute"]=1 }
+      index($0,"Bad Gateway") { classes["cgi_gateway"]=1 }
+      index($0,"unrecognized option") || index($0,"invalid option") { classes["option_unsupported"]=1 }
+      index($0,"Syntax error:") { classes["syntax_error"]=1 }
+      index($0,"Reference error:") { classes["reference_error"]=1 }
+      index($0,"Type error:") { classes["type_error"]=1 }
+      index($0,"Runtime error:") { classes["runtime_error"]=1 }
+      index($0,"Unable to resolve module") || index($0,"Unable to load module") ||
+        index($0,"Unable to compile module") || index($0,"Error loading module") { classes["module_error"]=1 }
+      { for (path in paths) {
+          needle=path ", line "; at=index($0,needle)
+          if (at) {
+            value=substr($0,at+length(needle))
+            if (match(value,/^[1-9][0-9]*,/)) {
+              number=substr(value,1,RLENGTH-1)
+              if (length(number)<=5 && number<=20000) locations[paths[path] ":" number]=1
+            }
+          }
+        } }
+      END {
+        for (value in status) print "CSQTT_GUEST_WEB_STATUS=" value
+        for (kind in classes) print "CSQTT_GUEST_WEB_CLASS=" kind
+        count=0; for (where in locations) if (count++<8) print "CSQTT_GUEST_WEB_SOURCE=" where
+      }'
+}
+web_file_diagnostics() {
+    [ -f "$1" ] && [ ! -L "$1" ] || return 0
+    dd if="$1" of="$TMP/web.checked" bs=1 count=8192 2>/dev/null || return 0
+    web_filter < "$TMP/web.checked"
+}
+luci_diagnostics() {
+    # Avoid xtrace of probes and filter programs crowding the bounded marker tail.
+    (
+        set +x
+        printf 'CSQTT_GUEST_WEB_EXIT=%s\n' "$1"
+        if timeout 2 /etc/init.d/uhttpd running > "$TMP/web-service.log" 2>&1; then service_status=0
+        else service_status=$?; fi
+        printf 'CSQTT_GUEST_WEB_SERVICE_EXIT=%s\n' "$service_status"
+        if pidof uhttpd >/dev/null 2>&1; then printf '%s\n' CSQTT_GUEST_WEB_CHECK=uhttpd_running
+        else printf '%s\n' CSQTT_GUEST_WEB_CHECK=uhttpd_stopped; fi
+        if awk '$2 ~ /:0050$/ && $4=="0A" { found=1 } END { exit !found }' /proc/net/tcp /proc/net/tcp6 2>/dev/null; then
+            printf '%s\n' CSQTT_GUEST_WEB_CHECK=port80_listening
+        else printf '%s\n' CSQTT_GUEST_WEB_CHECK=port80_closed; fi
+        if awk '$2 ~ /:01BB$/ && $4=="0A" { found=1 } END { exit !found }' /proc/net/tcp /proc/net/tcp6 2>/dev/null; then
+            printf '%s\n' CSQTT_GUEST_WEB_CHECK=port443_listening
+        else printf '%s\n' CSQTT_GUEST_WEB_CHECK=port443_closed; fi
+        for item in cgi dispatcher runtime template http; do
+            case "$item" in cgi) file=/www/cgi-bin/luci ;; *) file=/usr/share/ucode/luci/$item.uc ;; esac
+            if [ -s "$file" ]; then printf 'CSQTT_GUEST_WEB_FILE=%s:present\n' "$item"
+            else printf 'CSQTT_GUEST_WEB_FILE=%s:missing\n' "$item"; fi
+        done
+        if [ -x /www/cgi-bin/luci ]; then printf '%s\n' CSQTT_GUEST_WEB_CHECK=cgi_executable
+        else printf '%s\n' CSQTT_GUEST_WEB_CHECK=cgi_not_executable; fi
+        if [ -s /usr/lib/uhttpd_ucode.so ]; then printf '%s\n' CSQTT_GUEST_WEB_CHECK=uhttpd_ucode_present
+        else printf '%s\n' CSQTT_GUEST_WEB_CHECK=uhttpd_ucode_missing; fi
+        for module in fs ubus uci uloop math html; do
+            if timeout 2 ucode -e "import * as probe from '$module';" > "$TMP/web-module" 2>&1; then
+                printf 'CSQTT_GUEST_WEB_MODULE=%s:loaded\n' "$module"
+            else printf 'CSQTT_GUEST_WEB_MODULE=%s:failed\n' "$module"; web_file_diagnostics "$TMP/web-module"; fi
+        done
+        web_file_diagnostics "$TMP/luci-before.log"
+        web_file_diagnostics "$TMP/luci-before"
+        if timeout 3 env REQUEST_METHOD=GET SCRIPT_NAME=/cgi-bin/luci PATH_INFO=/ SERVER_NAME=127.0.0.1 SERVER_PORT=80 REMOTE_ADDR=127.0.0.1 /www/cgi-bin/luci > "$TMP/web-cgi.log" 2>&1; then cgi_status=0
+        else cgi_status=$?; fi
+        printf 'CSQTT_GUEST_WEB_CGI_EXIT=%s\n' "$cgi_status"
+        web_file_diagnostics "$TMP/web-cgi.log"
+        if timeout 3 wget -S -q -O "$TMP/web-root" http://127.0.0.1/ > "$TMP/web-root.log" 2>&1; then
+            printf '%s\n' CSQTT_GUEST_WEB_CHECK=root_http_ok
+        else printf '%s\n' CSQTT_GUEST_WEB_CHECK=root_http_failed; fi
+        web_file_diagnostics "$TMP/web-root.log"
+        timeout 3 logread -l 60 > "$TMP/web-system.log" 2>/dev/null || :
+        web_file_diagnostics "$TMP/web-system.log"
+    )
+}
+stage luci_http
+if timeout 10 wget -S -q -O "$TMP/luci-before" http://127.0.0.1/cgi-bin/luci/ > "$TMP/luci-before.log" 2>&1; then :
+else web_status=$?; luci_diagnostics "$web_status"; fail; fi
+[ -s "$TMP/luci-before" ] || { luci_diagnostics 0; fail; }
 
 # Exercise dnsmasq forwarding into nftsets over both UDP and TCP, with a
 # synthetic loopback upstream. No Internet or VK response can make this pass.

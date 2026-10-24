@@ -37,6 +37,72 @@ if not SH:
 
 
 class VmAcceptanceTest(unittest.TestCase):
+    def test_guest_web_filter_redacts_native_http_body_and_system_log(self):
+        guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
+        program = re.search(r"web_filter\(\) \{\n    awk '([\s\S]+?)'\n\}", guest).group(1)
+        awk = shutil.which('awk') or (str(pathlib.Path(SH).with_name('awk.exe')) if SH else '')
+        if not pathlib.Path(awk).is_file():
+            self.skipTest('A native awk is required for safe guest diagnostics')
+        commands = [[awk]]
+        if shutil.which('busybox'):
+            commands.append([shutil.which('busybox'), 'awk'])
+        private = 'private-key-password-url-config'
+        body = ('HTTP/1.1 500 Internal Server Error\nLocation: https://example.invalid/' + private +
+                '\nHTTP error 403\nConnection refused: ' + private + '\nPermission denied: ' + private +
+                '\nType error: ' + private + '\nUnable to resolve module ' + private +
+                '\nIn /usr/share/ucode/luci/dispatcher.uc, line 14, byte 1:\n' +
+                'In /usr/share/csqtt/runtime.uc, line 12, byte 2:\n' +
+                'In /private/runtime.uc, line 1, byte 1:\n' +
+                'In /usr/share/ucode/luci/runtime.uc, line 99999, byte 2:\n' + private)
+        for command in commands:
+            result = subprocess.run(command + [program], input=body, capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn(private, result.stdout)
+            self.assertNotIn('https:', result.stdout)
+            parsed = native_vm.guest_web_diagnostics(result.stdout)
+            self.assertEqual(parsed['status'], [403, 500])
+            self.assertEqual(parsed['classes'], ['connection_refused', 'module_error', 'permission_denied', 'type_error'])
+            self.assertEqual(parsed['locations'], [('csqtt.runtime', 12), ('luci.dispatcher', 14)])
+
+    def test_guest_web_markers_reject_unowned_fields_paths_and_values(self):
+        body = ('CSQTT_GUEST_WEB_EXIT=256\nCSQTT_GUEST_WEB_SERVICE_EXIT=-1\nCSQTT_GUEST_WEB_STATUS=600\n'
+                'CSQTT_GUEST_WEB_CHECK=private\nCSQTT_GUEST_WEB_CHECK=port80_closed private\n'
+                'CSQTT_GUEST_WEB_FILE=/etc/config/private:missing\nCSQTT_GUEST_WEB_MODULE=private:loaded\n'
+                'CSQTT_GUEST_WEB_CLASS=private\nCSQTT_GUEST_WEB_SOURCE=/private/runtime.uc:1\n'
+                'CSQTT_GUEST_WEB_SOURCE=luci.runtime:20001\nCSQTT_GUEST_WEB_SOURCE=luci.runtime:0\n')
+        self.assertTrue(all(not values for values in native_vm.guest_web_diagnostics(body).values()))
+        good = ('CSQTT_GUEST_WEB_EXIT=124\r\nCSQTT_GUEST_WEB_SERVICE_EXIT=1\nCSQTT_GUEST_WEB_CGI_EXIT=2\nCSQTT_GUEST_WEB_STATUS=500\n'
+                'CSQTT_GUEST_WEB_CHECK=port80_listening\nCSQTT_GUEST_WEB_FILE=cgi:present\n'
+                'CSQTT_GUEST_WEB_MODULE=ubus:loaded\nCSQTT_GUEST_WEB_SOURCE=luci.dispatcher:1\n')
+        parsed = native_vm.guest_web_diagnostics(good)
+        self.assertEqual(parsed['exit'], [124])
+        self.assertEqual(parsed['service_exit'], [1])
+        self.assertEqual(parsed['cgi_exit'], [2])
+        self.assertEqual(parsed['status'], [500])
+        self.assertEqual(parsed['checks'], ['port80_listening'])
+        self.assertEqual(parsed['files'], ['cgi:present'])
+        self.assertEqual(parsed['modules'], ['ubus:loaded'])
+        self.assertEqual(parsed['locations'], [('luci.dispatcher', 1)])
+        self.assertTrue(all(not values for values in native_vm.guest_web_diagnostics(good + 'x' * native_vm.DIAGNOSTIC_LIMIT).values()))
+
+    def test_guest_web_transport_prints_only_fixed_diagnostic_markers(self):
+        private = 'private-key-password-url-config'
+        body = ('CSQTT_GUEST_WEB_EXIT=8\nCSQTT_GUEST_WEB_STATUS=500\n'
+                'CSQTT_GUEST_WEB_CHECK=uhttpd_running\nCSQTT_GUEST_WEB_CLASS=module_error\n'
+                'CSQTT_GUEST_WEB_SOURCE=luci.dispatcher:14\n' + private + '\n')
+        with mock.patch.object(native_vm, 'PHASE', 'native_runtime_dns_firewall_luci'), \
+                mock.patch.object(native_vm.subprocess, 'run', side_effect=[
+                    subprocess.CompletedProcess(['ssh'], 1, stdout='', stderr=''),
+                    subprocess.CompletedProcess(['ssh'], 0,
+                        stdout=(body + '\n' + native_vm.DIAGNOSTIC_READ_OK + '\n').encode(), stderr=b'')]), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            with self.assertRaises(ValueError):
+                native_vm.run_remote(['ssh'], 'false')
+        for expected in ('web exit: 8', 'web status: 500', 'web checks: uhttpd_running',
+                         'web classes: module_error', 'web locations: luci.dispatcher:14'):
+            self.assertIn(expected, output.getvalue())
+        self.assertNotIn(private, output.getvalue())
+
     def test_first_install_native_errors_excludes_traces_and_redacts_values(self):
         private = 'private-password-key-url-identity'
         text = ('+CSQTT_XTRACE:1: apk ' + private + '\nERROR: opening /tmp/' + private +
