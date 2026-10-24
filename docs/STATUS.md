@@ -25,103 +25,68 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-Preview10 is NOT published or ready to install. The owner installs personally.
-No router SSH, configuration/service changes, reboot or scheduled task this turn.
-Keep preview9 immutable, draft PR#1 open, and main README pending public proof.
-Historical diagnostics and exact preceding checkpoints:
-https://github.com/RATOR2000/csqtt-openwrt/blob/e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d/docs/STATUS.md
+Preview10 is NOT published/ready. Owner installs personally. No router SSH,
+configuration/service mutation, reboot or Codex scheduled task this turn.
+Preserve preview9. DraftPR#1/main README await final public-command proof.
+Historical diagnostics23-30:
+https://github.com/RATOR2000/csqtt-openwrt/blob/f4e6bdca58277e9d1ed3e56eb49a1f6ca5b83ab0/docs/STATUS.md
 
-FIRST UNFINISHED: inspect diagnostic30 with test-only FIFO transport correction
-and both native VMs. Agent release_path_audit completed/frozen. Root owns STATUS,
-Git, CI and release; no outstanding source ownership. Recheck liveness on resume.
-Diagnostic27 run40113295831/sourcefb7d9bc7807bf235b64dc1b23ad4ec5b2d41a677
-failed HOST supplementary nc case before VM: server finalizer4s masked original
-client return code while accept timeout was5s. Test now preflights nc capability,
-skips only verified missing applet, preserves other actual rc/stderr, uses bounded
-server-stop polling so cleanup cannot mask failure. Localfocused3=2PASS/1LinuxSKIP;
-Python/diff PASS. Actual guest acceptance and production unchanged.
-Dev bbad584348a6e590d2d7a65d45f1fb9016ec74bf/treebf87da1c equal.
-Diagnostic28 run40113629165/source4f36315230dd1b875fc977950b2ce82ea5cfacdf
-now revealed the HOST harness cause: vm-timeout C execvp cannot invoke a shell
-nc() function, so its dynamic-port mapping was ignored and it contacted host80.
-Test now uses a private executable bin/nc wrapper with PATH, validates exact
-127:80 arguments, invokes actual BusyBox nc on the ephemeral peer and records
-wrapper invocation. Old EOF case remains. No skip/dependency/guest change.
-Pythoncompile/diff and focused parser PASS; actual Linux case pending29.
-Dev d958e26806316a4f428e3ba626c360e65fa96d32/tree7ecc572f equal.
-General40112405377 on e478 is now ALL5SUCCESS. No more polling this run.
-Diagnostic29 run40113864608/source8f2007aaf0cf67962a7dfe54497dd43fbd6349f5:
-HOST58 tests ALLPASS, including actual BusyBox-nc delayed-peer/no-early-FIN case.
-25job120930982109 native install/status/RPC PASS; HTTP response3046bytes, nc/read0,
-403 and all login/header/form predicates PASS except html_document: old assertion
-required a literal trailing </html>. HTML permits omitted html/body end tags and
-trailing comments. Corrected to require an html-root/DOCTYPE marker plus the same
-complete POST login form/headers/framing/size checks. Truncated form still fails;
-Content-Length mismatches still fail. Focused actualAWK parser PASS0.668s,
-shell/diff PASS. No production change or trust bypass.
-Primary syntax contract: https://html.spec.whatwg.org/multipage/syntax.html#optional-tags
-Connector jobs snapshot lagged browser UI (reported running after failed); when
-necessary use one current-run browser snapshot, then completed bounded log only.
-No old-CI polling. 24VM outcome29 not yet read; no need if same old parser gate.
-Dev c5608a8e0d244ffad133b4af7e22d2e8b18944d9/tree4100ab30 equal.
-No full six-SDK rebuild yet. Never qualify mixed diagnostic packages as a release.
-IDs and generated diagnostic overlays: .work/preview.10/candidate.json.
+FIRST UNFINISHED: inspect diagnostic31 BOTH24.10.8/25.12.6 after fixture-only
+netifd-owned bridge correction. Exact run/source IDs in
+.work/preview.10/candidate.json. Root owns Git/CI/release. Agents
+release_path_audit and lan_cause completed/frozen; no outstanding source owner.
+Recheck liveness before delegation. Use compact current-run status, no old logs.
 
-Current dev e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d,
-tree 0c737dd5574e969908e7fc3b0c2fda17a33d208b; local/fetched trees equal.
-General run40112405377: checks/core/native-policy/android SUCCESS; openwrt active
-at last compact read. Earlier general40091736716 on6545 ALL5SUCCESS, including
-actual native ucode platform/control-byte regression. Do not poll old CI again.
+Dev f4e6bdca58277e9d1ed3e56eb49a1f6ca5b83ab0,
+tree18f4149f87ed04bec04190577f4b515d11b9118f; local/fetch equal.
+General40112405377 on e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d ALL5SUCCESS:
+checks/core/native-policy/android/openwrt. Do not poll or rerun for docs-only.
+Production code unchanged since6545: APK RAM staging acknowledgement isolated
+from live install, and has_control lexical binding fixed; general/native
+regressions and both diagnostic installations/status/RPC have passed.
 
-Concrete production fixes already committed in6545 (unchanged since):
-- Staged APK archives on /tmp require --force-non-repository. Use it ONLY with
-  isolated --root/--no-network/--no-scripts. Live guard, signatures, dependencies
-  and world checks remain intact. Four actual POSIX-shell install/upgrade and
-  success/rollback cases PASS109s; native diagnostic23 BOTH installations PASS.
-- Move unchanged has_control() before platform() for ucode lexical binding.
-  Native general regression PASS; diagnostic23 BOTH manage status/RPC/assets PASS.
+Latest native diagnostic30 run40114548232/sourcefebec8e1be8a3372aa9cdc340315744cc9e858ac:
+25job120933017955 INSTALL/status/RPC/LuCI HTTP and ALL private-DNS checks PASS
+(UDP/TCP forwarding, nftset insertion, local DNS); next failure automatic_lan,
+guestsource407 scope_ready==1.24 outcome not yet read. No false runtime PASS.
+Root fixed earlier test-only problems: native uclient lacks-S; anonymous LuCI
+returns403 + login-requiredyes and full form; FIFO holds nc stdin until response;
+HTML end tags optional. Strict403/header/type/fullPOSTusername/password form,
+framing/length/128KiB/deadline checks remain. Generic403/200/500/malformed/truncated
+forms still refuse. Actual Linux BusyBox delayed-peer/no-early-FIN regression
+passed in diagnostic29 HOST58 tests ALLPASS. Host executable wrapper necessary
+because C execvp cannot call a shell function. No certificate/trust bypass.
 
-The remaining observed failure is in the VM HTTP test, not an installer refusal:
-- Diagnostic25 run40111752888, source531371a59bbcfc5953837f9a9f340ae21f599e23:
-  25job120924759473 proves HTTP403, wget exit8, uhttpd running/listening80+443,
-  rootHTTP success, direct CGI exit0 and six loaded native ucode modules.
-- Stock LuCI24/25 intentionally returns403 + X-LuCI-Login-Required:yes with its
-  complete login form for an anonymous request. Old wget assertion rejected it.
-  Official sources: openwrt/luci, branches openwrt-24.10 and openwrt-25.12,
-  modules/luci-base/ucode/dispatcher.uc and template/sysauth.ut.
-- Native wget lacks -S; an intermediate diagnostic accidentally used it. Fixed
-  to native -O and tested. No certificate/trust bypass was introduced.
-- Strict login test now requires the actual403, unique login-required/header
-  and HTML content type, full POST form with username/password-type inputs,
-  HTML-root/DOCTYPE marker, valid length when present, <=128KiB. Generic403/200/500,
-  redirects, malformed/truncated/chunked/duplicate/oversize responses refuse.
-- Diagnostic26 run40112407115, source17b7d043f708b7ae985f39c46565ca66dd9aa5a7,
-  BOTH failed at this login parser, nc exit0 and no HTTP marker. Regular-file
-  stdin immediately half-closes TCP; uhttpd can discard the request before reply.
-  Correct transport holds Linux FIFO O_RDWR open until peer response completion,
-  closes inherited writer in nc, keeps existing10s deadline/128KiB stream cap,
-  and records nc/read exits plus fixed byte-count/parser predicates on failure.
-  No new firmware package, optional nc flag, credential or configuration change.
-  Real Linux BusyBox-nc delayed-peer/no-early-FIN regression is required in the
-  next diagnostic host job; Windows cannot prove it. Existing local parser,
-  privacy, shell/Python checks pass. Focused7=5PASS/2Linux FIFO/native SKIP locally
-  (0.584s). Linux FIFO behavioral test and BOTH actual native VM HTTP proofs
-  stay mandatory. Supplementary host BusyBox-nc test may skip ONLY exact
-  missing nc applet, never count as native PASS. No new dependency for this test.
-- Fixed ucode error class/public source-line diagnostics also cover known
-  devices/helper/apply/dns-ready logs. Every read stays bounded and private;
-  no raw HTML, URLs, config, identities, pairing grants or logs are emitted.
+LAN failure concrete cause, verified against BOTH firmware-pinned netifd:
+25.12.6 cbb83a1857407a28a63dc09412a1f209195914ef;
+24.10.8 7901e66c5f273bceee8981bc8a0c8b0e60945f60.
+device_create_default adopts externally created bridge as simple device;
+system_if_clear_state deletes that pre-existing bridge. Static force_link is
+already default; musl regex supports\s, so neither guessed production change used.
+Fixture now declares UCI device type=bridge,name=br-csqtt-test,bridge_empty=1;
+netifd owns creation, no manual iplink bridge. Empty-bridge presence is explicit.
+Production discovery predicates remain unchanged. Fixed boolean LAN diagnostics
+(auto/present/up/proto/device/address/no_default/trusted) distinguish any next
+readiness failure without raw config/network dump. Privacy parser test PASS;
+actualAWK HTML-parser PASS0.668s, shell/Python/diff PASS; full native31 pending.
+Primary pinned sources:
+https://github.com/openwrt/netifd/blob/cbb83a1857407a28a63dc09412a1f209195914ef/system-linux.c
+https://github.com/openwrt/netifd/blob/7901e66c5f273bceee8981bc8a0c8b0e60945f60/system-linux.c
 
-All diagnostics use old06c binaries plus current runtime.uc overlay AFTER install,
-explicit kind diagnostic_runtime_overlay, release_eligible=false. No clean/source-
-qualified native acceptance claimed. Build branch remains old failed06c.
-After BOTH diagnostic VMs pass: freeze final exact source without skip-ci, then
-one official workflow handles six SDK tuples, three native x86 VMs, native ARM
-signed9 migration, signatures/catalogue and draft10. Run general on that same
-source; docs-only checkpoints never force a rebuild. Then inspect/publish,
-verify all public assets, run literal README command on clean24.10.8+25.12.6,
-and finish existing PR#1/main README. Physical/VK/Android/stable gates stay open.
-No unattended continuation: no Codex schedules. Old72h remains unverified.
+All diagnostic payloads are old06c compiled packages + current runtime.uc overlay
+AFTER install; explicit kind diagnostic_runtime_overlay, release_eligible=false.
+No clean/source-qualified final acceptance. Buildbranch still old failed06c.
+Only after BOTH diagnosticVM PASS: freeze exact final source withoutskipci; one
+official workflow handles6SDK/3x86VM/nativeARM signed9migration/signatures/catalogue
+and draft10; fresh general on same exact source. Docs-only later commits never
+force rebuild. Then inspect/publish -> independent public assets verifier ->
+literal README HTTPS command on clean24.10.8+25.12.6 -> PR#1/main README.
+Physical/VK/Android/stable/boot7/old72h remain unverified. No unattended schedules.
+Connector status occasionally lagged UI: compare one current-run browser snapshot
+if needed, then only completed bounded logs. Current browser tab handle ghTab in
+cua_repl, browser2/tab1, GitHub owner session available; connector lacks release
+publication endpoint, use UI only for final publication after all gates.
+Current5h window52%used at last check; economy priority, save next precise gate.
 
 Confirmed blockers/evidence (do not rerun old CI):
 -24.10.8: actual signed install + strict wrongprojectsignature PASS repeatedly;
