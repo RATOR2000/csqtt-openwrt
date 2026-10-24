@@ -27,6 +27,7 @@ from release_schema import describe, load, require, validate
 from openwrt_image import extract_openwrt_image
 from vm_disk import expand_disposable_root
 from vm_console import prepare_guest_console
+from vm_timeout import build_timeout, provision_timeout
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 IMAGES = {
@@ -55,6 +56,7 @@ OPKG_SOLVER_ERRORS = {
     'resource_limit': ('No space left on device',),
 }
 APK_SOLVER_ERRORS = {
+    'usage_output': ('Usage: apk ', 'usage: apk '),
     'unsupported_option': ('unrecognized option', 'unrecognized command line option', 'unknown option', 'invalid option'),
     'unknown_package': ('(no such package)',),
     'dependency_unsatisfied': ('unable to select packages:',),
@@ -220,7 +222,7 @@ def bootstrap_solver_read_command():
     return _nested_log_read_command('bootstrap/solver.log')
 
 
-def project_stage_read_command():
+def project_stage_read_command(native_head=False):
     if PHASE not in ('first_offline_install', 'repeat_install_settings_preserved'):
         return 'exit 1'
     source = (ROOT / 'scripts/portable-install.sh').read_text(encoding='utf-8')
@@ -228,11 +230,33 @@ def project_stage_read_command():
              PROJECT_STAGE_ERROR.removeprefix('CSQTT: ') + '\'')
     if source.count(known) != 1:
         return 'exit 1'
-    return _nested_log_read_command('stage.log')
+    return _nested_log_read_command('stage.log', native_head=native_head)
 
 
-def _nested_log_read_command(relative):
-    if relative not in ('bootstrap/solver.log', 'stage.log'):
+def _private_native_output_head():
+    # The package-manager's error can precede a long usage listing. Select only
+    # its first bounded output after the unique, source-known staged APK call.
+    command = ('apk --root "$CS_PM_ROOT" --arch "$CS_ARCH" --repositories-file "$CS_REPOSITORIES" '
+               '--keys-dir etc/apk/keys --no-network --no-scripts add "$@"')
+    lines = [n for n, line in enumerate((ROOT / 'install.sh').read_text(encoding='utf-8').splitlines(), 1)
+             if line.strip() == command]
+    if len(lines) != 1:
+        return 'exit 1'
+    marker = '^[+]+CSQTT_XTRACE:' + str(lines[0]) + ': apk '
+    program = ('{total+=length($0)+1;if(total>' + str(DIAGNOSTIC_SCAN_LIMIT) + '){bad=1;exit} '
+               'if($0 ~ "' + marker + '"){matches++;active=1;next} '
+               'if(active && $0 ~ "^[+]+CSQTT_XTRACE:")active=0; '
+               'if(active && bytes<' + str(DIAGNOSTIC_LIMIT) + '){part=substr($0 "\\n",1,' +
+               str(DIAGNOSTIC_LIMIT) + '-bytes);body=body part;bytes+=length(part)}} '
+               'END{if(bad || matches!=1)exit 1;printf "%s",body}')
+    return ('[ -f "$f" ] && [ ! -L "$f" ] || exit 1; ' + _private_log_size() +
+            '[ "$n" -le ' + str(DIAGNOSTIC_SCAN_LIMIT) + ' ] || exit 1; '
+            'LC_ALL=C awk \'' + program + '\' "$f" || exit 1; '
+            'printf "\\n' + DIAGNOSTIC_READ_OK + '\\n"')
+
+
+def _nested_log_read_command(relative, native_head=False):
+    if relative not in ('bootstrap/solver.log', 'stage.log') or native_head and relative != 'stage.log':
         return 'exit 1'
     name = PRIVATE_PHASE_LOGS.get(PHASE)
     assignments = [number for number, line in enumerate((ROOT / 'install.sh').read_text(encoding='utf-8').splitlines(), 1)
@@ -256,7 +280,7 @@ def _nested_log_read_command(relative):
             _private_log_size() + '[ "$n" -le ' + str(DIAGNOSTIC_SCAN_LIMIT) + ' ] || exit 1; '
             'd=$(awk \'' + program + '\' "$f") || exit 1; '
             '[ -d "$d" ] && [ ! -L "$d" ] || exit 1; ' + child_guard +
-            'f="$d/' + relative + '"; ' + _private_log_tail())
+            'f="$d/' + relative + '"; ' + (_private_native_output_head() if native_head else _private_log_tail()))
 
 
 def read_private_diagnostic(ssh, command):
@@ -363,6 +387,13 @@ def run_remote(ssh, command, timeout=600, check=True):
                     print('OpenWrt project stage class: ' + category, flush=True)
                 for package in solver['packages']:
                     print('OpenWrt project stage package: ' + package, flush=True)
+                if set(solver['classes']) <= {'unclassified_output', 'usage_output'}:
+                    native = read_private_diagnostic(ssh, project_stage_read_command(native_head=True))
+                    print('OpenWrt project native output: ' + ('bounded_read_ok' if native is not None else
+                          'diagnostic_unavailable'), flush=True)
+                    if native is not None:
+                        for category in project_stage_diagnostics(native)['classes']:
+                            print('OpenWrt project native output class: ' + category, flush=True)
                 traced = installer_diagnostics(nested)
                 for name in traced['trace_functions']:
                     print('OpenWrt project stage trace function: ' + name, flush=True)
@@ -407,6 +438,8 @@ def main():
     phase('fixture_copy')
     with tempfile.TemporaryDirectory(prefix='csqtt-vm-') as temporary:
         work = pathlib.Path(temporary)
+        phase('test_timeout_build')
+        test_timeout = build_timeout(work)
         web = work / 'web'
         web.mkdir()
         fixture = web / 'ci-private'
@@ -483,6 +516,8 @@ def main():
             signature.write_bytes(valid_signature)
             phase('first_offline_install')
             remote('cd /tmp/csqtt-native; ' + PRIVATE_TRACE + ' > install.private.log 2>&1')
+            phase('test_timeout_provision')
+            provision_timeout(ssh, test_timeout, '/tmp/csqtt-native')
             phase('native_runtime_dns_firewall_luci')
             smoke = remote('cd /tmp/csqtt-native; sh guest.sh > smoke.private.log 2>&1 && tail -n 1 smoke.private.log')
             require(smoke.stdout.strip() == 'CSQTT_GUEST_SMOKE_PASS', 'Native runtime/DNS/firewall/LuCI guest proof missing')

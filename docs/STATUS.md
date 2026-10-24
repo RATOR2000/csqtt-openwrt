@@ -1,6 +1,6 @@
 # Development status — resume here
 
-Updated 2026-10-23. Read this first, then IMPLEMENTATION.md.
+Updated 2026-10-24. Read this first, then IMPLEMENTATION.md.
 Files, Git and current router evidence are authoritative. Preserve owner settings.
 Older detailed history is retained in Git at c509a1d1ad8d2126b86c2a1e502e46840b92cf86:
 https://github.com/RATOR2000/csqtt-openwrt/blob/c509a1d1ad8d2126b86c2a1e502e46840b92cf86/docs/STATUS.md
@@ -25,180 +25,80 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-23Oct18:33UTC. Owner resumed. Fresh5h usage window0% at resume; conserve tokens.
-Release estimate remains rough70%done/30%remaining, not guarantee/date. Preview10
-NOT published/ready. Main README2lines; existing attached draft PR#1 only:
-https://github.com/RATOR2000/csqtt-openwrt/pull/1
-No duplicate PR or Codex schedule. Owner personally installs; no router mutations.
+24Oct resume (owner timezone Europe/Moscow). Preview10 is NOT published/ready.
+Keep attached draftPR#1; main README still2lines. Rough70% estimate is not a
+release qualification/date. Owner installs personally; no router mutations,
+Codex schedules or old72h restart. Historical details up to this resume:
+https://github.com/RATOR2000/csqtt-openwrt/blob/9f6a860b2fa36fe2d63cf35bde58b6dfdb599c77/docs/STATUS.md
 
-PRECEDING qualification source06c2faf455a20f9ee6f2e85def176e0d8e6e165c,
-treee5e2fd9578a8630a6bf79e52795a643dae706eac. Build branch points there. Dev
-e3a64ae6a908f99cce985df260573185035e71cb is docs-only ahead. Source fix below
-requires a fresh candidate after diagnostic proof; STATUS alone never does.
-Exact metadata: .work/preview.10/candidate.json; source/package/evidence must bind
-to frozen SHA. No GITHUB_SHA override or old diagnostic proof promotion.
+FIRST UNFINISHED ACTION: run/read diagnostic19 with test-only timeout tool and
+bounded native APK output head, against compiled06c packages. Only after BOTH
+native24/25 diagnostic VMs pass, freeze a new exact source and run6SDK+5regression.
+Never promote mixed-source diagnostic packages/proofs to release qualification.
+Metadata .work/preview.10/candidate.json; prior frozen06c/treee5e2fd9 failed and
+build branch still points there. Latest dev at resume9f6a860 (docs-only after
+456d725), working tree/fetch clean. Ordinary gitpush opensOAuth; use connector.
 
-FIRST UNFINISHED ACTION (19:14UTC): correct test-only timeout availability on
-clean VM without weakening per-command bounds or inventing production deps;
-diagnose exact native APK staged command output (below), then fresh diagnostic
-and only after bothVM pass freeze/run6SDK+5regression. No CI watcher left active.
-Diagnostic reuses compiled06c packages;
-it MUST NOT qualify a release or override evidence source. No client rebuild
-needed to diagnose authenticated feed cache and both native VM transactions.
-LATEST dev456d725eed8f488405e6dac617944e15e7f5d2f4, tree
-77bc8f92bd9ff2d375ce3b9ad68d63d1472949bc; source/tests pushed and clean.
-Diagnostic17 remaining25job120600536738 FAILED at first_offline_install:
-checked stage.log readPASS, native APK failure unclassified_output; exact final
-source install.sh544 = apk --root "$CS_PM_ROOT" --arch "$CS_ARCH" ... --no-network
---no-scripts add. Thus actual native command failed, not preceding shell/query.
-No missing-tool/shell-error class. Next diagnostic should capture only bounded
-native command output (beginning as well as tail, fixed classifications), because
-verbose help could hide its first error in current8192Btail. No forcedepends,
-allow-untrusted or solver bypass. Source trace functions endcsqtt_repositories.
-Diagnostic18 run40009117008/sourcedecdc35f5953221928b62b9639bc07cc32d89018
-job120604594219 FAILED runtimeprerequisites_tools; exact fixed missingtool timeout.
-Wrongsignature+actual24install passed again. timeout is absent in both pinned
-rootfs archives and used only guest harness. Supply verified test tooling or
-equivalent bounded harness execution, not unnecessary production dependencies.
-All running diagnostics nowcompleted; no full source qualification/public release.
-19:00UTC dev checkpointd28b73fa9c4fc5d3009b5aed35cc4e12950d7068,
-tree87d216aa86c584f1b6384c290e82cb5839fb8244. Local/fetch tree equality PASS.
-Diagnostic17 run40007934424/sourcea0ba424f57d63638cffd6cb155f7f2d3dec92a87
-24job120600536428 badsignature/firstinstall PASS again, runtime fails exact
-prerequisites_tools. Native signed application install is proven only diagnostic;
-runtime/guards/repeat notPASS. Pinned24/25 rootfs archives both lack timeout path
-(nslookup present); timeout is used ONLY by guest harness, not production client.
-Do not add production dependencies or weaken bounds from that clue alone. New
-fixed missing-tool marker+source-derived whitelist implemented;7malformed marker
-cases1focusedPASS, compile/shellPASS. Need actual failed tool on next24VM.
-25job120600536738 still setup at19:07UTC (no running logs read); its future failure
-will expose stage.log source trace added17. Read bounded failed logs only.
-General9898run40006282226: core/android/native-policy PASS, checks120594898568
-failed portable20test16failures because opkg double lacks print-architecture and
-readonly test forbids all opkg calls. Agent diagnostics_finish owns test doubles
-and readonly assertion only; native production query remains strict. Fix now
-frozen: nativequery double+exact readonly allowlist, readonly2PM/opkg success/
-catalogue_signature/service_failure rollback PASS; Node/Python/whitespacePASS.
-Agents completed/frozen. openwrt
-skipped. Do not treat this run as ALL5PASS. No full6SDK retry while blockers open.
-18:48UTC checkpoint pushed9898abf3f8b91bb0a51868630ebc29d42e077f6f,
-tree6b61460c1dbe5d0fcc4efd3423e60ea579766794; tree/fetch equality PASS, no edits.
-Diagnostic16 run40006335403/sourceaea94a5952687b5e3b8f16f7c185b823932f7889
-finished:24job120595077224 badsignature+firstinstall PASS; runtime immediately
-failed prerequisites (no precise earlier marker). Native opkg architecture fix
-therefore passed actual clean firmware.25job120595077911 badsignature PASS,
-stage install failed again; checked stage.log readPASS but unclassified_output,
-only source-known jsonfilter name. Add safe stage trace source-line/functions
-and11 static guest prerequisites markers; assertions unchanged. Focused helper
-5tests=4PASS/1Windows symlinkskip; py_compile/shell/marker allowlist PASS.
-Both diagnostic binaries remain06c, NEVER release proof. General
-run40006282226 tests9898source. On failure, read fixed safe classes only;
-do not rebuild6SDK until concrete production defects corrected and nativeVM
-diagnostics pass. Build branch remains failed06c; preview10 not published.
-Fix checkpoint pushed3e599facb7f3d89a29efa3f48a11c302b7b79024,
-treea83b652d7d05abf6d6898499d539039770d7150e, local tree/fetch equality PASS.
-Diagnostic15 run40004512219/source53bedbed15a870bd6cda37dd6999b720f8276152
-completed: both authenticated dependency caches PASS;24cached51,25cached53.
-24VM120588878038 refused before signature marker: tuple guard/empty arch likely;
-probe reads arch.conf not present in pinned clean image. Nativeprint-architecture
-fix pending actual guest proof; tests must not fabricate required config files.
-25VM120588878363 strict wrongsignature PASS; first_offline_install refused native
-staged install (portableline731), stage.log needs bounded classified diagnostics.
-No native completePASS granted. Pinned SDK HOST tools only, compiled06c packages,
-no Rust rebuild; mismatched source/package diagnostics NEVER qualify release.
-General5regression
-run40004427785 tests actual3e599fix. Check these compactly, logs only on failure.
-Native probe fix implemented: successful native opkg print-architecture replaces
-arch.conf assumption; failed/partial/malformed/duplicate/mismatched query refuses.
-Focused PlatformMetadataTest3PASS/1WindowsBusyBoxskip; shell/compile/whitespace
-PASS. Generated install.sh refreshed and assemble-installer.py --check PASS.
-VM diagnostics classify source-known probe assignments and gated stage.log only:
-exact phase/error, checked8192B read/sentinel,1MiBscan, symlink refusal, fixed
-classes/package names. vm_acceptance_test.py41=38PASS/3Windowsnative-dd/symlink
-skips; py_compilePASS. Agent diagnostics_finish/native_failure_diagnostics both
-frozen/completed. Root owns remaining Git/CI/release. Fresh5h usage55% at18:44UTC;
-conserve tokens. Neither focused check nor diagnostic grants native releasePASS.
--39996605422 attempt1 all6SDK compiled/privateDNS/ISA/TUN PASS, then generic
- dependency HTTP502. Attempt2 reproduced on24ARM120576950052/x86120576949514
- and25.12.6x86120576949698. Remaining jobs cancellation requested in GitHub UI;
- visible success banner captured .work/preview.10/cancel-attempt2.png. No VM/draft.
- Root-cause correction: old claim rootfs502 was UNPROVEN. Actual all6 selected
- target kmods/ directory listings return502; all6 profiles.json AND all36 exact
- feed indexes plus12opkg signatures download successfully with kernel directory
- derived from profiles.json. Private cache .work/preview.10/feed-probe. Native
- authentication is still mandatory; download success is not signature proof.
- Use strict tuple/version/arch metadata, directory VERSION-RELEASE-VERMAGIC;
- require signed module ABI VERSION~VERMAGIC-rRELEASE. No directory HTML scraping.
- Fix implemented: dependency17/17, compile/whitespace PASS; all6 actual saved
- official profiles.json documents pass strict parser. Fixed stage/index/status
- diagnostics expose no raw URLs. Agent diagnostics_finish frozen/completed;
- root owns STATUS/diagnostic workflow/Git/CI. Agent liveness rechecked.
--Diagnostic14 run40000891415/source391d654d2376ac829589c8ca3993166dd46ad2a2
- job120576354877 verified both24/25rootfs with3clients=6pinned-bytePASS; it did
- NOT probe kmods/. No evidence of SDK proxy/namespace differences. No weakened
- TLS, signatures, kernel checks or blind third full retry.
--39996612862 general5regression ALL5 SUCCESS on06c: checks120561666876,
- core120561667232,android120561667319,native-policy120561667379,openwrt120565507447.
- No need to rerun these without source changes/failure.
-Only read bounded failed-job logs. Don't poll superseded runs or repeat tests
-without a new failure/change. If a
-concrete failure occurs: fix with guards intact, checkpoint+STATUS, use connector
-push (ordinary gitpush opensOAuth). Never mistake compilation/mocks for native
-VM, physical-router, VK or public-command proof.
+Confirmed blockers/evidence (do not rerun old CI):
+-24.10.8: actual signed install + strict wrongprojectsignature PASS repeatedly;
+ runtime smoke fails ONLY prerequisites_tools -> fixed missingtool timeout.
+ Diagnostic18 run40009117008/sourcedecdc35f5953221928b62b9639bc07cc32d89018,
+ job120604594219. Both pinned rootfs archives lack timeout executable. Production
+ does not use timeout; add test tooling after the clean install, preserve command
+ deadlines/process-group cleanup, never add unnecessary production dependencies.
+-25.12.6: wrongprojectsignature PASS, staged native APK command fails before live
+ CSQTT mutation. Diagnostic17 run40007934424/sourcea0ba424f57d63638cffd6cb155f7f2d3dec92a87,
+ job120600536738. Checked stage.log8192B tail unclassified; exact last source
+ install.sh544 = apk --root ... --no-network --no-scripts add. Need the first
+ bounded native output after this source-known command; long help may hide error.
+ No forcedepends/allow-untrusted/no-scripts removal or signature/ABI bypass.
+ Root implements source-bound <=8192B native head, <=1MiB scan, checked sentinel,
+ symlink rejection and fixed classifications; native_head focusedPOSIX testPASS.
+-Test-only C/Python deadline tool implemented: static host-built x86 ELF, SHA256
+ checked transfer to private /tmp only AFTER successful installer; no firmware
+ packages changed. Monotonic deadline/group TERM+KILL/status124; normal services
+ retained. Agent vm_timeout completed/frozen; root owns remaining Git/CI/release.
+ Local vm_timeout7=2PASS/5LinuxSKIP; VM43=40PASS/3WindowsSKIP; publiccommand7PASS,
+ Python/shell/diffPASS. Linux native deadline tests wired to workflows, pending.
+ Native head1focusedPOSIXtestPASS; <=8192B transport/1MiBscan/sourceknownAPK,
+ missing/duplicate markers/oversize/nexttrace handled; no raw native output.
 
-After all fresh6SDK/3VM+native migration+5regression PASS: inspect signed draft10,
-publish, independently verify public assets/tag/source/installer bytes with
-scripts/verify-published-release.py (details below). Then run literal public
-README command on24.10.8 AND25.12.6 via public-command-check.yml. Only after both
-pass finalize main README/PR#1 and tell owner installation is ready. Published9
-and tag/assets remain immutable; don't overwrite a failed public10 release.
+Implemented preceding fixes and exact checks:
+-Kernel feed discovery: all6 kmods/ HTML listings return502, exact files work.
+ Strict profiles.json version/target/arch + directory VERSION-RELEASE-HASH and
+ signed module ABI VERSION~HASH-rRELEASE. All6 actual metadata parsePASS;
+ dependency17/17PASS. Actual native signed caches PASS (24=51,25=53deps).
+-Platform probe uses successful native opkg print-architecture, not nonexistent
+ arch.conf. Reject partial/malformed/mismatched queries. Actual24 installPASS.
+-BusyBox dynamic-regexp fixes, opkg held states, copied authenticated offline
+ lists, dependency-ordered planned removal, full own-ABI module closure/rollback
+ baseline proof implemented. Module transaction12subcasesPASS342.992s (bothPMs
+ install/existing/wrongABI/service rollback/SIGKILL-resume); no live process.
+-Generated installer --check, source compilation/syntax/whitespacePASS.
+ VM helper43tests:40PASS/3Windowsnative-dd/symlinkskips; missingtool expectation
+ updated for test timeout. Head test
+ checks first8192B, nexttrace stop, duplicate/missingmarker and oversizes refuse.
+-Opkg command doubles updated for exact readonly nativequery; readonly2PM/opkg
+ success/catalogue_signature/service_failure rollbackPASS. No production change.
+-General9898run40006282226: core/android/native-policyPASS, checks failed old
+ opkg-double assumption (nowfixed); openwrt skipped. NOT ALL5PASS.
+-Prior06c general39996612862 ALL5PASS; official39996605422 compiled all6SDK and
+ privateDNS/ISA/TUNPASS then dependency directory502. Attempt2 reproduced, cancelled
+ remaining jobs. These are historical, not proof for new source. Do not poll them.
+-Diagnostics15/16/17/18 all ended. No CI watcher or scheduled Codex task active.
 
-Completed source/checks for this candidate:
--BusyBox/GNU awk lexer differences fixed with dynamic regexp strings and strict
- feed control checks. Linux BusyBox16tests PASS in diagnostics12/13; readonly
- actual router16feedcases PASS, no files/config/network/service writes.
--Held opkg records included; malformed/unknown installed states refuse atomically.
- Authenticated feed lists copied inside native offline_root; all signature and
- original-inventory checks retained. Native opkg removals plan each exact target
- with --noaction, execute only after success, then retry blocked plans only after
- another selected removal. No force/nodeps/autoremove. Write errors abort.
--Complete module closure: every selected kmod proves its OWN single exact
- kernel=ABI from signed metadata, equal TUN/manifest/running kernel. Missing,
- nonexact, duplicate or conflicting ABI refuses. Firmware exclusions intact.
- Rollback modules must be in verified bundle exactlyonce AND absent from baseline;
- both staged/journal paths pass context. Bootstrap still forbids kernel modules.
--Actual-shell module transaction12subcases PASS342.992s: both PMs new/existing,
- wrong/missing ABI, failed-service rollback, SIGKILL/resume. Log
- .work/preview.10/modules-focused.log; no process remains. Focused opkg bootstrap
- success and bad-project-signature inventory restore PASS (command doubles).
--Dependency12/release10 PASS. VM34=32PASS/2Windowsnative-dd/symlinkskips,
- public-command7PASS, platform16=15PASS/1WindowsBBskip. Generated installer,
- Python compile, shell/node syntax and diffPASS. Fresh native CI remainsrequired.
--Console UID0 nonce, bounded retries, checked one-shot provisioning; <=8192byte
- checked private log transport, bounded nested solver discovery, fixed enums only.
- VM now also requires removed bootstrap/project journals and unchanged system
- configs after wrong-project-signature cleanup before valid install.
--Independent final installer/module integration and scoped prepublication audit
- (assembly, public verifier, public workflow, README): no concrete blocker found.
- All agents completed/frozen; root owns CI/Git/release. Recheck liveness on resume.
+Next gates after diagnostic PASS: fresh exact-source6SDK,3nativeVM, native signed
+r9 migration and5generalchecks. Then inspect/publish new signed draft10, verify
+all public assets via verify-published-release.py, run literal tagged README
+command on24.10.8 AND25.12.6. Only both public VM PASS permits main README/PR#1
+final delivery. Preview9/tag/assets immutable. Physical router/VK/Android, stable
+boot7 and long duration remain separate. Do not call project ready before gates.
 
-Native boundary evidence (NOT current full release qualification):
--Diagnostic13 run39993383309/sourcea92a3f4: APK25.12.6 job120550565871 reached
- strict invalid-project-signature rejection, then firstinstall refused missing
- kmod-nf-conntrack-netlink. Opkg24.10.8 job120550566248 staged solver PASS, removal
- proof failed before live install. Both source defects corrected above; old
- fixtures lack the new module cache, so fresh SDK/VM builds are necessary.
--Diagnostic9 run39987541352 migration120530522032 PASS: actual signedr9->candidate
- ->r9 with nativeSDK APK, complete package/world/fullDNS/6syntheticfile restore.
- Source/package mismatch makes it diagnostic-only; final exactsource ARM migration
- must pass again in current run. No owner device installation occurred.
--Old4f21 run39946222767 failed migration, general39946224573 all5PASS; these are
- superseded, not qualification for06c. Old diagnostic artifacts stay ignored.
-
-Detailed preceding failures/probes/tooling evidence retained in Git checkpoint:
-https://github.com/RATOR2000/csqtt-openwrt/blob/b556cbd6491336dd139f396b1772530631435f5e/docs/STATUS.md
-Windows: bundled Python C:/Users/Alexander/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe;
-Go .work/tools/go/bin. No local Rust/WSL/Docker; Linux/SDK builds through Actions.
+Tooling: bundled Python
+C:/Users/Alexander/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe;
+Go .work/tools/go/bin; MSYS sh under bundled native/git/usr/bin/sh.exe.
+No local Linux/Rust/WSL/Docker; Linux/SDK through Actions. New window11%used at
+resume; conserve tokens, compact snapshots and bounded failed logs only.
 
 ## Implemented source and verification scope
 
