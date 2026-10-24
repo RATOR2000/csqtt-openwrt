@@ -84,6 +84,11 @@ class VmAcceptanceTest(unittest.TestCase):
             commands.append([shutil.which('busybox'), 'awk'])
         good = self.login_http_fixture()
         variants = [(good, True), (good.replace(b'X-LuCI-Login-Required: yes', b'x-luci-login-required:\tYeS'), True)]
+        # HTML's html/body end tags are optional. Complete form and framing remain required.
+        variants.extend([(good.replace(b'</html>', b''), True),
+                         (good.replace(b'</html>', b'</html><!-- valid trailing comment -->'), True),
+                         (good.replace(b'<html>', b'<!DOCTYPE html>').replace(b'</html>', b''), True),
+                         (good.replace(b'<html>', b'').replace(b'</html>', b''), False)])
         body = '<html>Русский<form method="post"><input name="luci_username"><input name="luci_password" type="password"></form></html>'
         variants.append((self.login_http_fixture(body, ['X-LuCI-Login-Required: yes', 'Content-Type: text/html',
                          'Content-Length: ' + str(len(body.encode('utf-8')))]), True))
@@ -92,7 +97,7 @@ class VmAcceptanceTest(unittest.TestCase):
                          (b'X-LuCI-Login-Required: yes', b'X-LuCI-Login-Required: no'),
                          (b'Content-Type: text/html', b'Content-Type: text/plain'),
                          (b'name="luci_password"', b'name="other"'), (b'type="password"', b'type="text"'),
-                         (b'<form method="post">', b'<form method="get">'), (b'</html>', b''),
+                         (b'<form method="post">', b'<form method="get">'), (b'</form>', b''),
                          (b'\r\n', b'\n')):
             variants.append((good.replace(old, new), False))
         for extra in ('X-LuCI-Login-Required: yes', 'Content-Length: 0', 'Content-Length: 99999',

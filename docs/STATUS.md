@@ -31,7 +31,7 @@ Keep preview9 immutable, draft PR#1 open, and main README pending public proof.
 Historical diagnostics and exact preceding checkpoints:
 https://github.com/RATOR2000/csqtt-openwrt/blob/e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d/docs/STATUS.md
 
-FIRST UNFINISHED: inspect diagnostic29 with test-only FIFO transport correction
+FIRST UNFINISHED: inspect diagnostic30 with test-only FIFO transport correction
 and both native VMs. Agent release_path_audit completed/frozen. Root owns STATUS,
 Git, CI and release; no outstanding source ownership. Recheck liveness on resume.
 Diagnostic27 run40113295831/sourcefb7d9bc7807bf235b64dc1b23ad4ec5b2d41a677
@@ -49,6 +49,21 @@ Test now uses a private executable bin/nc wrapper with PATH, validates exact
 wrapper invocation. Old EOF case remains. No skip/dependency/guest change.
 Pythoncompile/diff and focused parser PASS; actual Linux case pending29.
 Dev d958e26806316a4f428e3ba626c360e65fa96d32/tree7ecc572f equal.
+General40112405377 on e478 is now ALL5SUCCESS. No more polling this run.
+Diagnostic29 run40113864608/source8f2007aaf0cf67962a7dfe54497dd43fbd6349f5:
+HOST58 tests ALLPASS, including actual BusyBox-nc delayed-peer/no-early-FIN case.
+25job120930982109 native install/status/RPC PASS; HTTP response3046bytes, nc/read0,
+403 and all login/header/form predicates PASS except html_document: old assertion
+required a literal trailing </html>. HTML permits omitted html/body end tags and
+trailing comments. Corrected to require an html-root/DOCTYPE marker plus the same
+complete POST login form/headers/framing/size checks. Truncated form still fails;
+Content-Length mismatches still fail. Focused actualAWK parser PASS0.668s,
+shell/diff PASS. No production change or trust bypass.
+Primary syntax contract: https://html.spec.whatwg.org/multipage/syntax.html#optional-tags
+Connector jobs snapshot lagged browser UI (reported running after failed); when
+necessary use one current-run browser snapshot, then completed bounded log only.
+No old-CI polling. 24VM outcome29 not yet read; no need if same old parser gate.
+Dev c5608a8e0d244ffad133b4af7e22d2e8b18944d9/tree4100ab30 equal.
 No full six-SDK rebuild yet. Never qualify mixed diagnostic packages as a release.
 IDs and generated diagnostic overlays: .work/preview.10/candidate.json.
 
@@ -78,7 +93,7 @@ The remaining observed failure is in the VM HTTP test, not an installer refusal:
   to native -O and tested. No certificate/trust bypass was introduced.
 - Strict login test now requires the actual403, unique login-required/header
   and HTML content type, full POST form with username/password-type inputs,
-  closing HTML, valid length when present, <=128KiB. Generic403/200/500,
+  HTML-root/DOCTYPE marker, valid length when present, <=128KiB. Generic403/200/500,
   redirects, malformed/truncated/chunked/duplicate/oversize responses refuse.
 - Diagnostic26 run40112407115, source17b7d043f708b7ae985f39c46565ca66dd9aa5a7,
   BOTH failed at this login parser, nc exit0 and no HTTP marker. Regular-file
