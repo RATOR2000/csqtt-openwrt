@@ -448,10 +448,41 @@ uci set csqtt.guestpc.group=guest
 uci commit csqtt
 timeout 60 /usr/libexec/csqtt/manage apply > "$TMP/apply.log" 2>&1 || { status_diagnostics apply.log; fail; }
 ucode /usr/share/csqtt/runtime.uc dns-ready > "$TMP/dns-ready.log" 2>&1 || { status_diagnostics dns-ready.log; fail; }
+# nft canonically replaces explicit IPv6 + reject with icmpv6 reject. Check
+# the installed rule meaning, including the managed MAC, rather than formatting.
+cat > "$TMP/guard-v6.uc" <<'UCODE_GUARD'
+import * as fs from 'fs';
+let doc=json(fs.readfile(ARGV[0])), rules=doc.nftables || [];
+let seen=false, any_family=false, any_mac=false, any_reject=false;
+for (let i=0; i<length(rules); i++) {
+    let r=rules[i].rule;
+    if (!r || r.family!=="inet" || r.table!=="csqtt" || r.chain!=="forward_guard") continue;
+    seen=true;
+    let family=false, mac=false, rejected=false, expr=r.expr || [];
+    for (let j=0; j<length(expr); j++) {
+        let e=expr[j], m=e.match || {}, l=m.left || {}, right=m.right;
+        if (m.op==="==") {
+            if (l.meta && l.meta.key==="nfproto" && (right==="ipv6" || right===10)) family=true;
+            if (l.payload && l.payload.protocol==="ether" && l.payload.field==="type" && (right==="ip6" || right===34525)) family=true;
+            if (l.payload && l.payload.protocol==="ether" && l.payload.field==="saddr" &&
+                (right==="02:00:00:00:aa:01" || (right && type(right)==="object" && type(right.set)==="array" && index(right.set,"02:00:00:00:aa:01")>=0))) mac=true;
+        }
+        if (index(keys(e),"reject")>=0) {
+            rejected=true;
+            if (e.reject && e.reject.type==="icmpv6") family=true;
+        }
+    }
+    if (family && mac && rejected) exit(0);
+    any_family=any_family || family; any_mac=any_mac || mac; any_reject=any_reject || rejected;
+}
+printf("CSQTT_GUEST_GUARD_CHECK=chain:%d\nCSQTT_GUEST_GUARD_CHECK=ipv6:%d\nCSQTT_GUEST_GUARD_CHECK=mac:%d\nCSQTT_GUEST_GUARD_CHECK=reject:%d\n", seen?1:0, any_family?1:0, any_mac?1:0, any_reject?1:0);
+exit(1);
+UCODE_GUARD
 guard_checks() {
     nft list table inet csqtt > "$TMP/guards.txt"
     grep -q 'oifname != "csqtt0" reject' "$TMP/guards.txt" || fail
-    grep -q 'meta nfproto ipv6' "$TMP/guards.txt" || fail
+    nft -j list table inet csqtt > "$TMP/guards.json" || fail
+    ucode "$TMP/guard-v6.uc" "$TMP/guards.json" || fail
     grep -q '02:00:00:00:aa:01' "$TMP/guards.txt" || fail
     ip -4 route show table 202 | grep -q 'unreachable default' || fail
     ip -4 rule show pref 11900 | grep -q 'unreachable' || fail

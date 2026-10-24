@@ -31,7 +31,7 @@ Preserve preview9. DraftPR#1/main README await final public-command proof.
 Historical diagnostics23-30:
 https://github.com/RATOR2000/csqtt-openwrt/blob/f4e6bdca58277e9d1ed3e56eb49a1f6ca5b83ab0/docs/STATUS.md
 
-FIRST UNFINISHED: inspect diagnostic31 BOTH24.10.8/25.12.6 after fixture-only
+FIRST UNFINISHED: inspect diagnostic32 BOTH24.10.8/25.12.6 after fixture-only
 netifd-owned bridge correction. Exact run/source IDs in
 .work/preview.10/candidate.json. Root owns Git/CI/release. Agents
 release_path_audit and lan_cause completed/frozen; no outstanding source owner.
@@ -86,6 +86,21 @@ Connector status occasionally lagged UI: compare one current-run browser snapsho
 if needed, then only completed bounded logs. Current browser tab handle ghTab in
 cua_repl, browser2/tab1, GitHub owner session available; connector lacks release
 publication endpoint, use UI only for final publication after all gates.
+Diagnostic31run40115346234/sourceedd7e50d327915ae7e61729eb9ac2af24bca3f4a:
+25job120935365710 now LAN/helper/manageapply/dns-ready PASS. Next assertion454
+literal 'meta nfproto ipv6' failed. policy.uc has NO diff06c..HEAD. Exact pinned
+nft1.1.6 source test tests/py/inet/reject.t proves canonicalization:
+meta nfproto ipv6 reject -> reject with icmpv6 port-unreachable; JSON removes
+meta match and retains reject.type=icmpv6. Archive SHA256
+372931bda8556b310636a2f9020adc710f9bab66f47efe0ce90bff800ac2530c.
+No production relaxation. Test now reads native nftJSON and requires SAME
+inet/csqtt/forward_guard rule with exact fixtureMAC equality + reject + IPv6
+evidence (explicit nfproto, EtherType, or canonical icmpv6 reject). Rejects any
+other MAC/table/chain, negation, absentverdict, or split evidence acrossrules.
+Node2 tests exercise extracted actualucodeSUT with12cases PASS; shell/diffPASS.
+Actualnativeucode/nft equivalence and remainingfw4/Stop/repeat acceptance pending32.
+Fixed guard boolean diagnostic only; no raw rules/table/config printed.
+Dev fbd59f2f857325684a35fff4868457b1375c1c87/treeebbbdb03 equal.
 Current5h window52%used at last check; economy priority, save next precise gate.
 
 Confirmed blockers/evidence (do not rerun old CI):
