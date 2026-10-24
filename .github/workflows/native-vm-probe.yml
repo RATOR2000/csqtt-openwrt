@@ -1,4 +1,4 @@
-name: Diagnostic conforming LuCI HTML login and native policies (never release evidence)
+name: Diagnostic netifd-owned LAN fixture and native guarded policies (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]

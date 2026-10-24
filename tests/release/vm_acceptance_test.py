@@ -335,6 +335,12 @@ class VmAcceptanceTest(unittest.TestCase):
             self.assertIn(expected, output.getvalue())
         self.assertNotIn(private, output.getvalue())
 
+    def test_lan_diagnostics_print_only_owned_boolean_states(self):
+        body = 'CSQTT_GUEST_LAN_CHECK=up:0\nCSQTT_GUEST_LAN_CHECK=present:1\nCSQTT_GUEST_LAN_CHECK=secret:1\nCSQTT_GUEST_LAN_CHECK=up:123\nprivate-password\n'
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            native_vm.print_guest_lan_diagnostics(body, 'guest')
+        self.assertEqual(output.getvalue(), 'guest LAN present: 1\nguest LAN up: 0\n')
+
     def test_first_install_native_errors_excludes_traces_and_redacts_values(self):
         private = 'private-password-key-url-identity'
         text = ('+CSQTT_XTRACE:1: apk ' + private + '\nERROR: opening /tmp/' + private +

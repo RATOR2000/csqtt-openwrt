@@ -381,9 +381,14 @@ stage automatic_lan
 MUTATED=1
 [ -z "$(uci -q get network.csqtt_test || true)" ] || fail
 [ -z "$(uci -q get firewall.csqtt_test || true)" ] || fail
-ip link add br-csqtt-test type bridge || fail
+# netifd clears unmanaged bridges when adopting a simple device. Declare the
+# real bridge and permit the intentionally portless disposable LAN fixture.
+[ -z "$(uci -q get network.csqtt_test_bridge || true)" ] || fail
 LAN_CREATED=1
-ip link set br-csqtt-test up || fail
+uci set network.csqtt_test_bridge=device
+uci set network.csqtt_test_bridge.name=br-csqtt-test
+uci set network.csqtt_test_bridge.type=bridge
+uci set network.csqtt_test_bridge.bridge_empty=1
 uci set network.csqtt_test=interface
 uci set network.csqtt_test.proto=static
 uci set network.csqtt_test.device=br-csqtt-test
@@ -404,7 +409,29 @@ for n in 1 2 3 4 5; do
     if jsonfilter -i "$TMP/devices.json" -e '@.lan_devices[*]' | grep -qx br-csqtt-test; then scope_ready=1; break; fi
     sleep 1
 done
-[ "$scope_ready" = 1 ] || fail
+[ "$scope_ready" = 1 ] || {
+    # Fixed booleans only: distinguish fixture readiness from auto-discovery.
+    (
+        set +x
+        ucode -e '
+            import { cursor } from "uci";
+            import { connect } from "ubus";
+            let c=cursor(), b=connect(), dump=b.call("network.interface", "dump", {}) || {};
+            let found=null;
+            for (let item in (dump.interface || [])) if (item.interface === "csqtt_test") found=item;
+            let n=found || {}, routes=n.route || [], gateway=false;
+            for (let route in routes) if ((route.target === "0.0.0.0" || route.target === "::") && +route.mask === 0) gateway=true;
+            let networks=c.get("firewall", "csqtt_test", "network");
+            let trusted=type(networks)==="array" ? index(networks,"csqtt_test")>=0 : networks==="csqtt_test";
+            let flags={ auto:c.get("csqtt","main","lan_device")==="auto", present:found!=null,
+                up:n.up===true, proto:n.proto==="static", device:(n.l3_device||n.device)==="br-csqtt-test",
+                address:length(n["ipv4-address"]||[])>0, no_default:!gateway,
+                trusted:trusted && c.get("firewall","csqtt_test","input")==="ACCEPT" && c.get("firewall","csqtt_test","masq")!=="1" };
+            for (let key in flags) printf("CSQTT_GUEST_LAN_CHECK=%s:%d\n", key, flags[key]?1:0);
+        ' > "$TMP/lan.markers" 2> "$TMP/lan.log" && cat "$TMP/lan.markers"
+    ) || :
+    fail
+}
 ! jsonfilter -i "$TMP/devices.json" -e '@.lan_devices[*]' | grep -qx br-lan || fail
 /usr/libexec/csqtt/manage helper-address > "$TMP/helper-address" 2> "$TMP/helper.log" || { status_diagnostics helper.log; fail; }
 grep -qx 192.168.111.1 "$TMP/helper-address" || fail
