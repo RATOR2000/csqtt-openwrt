@@ -19,7 +19,7 @@ stage prerequisites_release
 . /etc/openwrt_release
 case "${DISTRIB_RELEASE:-}" in 24.10.*|25.12.*) ;; *) fail ;; esac
 stage prerequisites_tools
-for tool in ucode uci ubus nft fw4 ip nslookup sha256sum nc; do command -v "$tool" >/dev/null || { printf 'CSQTT_GUEST_MISSING_TOOL=%s\n' "$tool"; fail; }; done
+for tool in ucode uci ubus nft fw4 ip nslookup sha256sum nc mkfifo; do command -v "$tool" >/dev/null || { printf 'CSQTT_GUEST_MISSING_TOOL=%s\n' "$tool"; fail; }; done
 # The host provisions this static test-only tool after the clean install. It
 # lives beside this script on the disposable disk, outside the package database.
 stage prerequisites_timeout
@@ -89,8 +89,9 @@ if (type(health_assess) !== 'function' || type(health_initial) !== 'function' ||
 UCODE
 ucode "$TMP/import.uc" > "$TMP/import.log" 2>&1 || fail
 status_diagnostics() {
-    [ -f "$TMP/status.log" ] && [ ! -L "$TMP/status.log" ] || return 0
-    dd if="$TMP/status.log" of="$TMP/status.checked" bs=1 count=8193 2>/dev/null || return 0
+    case "${1:-status.log}" in status.log|apply.log|dns-ready.log|devices.log|helper.log) diagnostic_file="$TMP/${1:-status.log}" ;; *) return 0 ;; esac
+    [ -f "$diagnostic_file" ] && [ ! -L "$diagnostic_file" ] || return 0
+    dd if="$diagnostic_file" of="$TMP/status.checked" bs=1 count=8193 2>/dev/null || return 0
     count=$(wc -c < "$TMP/status.checked") || return 0
     case "$count" in ''|*[!0-9]*) return 0 ;; esac
     [ "$count" -le 8192 ] || return 0
@@ -237,33 +238,46 @@ login_response() {
       BEGIN { quote="[\"" sprintf("%c",39) "]" }
       !body {
         header_bytes+=length($0)+1
-        if ($0 !~ /\r$/) bad=1
+        if ($0 !~ /\r$/) bad["header_format"]=1
         sub(/\r$/, "")
-        if (NR==1) { if ($0 !~ /^HTTP\/1[.][01] 403( [^\r]*)?$/) bad=1; next }
+        if (NR==1) { if ($0 !~ /^HTTP\/1[.][01] 403( [^\r]*)?$/) bad["status_line"]=1; next }
         if ($0=="") { body=1; next }
-        if ($0 !~ /^[A-Za-z0-9!#$%&*+.^_`|~-]+:[ \t]*[^\r]*$/) { bad=1; next }
+        if ($0 !~ /^[A-Za-z0-9!#$%&*+.^_`|~-]+:[ \t]*[^\r]*$/) { bad["header_format"]=1; next }
         at=index($0,":"); key=tolower(substr($0,1,at-1)); value=substr($0,at+1)
         sub(/^[ \t]+/,"",value); sub(/[ \t]+$/,"",value)
-        if (key=="x-luci-login-required") { login++; if (tolower(value)!="yes") bad=1 }
-        if (key=="content-type") { html++; if (tolower(value) !~ /^text\/html([ \t]*;.*)?$/) bad=1 }
-        if (key=="content-length") { lengths++; if (value !~ /^[0-9]+$/ || value+0>131072) bad=1; declared=value+0 }
-        if (key=="transfer-encoding") bad=1
+        if (key=="x-luci-login-required") { login++; if (tolower(value)!="yes") bad["auth_header"]=1 }
+        if (key=="content-type") { html++; if (tolower(value) !~ /^text\/html([ \t]*;.*)?$/) bad["content_type"]=1 }
+        if (key=="content-length") { lengths++; if (value !~ /^[0-9]+$/ || value+0>131072) bad["content_length"]=1; declared=value+0 }
+        if (key=="transfer-encoding") bad["transfer_encoding"]=1
         next
       }
       { content=content tolower($0) "\n" }
       END {
-        if (bad || !body || login!=1 || html!=1 || lengths>1 || response_bytes<=header_bytes ||
-            (lengths && declared!=response_bytes-header_bytes)) exit 1
+        if (!body) bad["header_format"]=1
+        if (login!=1) bad["auth_header"]=1
+        if (html!=1) bad["content_type"]=1
+        if (response_bytes<=header_bytes || response_bytes>131072) bad["body_size"]=1
+        if (lengths>1 || (lengths && declared!=response_bytes-header_bytes)) bad["content_length"]=1
         username="<input[[:space:]][^>]*name[[:space:]]*=[[:space:]]*" quote "luci_username" quote "[^>]*>"
         password="<input[[:space:]][^>]*name[[:space:]]*=[[:space:]]*" quote "luci_password" quote "[^>]*>"
         form="<form[[:space:]][^>]*method[[:space:]]*=[[:space:]]*" quote "post" quote
-        if (!match(content,form) || content !~ /<\/html>[[:space:]]*$/) exit 1
-        form_content=substr(content,RSTART); closing=index(form_content,"</form>")
-        if (!closing) exit 1
-        form_content=substr(form_content,1,closing)
-        if (form_content !~ username || !match(form_content,password)) exit 1
-        password_input=substr(form_content,RSTART,RLENGTH)
-        if (password_input !~ ("type[[:space:]]*=[[:space:]]*" quote "password" quote)) exit 1
+        if (content !~ /<\/html>[[:space:]]*$/) bad["html_document"]=1
+        if (!match(content,form)) bad["login_form"]=1
+        else {
+          form_content=substr(content,RSTART); closing=index(form_content,"</form>")
+          if (!closing) bad["login_form"]=1
+          else {
+            form_content=substr(form_content,1,closing)
+            if (form_content !~ username) bad["username_input"]=1
+            if (!match(form_content,password)) bad["password_input"]=1
+            else {
+              password_input=substr(form_content,RSTART,RLENGTH)
+              if (password_input !~ ("type[[:space:]]*=[[:space:]]*" quote "password" quote)) bad["password_type"]=1
+            }
+          }
+        }
+        failed=0; for (reason in bad) { print "CSQTT_GUEST_WEB_PARSE=" reason; failed=1 }
+        exit failed
       }' "$TMP/luci-before"
 }
 luci_http() {
@@ -271,18 +285,29 @@ luci_http() {
     # form for an anonymous request. uclient discards403 bodies. Read that exact
     # unauthenticated HTTP contract using stock nc, without credentials or TLS
     # overrides. A generic403, redirect,500 or successful unrelated page fails.
-    printf 'GET /cgi-bin/luci/ HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' > "$TMP/web-request"
-    rm -f "$TMP/web-nc.exit"
+    rm -f "$TMP/web-input" "$TMP/web-nc.exit"
+    mkfifo "$TMP/web-input" || { luci_diagnostics 125; fail; }
+    # Keep stdin open until the server closes the HTTP1.0 response. Some HTTP
+    # servers abort a request when nc half-closes after consuming a regular file.
+    # Linux FIFO O_RDWR needs no writer subprocess, sleeps or optional nc flags.
+    exec 3<> "$TMP/web-input"
+    printf 'GET /cgi-bin/luci/ HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' >&3
     read_status=0
-    { if timeout 10 nc 127.0.0.1 80 < "$TMP/web-request" 2> "$TMP/luci-before.log"; then
+    { if timeout 10 nc 127.0.0.1 80 <&3 3>&- 2> "$TMP/luci-before.log"; then
           printf '%s\n' 0 > "$TMP/web-nc.exit"
       else printf '%s\n' "$?" > "$TMP/web-nc.exit"; fi
     } | dd bs=1 count=131073 > "$TMP/luci-before" 2> "$TMP/web-read.log" || read_status=$?
+    exec 3>&-
+    rm -f "$TMP/web-input"
     web_status=$(cat "$TMP/web-nc.exit" 2>/dev/null) || web_status=125
     case "$web_status" in ''|*[!0-9]*|????*) web_status=125 ;; esac
     [ "$web_status" -le 255 ] || web_status=125
     size=$(wc -c < "$TMP/luci-before") || size=0
-    if [ "$read_status" = 0 ] && [ "$web_status" = 0 ] && [ "$size" -le 131072 ] && login_response "$size"; then return 0; fi
+    parse_status=0
+    login_response "$size" > "$TMP/web-parse.markers" || parse_status=$?
+    if [ "$read_status" = 0 ] && [ "$web_status" = 0 ] && [ "$size" -le 131072 ] && [ "$parse_status" = 0 ]; then return 0; fi
+    printf 'CSQTT_GUEST_WEB_BYTES=%s\nCSQTT_GUEST_WEB_READ_EXIT=%s\n' "$size" "$read_status"
+    cat "$TMP/web-parse.markers"
     luci_diagnostics "$web_status"
     fail
 }
@@ -373,13 +398,13 @@ uci commit firewall
 ubus call network reload > "$TMP/fixture-network.log" 2>&1 || fail
 scope_ready=0
 for n in 1 2 3 4 5; do
-    /usr/libexec/csqtt/manage devices > "$TMP/devices.json" 2> "$TMP/devices.log" || fail
+    /usr/libexec/csqtt/manage devices > "$TMP/devices.json" 2> "$TMP/devices.log" || { status_diagnostics devices.log; fail; }
     if jsonfilter -i "$TMP/devices.json" -e '@.lan_devices[*]' | grep -qx br-csqtt-test; then scope_ready=1; break; fi
     sleep 1
 done
 [ "$scope_ready" = 1 ] || fail
 ! jsonfilter -i "$TMP/devices.json" -e '@.lan_devices[*]' | grep -qx br-lan || fail
-/usr/libexec/csqtt/manage helper-address > "$TMP/helper-address" 2> "$TMP/helper.log" || fail
+/usr/libexec/csqtt/manage helper-address > "$TMP/helper-address" 2> "$TMP/helper.log" || { status_diagnostics helper.log; fail; }
 grep -qx 192.168.111.1 "$TMP/helper-address" || fail
 
 # Production apply, procd DNS ownership, fw4 reload and policy Stop. The sole
@@ -392,8 +417,8 @@ uci set csqtt.guestpc=device
 uci set csqtt.guestpc.mac=02:00:00:00:aa:01
 uci set csqtt.guestpc.group=guest
 uci commit csqtt
-timeout 60 /usr/libexec/csqtt/manage apply > "$TMP/apply.log" 2>&1 || fail
-ucode /usr/share/csqtt/runtime.uc dns-ready > "$TMP/dns-ready.log" 2>&1 || fail
+timeout 60 /usr/libexec/csqtt/manage apply > "$TMP/apply.log" 2>&1 || { status_diagnostics apply.log; fail; }
+ucode /usr/share/csqtt/runtime.uc dns-ready > "$TMP/dns-ready.log" 2>&1 || { status_diagnostics dns-ready.log; fail; }
 guard_checks() {
     nft list table inet csqtt > "$TMP/guards.txt"
     grep -q 'oifname != "csqtt0" reject' "$TMP/guards.txt" || fail

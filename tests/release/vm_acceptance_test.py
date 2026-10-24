@@ -6,11 +6,15 @@ import io
 import os
 import pathlib
 import re
+import select
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 import urllib.error
 from unittest import mock
@@ -21,6 +25,7 @@ spec = importlib.util.spec_from_file_location('native_vm', ROOT / 'scripts/test-
 native_vm = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(native_vm)
 import vm_console
+import vm_timeout
 NONCE = 'a' * 32
 
 
@@ -101,14 +106,17 @@ class VmAcceptanceTest(unittest.TestCase):
                 result = subprocess.run(command + ['-v', 'response_bytes=' + str(len(response)), program],
                                         input=response, capture_output=True, timeout=10, env=dict(os.environ, LC_ALL='C'))
                 self.assertEqual(result.returncode == 0, accepted, result.stderr)
-                self.assertEqual(result.stdout, b'')
+                if accepted:
+                    self.assertEqual(result.stdout, b'')
+                else:
+                    self.assertTrue(native_vm.guest_web_diagnostics(result.stdout.decode())['parse'])
 
-    @unittest.skipUnless(SH, 'A POSIX shell is required for raw stock nc HTTP transport')
+    @unittest.skipUnless(SH and sys.platform != 'win32', 'Linux FIFO transport runs in native CI')
     def test_guest_luci_raw_transport_keeps_nc_exit_and_read_bound(self):
         guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
         functions = guest[guest.index('login_response() {'):guest.index('stage luci_http\n')]
         tools = {}
-        for name in ('awk', 'cat', 'rm', 'wc'):
+        for name in ('awk', 'cat', 'rm', 'wc', 'mkfifo'):
             path = shutil.which(name) or str(pathlib.Path(SH).with_name(name + '.exe'))
             if not pathlib.Path(path).is_file():
                 self.skipTest('Native shell tools are required for the real bounded reader')
@@ -132,7 +140,9 @@ class VmAcceptanceTest(unittest.TestCase):
             harness = ('set -eu\nTMP=' + shlex.quote(directory.as_posix()) + '\n' + aliases +
                        'timeout() { [ "$1" = 10 ] || return 77; shift; "$@"; }\n'
                        'nc() { [ "$#" = 2 ] && [ "$1" = 127.0.0.1 ] && [ "$2" = 80 ] || return 76; '
-                       'cat > "$TMP/sent-request"; cat "$TMP/fixture"; return "$NC_EXIT"; }\n'
+                       ': > "$TMP/sent-request"; while IFS= read -r line; do printf "%s\\n" "$line" >> "$TMP/sent-request"; '
+                       '[ "$line" != "$(printf "\\r")" ] || break; done; '
+                       'cat "$TMP/fixture"; return "$NC_EXIT"; }\n'
                        'luci_diagnostics() { printf "diagnostic_exit=%s\\n" "$1"; }\n'
                        'fail() { exit 91; }\n' + functions)
             for payload, exit_code, expected in ((self.login_http_fixture(), 0, 0),
@@ -151,6 +161,75 @@ class VmAcceptanceTest(unittest.TestCase):
             result = subprocess.run([SH], input=harness + '\ndd() { return 1; }\nNC_EXIT=0\nluci_http\n',
                                     capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 91, result.stderr)
+
+    @unittest.skipUnless(sys.platform == 'linux', 'Actual BusyBox nc/FIFO and delayed HTTP peer run on Linux')
+    def test_guest_luci_actual_nc_keeps_request_open_until_delayed_response(self):
+        busybox = shutil.which('busybox')
+        self.assertIsNotNone(busybox, 'Native Linux acceptance requires busybox-static')
+        guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
+        functions = guest[guest.index('login_response() {'):guest.index('stage luci_http\n')]
+        response = self.login_http_fixture()
+        @contextlib.contextmanager
+        def peer():
+            result = []
+            server = socket.socket()
+            server.bind(('127.0.0.1', 0))
+            server.listen(1)
+            server.settimeout(5)
+            def handle():
+                try:
+                    connection, _ = server.accept()
+                    with connection:
+                        connection.settimeout(3)
+                        data = b''
+                        while not data.endswith(b'\r\n\r\n'):
+                            chunk = connection.recv(1024)
+                            if not chunk or len(data) > 8192:
+                                result.append('incomplete_request')
+                                return
+                            data += chunk
+                        # Reproduce a CGI server that aborts when the client
+                        # half-closes while it is preparing a response.
+                        ready, _, _ = select.select([connection], [], [], 0.15)
+                        if ready and connection.recv(1) == b'':
+                            result.append('early_fin')
+                            return
+                        connection.sendall(response)
+                        result.append('response')
+                except OSError:
+                    result.append('server_error')
+            thread = threading.Thread(target=handle, daemon=True)
+            thread.start()
+            try:
+                yield server.getsockname()[1], result
+            finally:
+                thread.join(4)
+                server.close()
+                self.assertFalse(thread.is_alive(), 'HTTP fixture must finish without a sleeping writer')
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            binary = vm_timeout.build_timeout(directory)
+            request = b'GET /cgi-bin/luci/ HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n'
+            with peer() as (port, state):
+                old = subprocess.run([str(binary), '2', busybox, 'nc', '127.0.0.1', str(port)],
+                                     input=request, capture_output=True, timeout=4)
+            self.assertEqual(old.returncode, 0)
+            self.assertEqual(old.stdout, b'')
+            self.assertEqual(state, ['early_fin'])
+            with peer() as (port, state):
+                harness = ('set -eu\nTMP=' + shlex.quote(directory.as_posix()) + '\n' +
+                           'timeout() { ' + shlex.quote(str(binary)) + ' "$@"; }\n' +
+                           'nc() { [ "$#" = 2 ] && [ "$1" = 127.0.0.1 ] && [ "$2" = 80 ] || return 76; ' +
+                           shlex.quote(busybox) + ' nc 127.0.0.1 ' + str(port) + '; }\n' +
+                           'luci_diagnostics() { printf "diagnostic_exit=%s\\n" "$1"; }\n'
+                           'fail() { exit 91; }\n' + functions + '\nluci_http\n')
+                start = time.monotonic()
+                fixed = subprocess.run([SH], input=harness, capture_output=True, text=True, timeout=5)
+                elapsed = time.monotonic() - start
+            self.assertEqual(fixed.returncode, 0, fixed.stdout + fixed.stderr)
+            self.assertEqual(state, ['response'])
+            self.assertLess(elapsed, 3, 'Successful probes must not wait for the ten-second deadline')
+            self.assertFalse((directory / 'web-input').exists())
 
     def test_guest_web_filter_redacts_native_http_body_and_system_log(self):
         guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
@@ -181,18 +260,24 @@ class VmAcceptanceTest(unittest.TestCase):
 
     def test_guest_web_markers_reject_unowned_fields_paths_and_values(self):
         body = ('CSQTT_GUEST_WEB_EXIT=256\nCSQTT_GUEST_WEB_SERVICE_EXIT=-1\nCSQTT_GUEST_WEB_STATUS=600\n'
+                'CSQTT_GUEST_WEB_BYTES=131074\nCSQTT_GUEST_WEB_BYTES=-1\nCSQTT_GUEST_WEB_READ_EXIT=256\n'
+                'CSQTT_GUEST_WEB_PARSE=private\nCSQTT_GUEST_WEB_PARSE=auth_header private\n'
                 'CSQTT_GUEST_WEB_CHECK=private\nCSQTT_GUEST_WEB_CHECK=port80_closed private\n'
                 'CSQTT_GUEST_WEB_FILE=/etc/config/private:missing\nCSQTT_GUEST_WEB_MODULE=private:loaded\n'
                 'CSQTT_GUEST_WEB_CLASS=private\nCSQTT_GUEST_WEB_SOURCE=/private/runtime.uc:1\n'
                 'CSQTT_GUEST_WEB_SOURCE=luci.runtime:20001\nCSQTT_GUEST_WEB_SOURCE=luci.runtime:0\n')
         self.assertTrue(all(not values for values in native_vm.guest_web_diagnostics(body).values()))
         good = ('CSQTT_GUEST_WEB_EXIT=124\r\nCSQTT_GUEST_WEB_SERVICE_EXIT=1\nCSQTT_GUEST_WEB_CGI_EXIT=2\nCSQTT_GUEST_WEB_STATUS=500\n'
+                'CSQTT_GUEST_WEB_BYTES=0\nCSQTT_GUEST_WEB_BYTES=131073\nCSQTT_GUEST_WEB_READ_EXIT=1\nCSQTT_GUEST_WEB_PARSE=auth_header\n'
                 'CSQTT_GUEST_WEB_CHECK=port80_listening\nCSQTT_GUEST_WEB_FILE=cgi:present\n'
                 'CSQTT_GUEST_WEB_MODULE=ubus:loaded\nCSQTT_GUEST_WEB_SOURCE=luci.dispatcher:1\n')
         parsed = native_vm.guest_web_diagnostics(good)
         self.assertEqual(parsed['exit'], [124])
         self.assertEqual(parsed['service_exit'], [1])
         self.assertEqual(parsed['cgi_exit'], [2])
+        self.assertEqual(parsed['bytes'], [0, 131073])
+        self.assertEqual(parsed['read_exit'], [1])
+        self.assertEqual(parsed['parse'], ['auth_header'])
         self.assertEqual(parsed['status'], [500])
         self.assertEqual(parsed['checks'], ['port80_listening'])
         self.assertEqual(parsed['files'], ['cgi:present'])
@@ -203,6 +288,7 @@ class VmAcceptanceTest(unittest.TestCase):
     def test_guest_web_transport_prints_only_fixed_diagnostic_markers(self):
         private = 'private-key-password-url-config'
         body = ('CSQTT_GUEST_WEB_EXIT=8\nCSQTT_GUEST_WEB_STATUS=500\n'
+                'CSQTT_GUEST_WEB_BYTES=0\nCSQTT_GUEST_WEB_READ_EXIT=0\nCSQTT_GUEST_WEB_PARSE=body_size\n'
                 'CSQTT_GUEST_WEB_CHECK=uhttpd_running\nCSQTT_GUEST_WEB_CLASS=module_error\n'
                 'CSQTT_GUEST_WEB_SOURCE=luci.dispatcher:14\n' + private + '\n')
         with mock.patch.object(native_vm, 'PHASE', 'native_runtime_dns_firewall_luci'), \
@@ -214,6 +300,7 @@ class VmAcceptanceTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 native_vm.run_remote(['ssh'], 'false')
         for expected in ('web exit: 8', 'web status: 500', 'web checks: uhttpd_running',
+                         'web bytes: 0', 'web read_exit: 0', 'web parse: body_size',
                          'web classes: module_error', 'web locations: luci.dispatcher:14'):
             self.assertIn(expected, output.getvalue())
         self.assertNotIn(private, output.getvalue())

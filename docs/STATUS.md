@@ -25,69 +25,71 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-24Oct resume: preview10 is NOT published/ready. DraftPR#1 and mainREADME still
-pending final delivery; owner installs personally, no SSH/mutations/schedules.
-Historical diagnostics19-23 and exact preceding checkpoints remain in Git:
-https://github.com/RATOR2000/csqtt-openwrt/blob/c889158ef0a8936204fea01109fc74c0903e6625/docs/STATUS.md
+Preview10 is NOT published or ready to install. The owner installs personally.
+No router SSH, configuration/service changes, reboot or scheduled task this turn.
+Keep preview9 immutable, draft PR#1 open, and main README pending public proof.
+Historical diagnostics and exact preceding checkpoints:
+https://github.com/RATOR2000/csqtt-openwrt/blob/e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d/docs/STATUS.md
 
-Latest production code6545d9ceb07eba45c0690def5921e492b4d142fb,
-tree895cec1ae616e476731c1b65effe9651bd57eaa3. General40091736716 ALL5SUCCESS:
-checks/core/native-policy/android/openwrt, including actual nativeucode platform
-metadata/controlchar regression. Preserve this evidence; no rerun for docs-only.
-Docs checkpoint c889158 pushed; local/fetch trees092a2ee equal.
+FIRST UNFINISHED: inspect diagnostic27 with test-only FIFO transport correction
+and both native VMs. Agent release_path_audit completed/frozen. Root owns STATUS,
+Git, CI and release; no outstanding source ownership. Recheck liveness on resume.
+No full six-SDK rebuild yet. Never qualify mixed diagnostic packages as a release.
+IDs and generated diagnostic overlays: .work/preview.10/candidate.json.
 
-Diagnostic23 run40091923076/sourcef164df5f36c3ae61d94a2ba4488c0f8cc8ac8570:
-BOTH24.10.8/25.12.6 passed signed install, native imports, manage status, RPC list,
-LuCI asset assertions; BOTH fail guestsource136 HTTP LuCI request.25 stagedAPK
-RAMroot fix and24 nativehas_control binding fix therefore progress confirmed.
-Mixed06c compiledpayloads+6545 runtime sourceoverlay remain DIAGNOSTIC ONLY.
-No cleanfirmware/sourcequalified release proof. No need reread oldlogs/runs.
-FIRST UNFINISHED: diagnostic26 with strictstockLuCI login check, plus fresh
-general checks on this candidate; if bothVM PASS then move buildbranch to SAME
-exact candidate code (docs-only later checkpoints do not force another build).
-Root owns Git/CI/release; agent release_path_audit completed/frozen.
-Dev02230e9f5e3a965d01a47fab570d294af136f87e pushed/treef3766a8 equal.
-Diag25run40111752888/source531371a59bbcfc5953837f9a9f340ae21f599e23:
-25job120924759473 confirms HTTP403, wgetexit8, rootHTTPok, nativeuhttpd/listeners
-80+443/directCGIexit0/all6nativeUCmodules PASS.24stillpending atthischeckpoint.
-This is expectedanonymousLuCI login, incorrectlyrejected by oldwget smoke.
-PrimaryBOTH24+25dispatcher emits403+X-LuCI-Login-Required yes andsysauthPOSTform:
-https://github.com/openwrt/luci/blob/openwrt-24.10/modules/luci-base/ucode/dispatcher.uc
-https://github.com/openwrt/luci/blob/openwrt-25.12/modules/luci-base/ucode/dispatcher.uc
+Current dev e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d,
+tree 0c737dd5574e969908e7fc3b0c2fda17a33d208b; local/fetched trees equal.
+General run40112405377: checks/core/native-policy/android SUCCESS; openwrt active
+at last compact read. Earlier general40091736716 on6545 ALL5SUCCESS, including
+actual native ucode platform/control-byte regression. Do not poll old CI again.
 
-Corrected testONLY (no productionchange): sharedinitial+afterapply/fw4/Stop
-luci_http uses stockBusyBoxnc127.0.0.1:80 underexisting10sdeadline/noextraflags.
-Boundstream131073B, reject>131072, require nc+ddsuccess. Parseactual403, single
-case-insensitivelogin-requiredyes+HTMLContentType, completePOSTformwithusername
-andpassword-typeinput+closingHTML, validContentLengthifpresent. Rejectarbitrary
-403/200/500, redirects, malformed/truncated/TE/duplicateheaders/oversize. Noauth
-password, TLSbypass, configchange or newdependency. Stocknc verified24+25config.
-SixfocusedbehavioraltestsPASS1.476s; Pythoncompile/shell/diffPASS. Fullnative26
-pending. Old-Sdiagnostic optionbugfixed: uclient-fetchdoesnotimplement-S; both
-remainingdiagnosticwgetcalls useportable-O, privateoutput. TLSclassesfixedonly,
-noallow-untrusted/no-check-certificate. Diagnostic24 is superseded, notqualifying.
-Oldgeneral6545ALL5PASS is retained; newcandidategeneral validateschangedactual
-HTTPtest and allotherregressions. No duplicate general launch for docs-only.
+Concrete production fixes already committed in6545 (unchanged since):
+- Staged APK archives on /tmp require --force-non-repository. Use it ONLY with
+  isolated --root/--no-network/--no-scripts. Live guard, signatures, dependencies
+  and world checks remain intact. Four actual POSIX-shell install/upgrade and
+  success/rollback cases PASS109s; native diagnostic23 BOTH installations PASS.
+- Move unchanged has_control() before platform() for ucode lexical binding.
+  Native general regression PASS; diagnostic23 BOTH manage status/RPC/assets PASS.
 
+The remaining observed failure is in the VM HTTP test, not an installer refusal:
+- Diagnostic25 run40111752888, source531371a59bbcfc5953837f9a9f340ae21f599e23:
+  25job120924759473 proves HTTP403, wget exit8, uhttpd running/listening80+443,
+  rootHTTP success, direct CGI exit0 and six loaded native ucode modules.
+- Stock LuCI24/25 intentionally returns403 + X-LuCI-Login-Required:yes with its
+  complete login form for an anonymous request. Old wget assertion rejected it.
+  Official sources: openwrt/luci, branches openwrt-24.10 and openwrt-25.12,
+  modules/luci-base/ucode/dispatcher.uc and template/sysauth.ut.
+- Native wget lacks -S; an intermediate diagnostic accidentally used it. Fixed
+  to native -O and tested. No certificate/trust bypass was introduced.
+- Strict login test now requires the actual403, unique login-required/header
+  and HTML content type, full POST form with username/password-type inputs,
+  closing HTML, valid length when present, <=128KiB. Generic403/200/500,
+  redirects, malformed/truncated/chunked/duplicate/oversize responses refuse.
+- Diagnostic26 run40112407115, source17b7d043f708b7ae985f39c46565ca66dd9aa5a7,
+  BOTH failed at this login parser, nc exit0 and no HTTP marker. Regular-file
+  stdin immediately half-closes TCP; uhttpd can discard the request before reply.
+  Correct transport holds Linux FIFO O_RDWR open until peer response completion,
+  closes inherited writer in nc, keeps existing10s deadline/128KiB stream cap,
+  and records nc/read exits plus fixed byte-count/parser predicates on failure.
+  No new firmware package, optional nc flag, credential or configuration change.
+  Real Linux BusyBox-nc delayed-peer/no-early-FIN regression is required in the
+  next diagnostic host job; Windows cannot prove it. Existing local parser,
+  privacy, shell/Python checks pass. Focused7=5PASS/2Linux FIFO/native SKIP locally
+  (0.584s). Both native Linux cases must run before the next VM, never skipped.
+- Fixed ucode error class/public source-line diagnostics also cover known
+  devices/helper/apply/dns-ready logs. Every read stays bounded and private;
+  no raw HTML, URLs, config, identities, pairing grants or logs are emitted.
 
-Two preceding production fixes in6545:
-- ONLY isolated--root/no-network/no-scripts APKadd acknowledges temporary RAM
- archive persistence with --force-non-repository. Live guard preserved; no trust,
- dependency/world bypass. Focused4 actualPOSIXshell new/upgrade xsuccess/rollback
- PASS109.384s; commanddouble enforces narrowplacement and nativeRAMrefusal.
-- Move unchanged has_control before platform for actualucode lexical binding.
- Node12PASS and new actualnativeucode regression generalCI PASS.
-Superseded firstdiag23run40091757016 failed ignoredoverlaydriver Windowsencoding;
-UTF8fixed in correctedrun. ProductionUTF8 source was correct.
-
-Only after both diagnosticVMs pass: freeze exact final code; single official
-workflow already runs6SDK,3x86VMs, ARM signedr9migration, signatures/catalogue and
-draft10. Avoid duplicate manual stages/general reruns on docs-only checkpoints.
-Then inspect/publish -> independent verify-published-release.py -> literal public
-README command on clean24.10.8+25.12.6 -> PR#1/main README. Not stable/VK/physical.
-Buildbranch remains oldfailed06c; .work/preview.10/candidate.json authoritative
-IDs. Preserve preview9 assets. No old72h claims or silent newwindow.
-Current5h window was2%used at this resume (previous window89% has reset).
+All diagnostics use old06c binaries plus current runtime.uc overlay AFTER install,
+explicit kind diagnostic_runtime_overlay, release_eligible=false. No clean/source-
+qualified native acceptance claimed. Build branch remains old failed06c.
+After BOTH diagnostic VMs pass: freeze final exact source without skip-ci, then
+one official workflow handles six SDK tuples, three native x86 VMs, native ARM
+signed9 migration, signatures/catalogue and draft10. Run general on that same
+source; docs-only checkpoints never force a rebuild. Then inspect/publish,
+verify all public assets, run literal README command on clean24.10.8+25.12.6,
+and finish existing PR#1/main README. Physical/VK/Android/stable gates stay open.
+No unattended continuation: no Codex schedules. Old72h remains unverified.
 
 Confirmed blockers/evidence (do not rerun old CI):
 -24.10.8: actual signed install + strict wrongprojectsignature PASS repeatedly;

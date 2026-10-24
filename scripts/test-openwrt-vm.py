@@ -373,6 +373,10 @@ def guest_web_diagnostics(private):
     codes = lambda marker: [int(n) for n in values(marker, r'([0-9]{1,3})') if int(n) <= 255]
     return {
         'exit': codes('EXIT'), 'service_exit': codes('SERVICE_EXIT'), 'cgi_exit': codes('CGI_EXIT'),
+        'read_exit': codes('READ_EXIT'),
+        'bytes': [int(n) for n in values('BYTES', r'([0-9]{1,6})') if int(n) <= 131073],
+        'parse': values('PARSE', r'(header_format|status_line|auth_header|content_type|body_size|content_length|'
+                       r'transfer_encoding|html_document|login_form|username_input|password_input|password_type)'),
         'status': [int(n) for n in values('STATUS', r'([1-5][0-9][0-9])')],
         'checks': values('CHECK', r'(uhttpd_running|uhttpd_stopped|port80_listening|port80_closed|'
                          r'port443_listening|port443_closed|cgi_executable|cgi_not_executable|'

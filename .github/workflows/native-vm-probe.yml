@@ -1,4 +1,4 @@
-name: Diagnostic strict stock LuCI login and native runtime and runtime overlay (never release evidence)
+name: Diagnostic native FIFO login transport and runtime overlay (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]
