@@ -31,8 +31,8 @@ Preserve preview9. DraftPR#1/main README await final public-command proof.
 Historical diagnostics23-30:
 https://github.com/RATOR2000/csqtt-openwrt/blob/f4e6bdca58277e9d1ed3e56eb49a1f6ca5b83ab0/docs/STATUS.md
 
-FIRST UNFINISHED: inspect diagnostic32 BOTH24.10.8/25.12.6 after fixture-only
-netifd-owned bridge correction. Exact run/source IDs in
+FIRST UNFINISHED: inspect diagnostic33 ONLY24.10.8 with fixed manage-stage and
+bounded known runtime-log diagnostics. Do NOT repeat successful25.12.6. Exact run/source IDs in
 .work/preview.10/candidate.json. Root owns Git/CI/release. Agents
 release_path_audit and lan_cause completed/frozen; no outstanding source owner.
 Recheck liveness before delegation. Use compact current-run status, no old logs.
@@ -101,6 +101,17 @@ Node2 tests exercise extracted actualucodeSUT with12cases PASS; shell/diffPASS.
 Actualnativeucode/nft equivalence and remainingfw4/Stop/repeat acceptance pending32.
 Fixed guard boolean diagnostic only; no raw rules/table/config printed.
 Dev fbd59f2f857325684a35fff4868457b1375c1c87/treeebbbdb03 equal.
+Diagnostic32run40116109265/source04ffc5d9ea0baa52aaa237c527d7bcaa759e2775:
+25job120937603549 FULL DIAGNOSTIC PASS including first install, native status/RPC,
+LuCI login, UDP/TCP/nftset/localDNS, automaticLAN/Helper, actual apply/dnsready,
+semanticIPv6+MACreject, guarded routes, fw4reload, Stop, cleanup and repeat install
+with preserved4configs/manual18. Mixed-source evidence remains nonrelease.
+24job120937603899 failed manageapply at449, after LuCI/DNS/LAN pass. No ucode
+error surfaced because manage redirects actual error into known private RUNlogs.
+Next33 adds fixed public manage-stage enums from actual source error strings,
+reads only bounded8KiB known compile/dns-test/nft/firewall/dns-stop logs for fixed
+class/source markers, never rawconfig/identity/logs. Only24 matrix, no duplicate25.
+Dev d2a411d59b3cb5c671830f55bd5da02d56fa2a8c/tree7858f964 equal.
 Current5h window52%used at last check; economy priority, save next precise gate.
 
 Confirmed blockers/evidence (do not rerun old CI):

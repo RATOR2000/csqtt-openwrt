@@ -1,4 +1,4 @@
-name: Diagnostic semantic IPv6 rule and final policy lifecycle (never release evidence)
+name: Diagnostic remaining OpenWrt24 guarded apply stage (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ['24.10.8', '25.12.6']
+        release: ['24.10.8']
     steps:
       - uses: actions/checkout@v4
       - name: Disposable SDK host tools and VM dependencies
