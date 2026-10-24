@@ -61,11 +61,12 @@ else if (command.startsWith('service:')) {
     out('arch all 1\narch noarch 1\narch ' + arch + ' 10');
     process.exit(0);
   }
-  if (args.some(a => ['--allow-untrusted','--nodeps','--force-depends','--force-checksum','--force-signature'].includes(a))) fail('Trust/dependency bypass');
+  if (args.some(a => ['--allow-untrusted','--nodeps','--force-depends','--force-checksum','--force-signature','--force-world','--force-broken-world','--force-overwrite','--force-architecture','--force'].includes(a))) fail('Trust/dependency bypass');
   const staged = args.includes('--root') || args.includes('--offline-root');
   const base = staged ? native(opt(args.includes('--root') ? '--root' : '--offline-root')) : root;
   const dbfile = path.join(base, command === 'apk' ? 'lib/apk/db/installed' : 'usr/lib/opkg/fixture.json');
   const action = args.find(a => ['query','verify','add','del','install','remove','status','list-installed','update'].includes(a));
+  if(command==='apk' && args.includes('--force-non-repository') && (!staged || action!=='add' || !args.includes('--no-scripts'))) fail('RAM persistence acknowledgement is restricted to isolated script-free add');
   // Native APK 3 defaults maintainer scripts to PATH alone. The installer must
   // explicitly retain its verified lifecycle owner for script/init children.
   if(command==='apk' && !staged && ['add','del'].includes(action) && !args.includes('--preserve-env')) fail('APK would strip lifecycle ownership from maintainer scripts');
@@ -100,6 +101,10 @@ else if (command.startsWith('service:')) {
   } else if (action === 'list-installed') {
     for (const [name, version] of Object.entries(db).sort()) out(name+' - '+version);
   } else if (['add','install'].includes(action)) {
+    const packages = args.slice(args.indexOf(action)+1);
+    // Native APK refuses local archives on a tmpfs root unless persistence loss
+    // is acknowledged. Repo-by-name bootstrap staging does not need this flag.
+    if(command==='apk' && staged && packages.some(file=>file.endsWith('.apk')) && !args.includes('--force-non-repository')) fail('ERROR: non-repository package would be lost on reboot');
     const bootstrap = scenario.startsWith('bootstrap') && args.slice(args.indexOf(action)+1).some(a => ['openssl-util','jsonfilter'].includes(a) || a.startsWith('openssl-util=') || a.includes('/installer-bootstrap/'));
     if (command === 'apk' && !args.includes('--no-network') && !(staged && bootstrap && args.includes('--cache-predownload'))) fail('Online APK mutation');
     if (command === 'opkg' && (!process.env.OPKG_CONF_DIR || fs.readdirSync(native(process.env.OPKG_CONF_DIR)).length)) fail('Inherited opkg feeds');
@@ -113,7 +118,6 @@ else if (command.startsWith('service:')) {
         if(!fs.existsSync(path.join(lists,file)) || fs.readFileSync(path.join(lists,file),'utf8') !== content) fail('Authenticated lists missing from native offline root');
       }
     }
-    const packages = args.slice(args.indexOf(action)+1);
     for (const file of packages) {
       if (file.includes('=')) { const [name, version] = file.split('='); db[name]=version; continue; }
       if(bootstrap && !file.includes('/')) {

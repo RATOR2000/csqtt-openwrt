@@ -1,4 +1,4 @@
-name: Diagnostic native status locations and redacted APK errors (never release evidence)
+name: Diagnostic staged RAM acknowledgement and runtime overlay (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]

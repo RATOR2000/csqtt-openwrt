@@ -36,13 +36,13 @@ IMAGES = {
     '25.12.6': 'f8538784d0288b4133a99ac2a68443e4922ffde6343e80df56a5882364b9d499',
 }
 PHASE = 'host_preflight'
-SIGNATURE_REJECTION = 'CSQTT: Подпись выпуска недействительна'
+SIGNATURE_REJECTION = 'CSQTT: РџРѕРґРїРёСЃСЊ РІС‹РїСѓСЃРєР° РЅРµРґРµР№СЃС‚РІРёС‚РµР»СЊРЅР°'
 DIAGNOSTIC_READ_OK = 'CSQTT_PRIVATE_LOG_READ_OK'
 DIAGNOSTIC_LIMIT = 8192
 DIAGNOSTIC_SCAN_LIMIT = 1024 * 1024
-BOOTSTRAP_SOLVER_ERROR = 'CSQTT: Средства проверки недоступны без изменения системных пакетов'
+BOOTSTRAP_SOLVER_ERROR = 'CSQTT: РЎСЂРµРґСЃС‚РІР° РїСЂРѕРІРµСЂРєРё РЅРµРґРѕСЃС‚СѓРїРЅС‹ Р±РµР· РёР·РјРµРЅРµРЅРёСЏ СЃРёСЃС‚РµРјРЅС‹С… РїР°РєРµС‚РѕРІ'
 BOOTSTRAP_PACKAGES = ('openssl-util', 'jsonfilter')
-PROJECT_STAGE_ERROR = 'CSQTT: Проверка автономной установки в изолированной базе завершилась ошибкой'
+PROJECT_STAGE_ERROR = 'CSQTT: РџСЂРѕРІРµСЂРєР° Р°РІС‚РѕРЅРѕРјРЅРѕР№ СѓСЃС‚Р°РЅРѕРІРєРё РІ РёР·РѕР»РёСЂРѕРІР°РЅРЅРѕР№ Р±Р°Р·Рµ Р·Р°РІРµСЂС€РёР»Р°СЃСЊ РѕС€РёР±РєРѕР№'
 PROJECT_STAGE_PACKAGES = ('csqtt', 'csqtt-captcha', 'luci-app-csqtt') + BOOTSTRAP_PACKAGES
 OPKG_SOLVER_ERRORS = {
     'unknown_package': ('Unknown package ',),
@@ -143,7 +143,7 @@ def installer_diagnostics(private):
                 errors.add(number)
     tools = []
     for tool in KNOWN_TOOLS:
-        explicit = 'CSQTT: В прошивке отсутствует необходимая команда: ' + tool
+        explicit = 'CSQTT: Р’ РїСЂРѕС€РёРІРєРµ РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚ РЅРµРѕР±С…РѕРґРёРјР°СЏ РєРѕРјР°РЅРґР°: ' + tool
         missing = r'(?m)(?:^|[ :])' + re.escape(tool) + r': (?:not found|command not found)\r?$'
         if re.search(r'(?m)^' + re.escape(explicit) + r'\r?$', private) or re.search(missing, private):
             tools.append(tool)
@@ -254,7 +254,7 @@ def _private_native_output_head():
     # The package-manager's error can precede a long usage listing. Select only
     # its first bounded output after the unique, source-known staged APK call.
     command = ('apk --root "$CS_PM_ROOT" --arch "$CS_ARCH" --repositories-file "$CS_REPOSITORIES" '
-               '--keys-dir etc/apk/keys --no-network --no-scripts add "$@"')
+               '--keys-dir etc/apk/keys --no-network --no-scripts --force-non-repository add "$@"')
     lines = [n for n, line in enumerate((ROOT / 'install.sh').read_text(encoding='utf-8').splitlines(), 1)
              if line.strip() == command]
     if len(lines) != 1:
@@ -476,11 +476,11 @@ def run_remote(ssh, command, timeout=600, check=True):
         for tool in sorted(set(re.findall(r'(?m)^CSQTT_GUEST_MISSING_TOOL=([a-z0-9_-]{1,50})\r?$', private)) & guest_tools):
             print('OpenWrt guest missing tool: ' + tool, flush=True)
         reasons = {
-            'signature_rejected': ('UNTRUSTED signature', 'BAD signature', 'Verification failure', 'подпись'),
-            'dependency_solver': ('unable to select packages', 'unsatisfiable', 'Неполный набор зависимостей', 'не прошла в изолированной базе'),
-            'resource_limit': ('Недостаточно', 'No space left'),
-            'network_fetch': ('Connection failed', 'Failed to download', 'не удалось скачать', 'Не удалось скачать'),
-            'kernel_abi': ('ядра не совпадает', 'kernel mismatch'),
+            'signature_rejected': ('UNTRUSTED signature', 'BAD signature', 'Verification failure', 'РїРѕРґРїРёСЃСЊ'),
+            'dependency_solver': ('unable to select packages', 'unsatisfiable', 'РќРµРїРѕР»РЅС‹Р№ РЅР°Р±РѕСЂ Р·Р°РІРёСЃРёРјРѕСЃС‚РµР№', 'РЅРµ РїСЂРѕС€Р»Р° РІ РёР·РѕР»РёСЂРѕРІР°РЅРЅРѕР№ Р±Р°Р·Рµ'),
+            'resource_limit': ('РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ', 'No space left'),
+            'network_fetch': ('Connection failed', 'Failed to download', 'РЅРµ СѓРґР°Р»РѕСЃСЊ СЃРєР°С‡Р°С‚СЊ', 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРєР°С‡Р°С‚СЊ'),
+            'kernel_abi': ('СЏРґСЂР° РЅРµ СЃРѕРІРїР°РґР°РµС‚', 'kernel mismatch'),
         }
         for reason, needles in reasons.items():
             if any(needle in private for needle in needles):
@@ -640,6 +640,10 @@ def main():
             signature.write_bytes(valid_signature)
             phase('first_offline_install')
             remote('cd /tmp/csqtt-native; ' + PRIVATE_TRACE + ' > install.private.log 2>&1')
+            phase('diagnostic_runtime_overlay')
+            subprocess.run(ssh + ['umask 077; cat > /usr/share/csqtt/runtime.uc'],
+                input=(ROOT / 'openwrt/csqtt/files/runtime.uc').read_bytes(),
+                capture_output=True, check=True, timeout=20)
             phase('test_timeout_provision')
             provision_timeout(ssh, test_timeout, '/tmp/csqtt-native')
             phase('native_runtime_dns_firewall_luci')
@@ -649,7 +653,7 @@ def main():
             # staging and install; only authenticated release assets use HTTP.
             phase('repeat_install_settings_preserved')
             remote('cd /tmp/csqtt-native; sha256sum -c before.sha256 >/dev/null; uci set csqtt.main.workers=18; uci commit csqtt; sha256sum /etc/config/csqtt /etc/config/dhcp /etc/config/firewall /etc/config/network > repeat.sha256; sh install.sh ci-private > repeat.private.log 2>&1; sha256sum -c repeat.sha256 >/dev/null')
-            result = {'schema': 1, 'kind': 'clean_openwrt_vm', 'result': 'pass',
+            result = {'schema': 1, 'kind': 'diagnostic_runtime_overlay', 'result': 'pass',
                       'source_commit': evidence.source(), 'profile_id': args.profile, 'openwrt': version,
                       'package_manager': platform['package_manager'], 'physical_device': False,
                       'image': {'name': image_name, 'sha256': IMAGES[version], 'extraction': image_extraction,

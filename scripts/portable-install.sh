@@ -364,7 +364,10 @@ csqtt_pm_install() {
             # scripts, whose direct init calls would wait on their own parent.
             apk --preserve-env --repositories-file "$CS_REPOSITORIES" --keys-dir "$CS_TMP/keys" --no-network add "$@"
         else
-            apk --root "$CS_PM_ROOT" --arch "$CS_ARCH" --repositories-file "$CS_REPOSITORIES" --keys-dir etc/apk/keys --no-network --no-scripts add "$@"
+            # This disposable clone is on tmpfs and never boots. Acknowledge
+            # local packages only here; live installs retain APK's persistence
+            # guard. Signature, dependency, offline and script checks stay on.
+            apk --root "$CS_PM_ROOT" --arch "$CS_ARCH" --repositories-file "$CS_REPOSITORIES" --keys-dir etc/apk/keys --no-network --no-scripts --force-non-repository add "$@"
         fi
     fi
 }
