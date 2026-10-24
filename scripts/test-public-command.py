@@ -194,6 +194,10 @@ def main():
                     markers = re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private)
                     if markers:
                         print('Public guest substage: ' + markers[-1], flush=True)
+                    if PHASE == 'native_runtime_dns_firewall_luci':
+                        assertion = vm.guest_trace_diagnostics(private, args.released_source / 'scripts/test-openwrt-guest.sh')
+                        print('Public guest assertion: ' + ('source_line=' + str(assertion) if assertion is not None else
+                              'unknown'), flush=True)
                     reasons = {'resource_limit': ('Недостаточно', 'No space left'),
                                'dependency_solver': ('unable to select packages', 'unsatisfiable', 'изолированной базе'),
                                'signature_rejected': ('UNTRUSTED signature', 'Verification failure', 'подпись'),
@@ -227,7 +231,7 @@ def main():
             phase('test_timeout_provision')
             provision_timeout(ssh, test_timeout, '/tmp/csqtt-public')
             phase('native_runtime_dns_firewall_luci')
-            smoke = remote('cd /tmp/csqtt-public; sh guest.sh > smoke.private.log 2>&1; tail -n 1 smoke.private.log')
+            smoke = remote(vm.guest_smoke_command('/tmp/csqtt-public'))
             require(smoke.stdout.strip() == 'CSQTT_GUEST_SMOKE_PASS', 'Released native guest smoke did not pass')
             phase('literal_readme_repeat_settings_preserved')
             remote('cd /tmp/csqtt-public; sha256sum -c before.sha256 >/dev/null; uci set csqtt.main.workers=18; uci commit csqtt; '

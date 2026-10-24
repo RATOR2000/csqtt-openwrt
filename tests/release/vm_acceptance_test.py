@@ -37,6 +37,23 @@ if not SH:
 
 
 class VmAcceptanceTest(unittest.TestCase):
+    def test_pinned_apk_setup_templates_emit_fixed_classes_without_native_values(self):
+        private = 'private-password-key-url-identity'
+        for category, message in (
+                ('database_open', 'Failed to open apk database:'),
+                ('database_lock', 'Unable to lock database'),
+                ('cache_setup', 'Unable to setup the cache'),
+                ('package_extract', 'failed to extract '),
+                ('repository_format', 'repositories file syntax error'),
+                ('unsupported_format', 'file format is invalid or inconsistent'),
+                ('integrity_error', 'ADB integrity error'),
+                ('unsupported_root', 'uvol not supported with --root'),
+                ('option_argument', 'invalid argument for option')):
+            with self.subTest(category=category):
+                result = native_vm.project_stage_diagnostics(message + ' ' + private)
+                self.assertIn(category, result['classes'])
+                self.assertNotIn(private, repr(result))
+
     def test_native_output_head_is_checked_bounded_and_stops_at_next_trace(self):
         if not SH:
             self.skipTest('A POSIX shell is required')
@@ -347,7 +364,66 @@ class VmAcceptanceTest(unittest.TestCase):
         self.assertNotIn(private, str(classified))
         self.assertIn('sh -x install.sh ci-private', native_vm.PRIVATE_TRACE)
         self.assertIn('${LINENO:-0}', native_vm.PRIVATE_TRACE)
-        self.assertNotIn('sh -x', (ROOT / 'scripts/test-public-command.py').read_text(encoding='utf-8'))
+        self.assertNotIn('sh -x install.sh', (ROOT / 'scripts/test-public-command.py').read_text(encoding='utf-8'))
+
+    def test_guest_trace_returns_only_a_source_owned_assertion_before_fail_or_cleanup(self):
+        private = 'private-key-url-config-fixture'
+        lines = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8').splitlines()
+        owned = next(n for n, line in enumerate(lines, 1) if line.startswith('ucode "$TMP/import.uc"'))
+        other = next(n for n, line in enumerate(lines, 1) if line == 'stage native_imports')
+        definition = next(n for n, line in enumerate(lines, 1) if line.startswith('fail()'))
+        trace = '+CSQTT_GUEST_TRACE:' + str(owned) + ': fail\n'
+        cases = ((trace, owned), (trace.replace('\n', '\r\n'), owned),
+                 ('+CSQTT_GUEST_TRACE:' + str(other) + ': fail\n', None),
+                 (trace.replace(': fail', ': ' + private), None),
+                 (trace.replace(': fail', ': fail ' + private), None),
+                 (trace.replace(str(owned), '999999'), None),
+                 (trace.replace(str(owned), '0'), None),
+                 ('+CSQTT_GUEST_TRACE:' + str(definition) + ': printf ' + private + '\n' + trace, None),
+                 ('+CSQTT_GUEST_TRACE:' + str(other) + ': cleanup\n' + trace, None),
+                 ('+CSQTT_GUEST_TRACE:' + str(owned) + ': printf ' + private + '\n', None))
+        for text, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(native_vm.guest_trace_diagnostics(text), expected)
+        self.assertIsNone(native_vm.guest_trace_diagnostics(trace + 'x' * native_vm.DIAGNOSTIC_LIMIT))
+
+    def test_guest_trace_transport_never_prints_trace_values_and_reports_unknown(self):
+        private = 'private-key-url-config-fixture'
+        source = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8').splitlines()
+        owned = next(n for n, line in enumerate(source, 1) if line.startswith('ucode "$TMP/import.uc"'))
+        for call, expected in (('fail', 'source_line=' + str(owned)), (private, 'unknown')):
+            text = '+CSQTT_GUEST_TRACE:' + str(owned) + ': ' + call + '\n' + private + '\n'
+            with mock.patch.object(native_vm, 'PHASE', 'native_runtime_dns_firewall_luci'), \
+                    mock.patch.object(native_vm.subprocess, 'run', side_effect=[
+                        subprocess.CompletedProcess(['ssh'], 1, stdout='', stderr=''),
+                        subprocess.CompletedProcess(['ssh'], 0,
+                            stdout=(text + '\n' + native_vm.DIAGNOSTIC_READ_OK + '\n').encode(), stderr=b'')]), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                with self.assertRaises(ValueError):
+                    native_vm.run_remote(['ssh'], 'false')
+            self.assertIn('OpenWrt guest assertion: ' + expected, output.getvalue())
+            self.assertNotIn(private, output.getvalue())
+            self.assertNotIn('CSQTT_GUEST_TRACE:', output.getvalue())
+
+    @unittest.skipUnless(SH, 'A POSIX shell is required for traced smoke acceptance')
+    def test_traced_smoke_requires_success_and_complete_pass_line_before_emitting_fixed_stdout(self):
+        grep = shutil.which('grep') or str(pathlib.Path(SH).with_name('grep.exe'))
+        if not pathlib.Path(grep).is_file():
+            self.skipTest('Native grep is required for the complete marker proof')
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            command = native_vm.guest_smoke_command('/tmp/csqtt-native').replace(
+                'cd /tmp/csqtt-native', 'cd ' + shlex.quote(directory.as_posix()))
+            script = ('sh() { ' + shlex.quote(pathlib.Path(SH).as_posix()) + ' "$@"; }; grep() { ' +
+                      shlex.quote(pathlib.Path(grep).as_posix()) + ' "$@"; }; ' + command)
+            for body, accepted in (('echo CSQTT_GUEST_SMOKE_PASS\nexit 0\n', True),
+                                   ('echo CSQTT_GUEST_SMOKE_PASS\nexit 1\n', False),
+                                   ('echo prefix_CSQTT_GUEST_SMOKE_PASS\nexit 0\n', False)):
+                (directory / 'guest.sh').write_text(body, encoding='utf-8')
+                result = subprocess.run([SH], input=script, capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode == 0, accepted)
+                self.assertEqual(result.stdout, 'CSQTT_GUEST_SMOKE_PASS\n' if accepted else '')
+                self.assertIn('CSQTT_GUEST_TRACE:', (directory / 'smoke.private.log').read_text())
 
     def test_platform_probe_trace_classifies_blank_invalid_valid_and_known_family_manager_only(self):
         private = 'private-password-key-url-identity'

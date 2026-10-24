@@ -56,6 +56,22 @@ OPKG_SOLVER_ERRORS = {
     'resource_limit': ('No space left on device',),
 }
 APK_SOLVER_ERRORS = {
+    'permission_denied': ('Permission denied', 'Operation not permitted'),
+    'read_only_filesystem': ('Read-only file system',),
+    'io_error': ('I/O error', 'IO ERROR'),
+    'invalid_argument': ('Invalid argument',),
+    # Literal templates from the pinned official target apk; values stay private.
+    'database_open': ('Failed to open apk database:', 'Unable to read database', 'Unable to open root:'),
+    'database_lock': ('Unable to lock database', 'Refusing to write db without write lock!'),
+    'cache_setup': ('Unable to setup the cache', 'Unable to open log:'),
+    'package_extract': ('failed to extract ', 'failed to commit ', 'unable to cache package'),
+    'repository_format': ('repositories file syntax error', 'package mentioned in index not found',
+                          'could not find a repo which provides this package'),
+    'unsupported_format': ('file format is invalid or inconsistent', 'file format not supported (in this applet)',
+                           'v2 database format error'),
+    'integrity_error': ('ADB integrity error',),
+    'unsupported_root': ('uvol not supported with --root',),
+    'option_argument': ('invalid argument for option', "setting option '"),
     'usage_output': ('Usage: apk ', 'usage: apk '),
     'unsupported_option': ('unrecognized option', 'unrecognized command line option', 'unknown option', 'invalid option'),
     'unknown_package': ('(no such package)',),
@@ -71,6 +87,7 @@ APK_SOLVER_ERRORS = {
     'checksum_mismatch': ('BAD checksum', 'checksum mismatch'),
 }
 PRIVATE_TRACE = "PS4='+CSQTT_XTRACE:${LINENO:-0}: '; export PS4; sh -x install.sh ci-private"
+GUEST_PRIVATE_TRACE = "PS4='+CSQTT_GUEST_TRACE:${LINENO:-0}: '; export PS4; sh -x guest.sh"
 KNOWN_TOOLS = ('uclient-fetch', 'sha256sum', 'awk', 'tar', 'sync', 'du', 'mktemp', 'wc', 'sed', 'cut',
                'cat', 'cp', 'mkdir', 'rm', 'mv', 'rmdir', 'chmod', 'grep', 'sort', 'tr', 'date', 'sleep',
                'id', 'openssl', 'jsonfilter', 'usign', 'opkg', 'apk', 'uci', 'ubus', 'dd', 'tail')
@@ -315,6 +332,34 @@ def project_stage_diagnostics(private):
     return {'classes': classes or ['unclassified_output' if private else 'empty_output'], 'packages': packages}
 
 
+def guest_trace_diagnostics(private, source=None):
+    """Expose only an owned assertion call line, before fail/cleanup internals."""
+    if source is None:
+        source = ROOT / 'scripts/test-openwrt-guest.sh'
+    lines = source.read_text(encoding='utf-8').splitlines()
+    definitions = {number for number, line in enumerate(lines, 1)
+                   if re.match(r'^\s*fail\(\)', line)}
+    assertions = {number for number, line in enumerate(lines, 1)
+                  if number not in definitions and not line.lstrip().startswith('#') and
+                  re.search(r'(?:^|[;&|)\s])fail(?:[;\s]|$)', line)}
+    for number, command in re.findall(r'(?m)^\+CSQTT_GUEST_TRACE:([0-9]{1,6}): ([^\r\n]*)\r?$',
+                                      private[-DIAGNOSTIC_LIMIT:]):
+        number = int(number)
+        if number in definitions or re.match(r'^cleanup(?:\s|$)', command):
+            break
+        if number in assertions and command.strip() == 'fail':
+            return number
+    return None
+
+
+def guest_smoke_command(directory):
+    """Tracing follows PASS with an exit trace, so verify the complete PASS line."""
+    require(directory in ('/tmp/csqtt-native', '/tmp/csqtt-public'), 'Unknown disposable guest directory')
+    return ('cd ' + directory + '; ' + GUEST_PRIVATE_TRACE +
+            ' > smoke.private.log 2>&1 && grep -Fqx CSQTT_GUEST_SMOKE_PASS smoke.private.log && '
+            "printf '%s\\n' CSQTT_GUEST_SMOKE_PASS")
+
+
 def run_remote(ssh, command, timeout=600, check=True):
     result = subprocess.run(ssh + ['set -eu; ' + command], capture_output=True, text=True, timeout=timeout)
     # Private native diagnostics never enter public evidence/logs.
@@ -350,6 +395,10 @@ def run_remote(ssh, command, timeout=600, check=True):
         markers = [m for m in re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private) if m in allowed_stages]
         if markers:
             print('OpenWrt guest substage: ' + markers[-1], flush=True)
+        if PHASE == 'native_runtime_dns_firewall_luci':
+            assertion = guest_trace_diagnostics(private)
+            print('OpenWrt guest assertion: ' + ('source_line=' + str(assertion) if assertion is not None else
+                  'unknown'), flush=True)
         guest_tools = {tool for group in re.findall(r'^for tool in ([a-z0-9 _-]+); do command -v "\$tool"',
                                                     guest_source, re.MULTILINE) for tool in group.split()}
         for tool in sorted(set(re.findall(r'(?m)^CSQTT_GUEST_MISSING_TOOL=([a-z0-9_-]{1,50})\r?$', private)) & guest_tools):
@@ -519,7 +568,7 @@ def main():
             phase('test_timeout_provision')
             provision_timeout(ssh, test_timeout, '/tmp/csqtt-native')
             phase('native_runtime_dns_firewall_luci')
-            smoke = remote('cd /tmp/csqtt-native; sh guest.sh > smoke.private.log 2>&1 && tail -n 1 smoke.private.log')
+            smoke = remote(guest_smoke_command('/tmp/csqtt-native'))
             require(smoke.stdout.strip() == 'CSQTT_GUEST_SMOKE_PASS', 'Native runtime/DNS/firewall/LuCI guest proof missing')
             # The actual production installer mandates native --no-network
             # staging and install; only authenticated release assets use HTTP.

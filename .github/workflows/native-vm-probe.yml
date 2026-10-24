@@ -1,4 +1,4 @@
-name: Diagnostic native deadline and APK error head (never release evidence)
+name: Diagnostic guest source and native APK classes (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]
