@@ -379,7 +379,7 @@ def guest_web_diagnostics(private):
                          r'uhttpd_ucode_present|uhttpd_ucode_missing|root_http_ok|root_http_failed)'),
         'files': values('FILE', r'((?:cgi|dispatcher|runtime|template|http):(?:present|missing))'),
         'modules': values('MODULE', r'((?:fs|ubus|uci|uloop|math|html):(?:loaded|failed))'),
-        'classes': values('CLASS', r'(connection_refused|timeout|permission_denied|cgi_execute|cgi_gateway|option_unsupported|'
+        'classes': values('CLASS', r'(connection_refused|timeout|permission_denied|cgi_execute|cgi_gateway|option_unsupported|tls_certificate|tls_hostname|tls_unavailable|local_https_redirect|'
                           r'syntax_error|reference_error|type_error|runtime_error|module_error)'),
         'locations': [(name, int(number)) for name, number in values('SOURCE',
                       r'((?:luci[.](?:cgi|dispatcher|runtime|template|http)|csqtt[.](?:runtime|policy|health))):([1-9][0-9]{0,4})')
