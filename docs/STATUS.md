@@ -25,110 +25,52 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 
 ## Current checkpoint and first unfinished action
 
-25Oct current five-hour deadline: publish verified preview10 + literal installation
-command, owner priority GL-MT6000 official25.12.6. Owner installs personally; no
-SSH mutations/reboot/Codex schedules. Preserve all published tags/assets, especially9.
+PREVIEW10 PUBLISHED 2026-10-24T23:43:21Z (25Oct Moscow), prerelease,418assets.
+https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.10
+Frozen tag/application/installer source6c70e490585651b9a65d7d128ecc551415c32f4e.
+General40139752629 ALL5 PASS; official40139753900 ALL6SDK +3nativeVM PASS,
+including25.12.6 ARM owner tuple and signed native ARM9->10->9 package migration.
+No physical owner install, actual VK/Android, boot7 or72h pass claimed.
 
-FIRST UNFINISHED: publication-only GitHub asset-name normalization, then publish.
-Run40143419924 verified raw414 assets PASS, then upload refused: GitHub changes
-asset-name '~' to '.', so the signed raw names were unavailable under exact names.
-New host-only normalizer verifies frozen raw signatures/ALL descriptors/source6c,
-renames only transport filenames and descriptor name fields, preserves every
-package/native filename/version/proof/installer/source byte, re-signs tuple and
-catalogue metadata, and adds signed publication provenance (source6c vs packaging
-commit, original run/artifact/digest). GITHUB_SHA is never changed. Atomic new
-output; collisions/tamper/wrong source refuse.4real P256 normalization tests PASS.
-This is a distribution-name repair using already qualified binaries, not a new
-application build. Frozen release tag and installer source remain6c.
- finish publication-only repair workflow on codex/portable-preview.10-publish.
-First transport-only run40143275467 failed BEFORE draft mutation: per-profile
-package-directory equality was incorrectly used on a flat six-profile bundle.
-Corrected host-only check validates every descriptor and the aggregate exact
-package set; signatures/source/evidence gates stay strict. Same issue in standalone
-public host verifier is being fixed with a multi-profile regression. No installed
-application changes and no SDK rebuild. Artifact ZIP retry uses exact known length
-after the first bounded download timed out; digest remains mandatory.
-Independent artifact inspection PASS: ZIP12579223101 exact SHA256 and72635488
-bytes,414 flat regular files; pinned P256 catalogue/all6 manifests, every package/
-dependency/index/source/proof hash, source6c and installer exact bytes PASS.
-Evidence .work/preview.10/draft-verification-6c70e49.json. Fixed standalone
-public verifier host-only aggregate check;5tests PASS including real Node P256
-two-profile APK/IPK, scoped selection, tamper and extra-package rejection.
-Publication rerun40143419924 on889cb9c6f68292576de6bfba9dc9daf7219e91df.
-QUALIFIED payload remains6c70e490585651b9a65d7d128ecc551415c32f4e; do NOT rebuild SDK.
-Official40139753900 ALL6SDK/3VM/signing+copyverification PASS; only final upload
-step failed because new publication filename guard omitted valid OpenWrt '~'.
-Fixed allowlist to match real package version names, added regression. Local5
-publication tests PASS. Installer/client/policies and signed artifact unchanged.
-Signed artifact12579223101 ZIP SHA256
-24d2d80ae6ee2bf72f1522e174dd01b5d5d2f2b9103f06713616cbb82aaf1aa0.
-New publication-only workflow downloads this exact-source run artifact, separately
-checks all pinned P256 signatures/hashes/proofs/source6c and installer bytes from
-checkout6c, then passes explicit --source-commit6c to transport helper. GITHUB_SHA
-is NOT overridden. This is upload transport repair, not promotion of other code.
-Preserve tag source6c and all existing qualification proofs. No full SDK rerun.
+FIRST UNFINISHED: wait public-command workflow on branch
+codex/portable-preview.10-public-check pointing EXACTLY6c70 (created after public
+release), both24.10.8/25.12.6 jobs must PASS. Concurrent readonly host public
+verification running: scripts/verify-published-release.py --tag v0.1.0-preview.10
+--source-commit6c70... --output .work/preview.10/public-6c70e49 (fresh directory).
+Then verify all downloaded public bytes/Helper/provenance and deliver README to
+main through PR#1 (currently draft). Owner installs personally; no SSH changes.
 
-Historical fixed qualification candidate6c70e490585651b9a65d7d128ecc551415c32f4e
-(treec118b04d979ae8a4caf8f6186daca34d772fc447), official40139753900 and
-general40139752629. Official contracts/native-policy PASS, sixSDK active.
-General core/native-policy/android/checks PASS, openwrt active. Completed checks
-log121008796653 confirms ALL SIX real OpenSSL signing regressions PASS (not SKIP).
-Do not rebuild/refreeze for later docs-only commits.
-Root owns Git/CI/release. signing_fix and release_docs_audit completed/frozen;
-no outstanding file owner. Recheck liveness before delegation.
-Old frozen d62af169f1f811ab534d9ef8769ca7c817cf0c9d PASSED all6SDK/3nativeVM,
-native ARM signed9 migration and all5general: official40135841236/general40135840918.
-It produced UNPUBLISHED draft10 id423017524, targetd62, 414assets, no public tag.
-Independent local verification caught a packaging-only bug before publication:
-prepare signed manifests -> catalogue captured signature hashes -> second signer
-call re-signed ECDSA manifests, making all6 catalogue signature descriptors stale.
-The signatures themselves verify; their signed descriptors do not. DO NOT publish
-that draft or use old signed artifact12577604118 as final release.
+Raw signed artifact12579223101 from40139753900 independently PASS:414files,
+ZIP72635488bytes SHA25624d2d80ae6ee2bf72f1522e174dd01b5d5d2f2b9103f06713616cbb82aaf1aa0;
+pinned P256 catalogue/all6manifests, every artifact/proof/source and installer
+binding PASS. Original ECDSA double-sign bug fixed before full requalification;
+ALL6 real OpenSSL signing regressions PASS in generalchecks121008796653.
 
-Fix now: sign-portable-release --catalogue-only verifies/preserves tuple signatures;
---verify-only checks copied final catalogue/P256 signatures/source/qualification/
-all referenced hashes without a key. prepare uses both. Six real OpenSSL tests
-cover full six-tuple assembly, randomized signatures, tamper, key/source/gate
-refusals. Local10existing release tests PASS, crypto6 explicitSKIP (no local
-OpenSSL); they MUST pass on Linux via existing release_test.py. Syntax/diffPASS.
-New draft-publication helper: only preview>=10, no existing tag, only same source
-or explicit known oldd62 draft. Rechecks draft/source before/after upload,
-compares GitHub asset digests, uploads changed files only, refuses published or
-foreign drafts, failed uploads or wrong uploaded hashes. Local5 behavioral tests
-PASS. This updates the private failed draft without touching published releases.
-Workflow guard explicitly names oldd62 as sole permitted previous draft source.
-Fresh source freeze + all6SDK/3VM/5general is required; do not weaken evidence or
-change GITHUB_SHA to promote old source. No installed application/protocol changes.
+GitHub normalizes asset-name '~' to '.', found while draft-only. Pure host
+publication normalizer validates original signed raw bundle, changes ONLY
+transport names/descriptor name fields, preserves package/version/native
+filename/proof/installer/source bytes, re-signs metadata and binds separate
+publication provenance to catalogue. No GITHUB_SHA override or recompilation.
+Four real Node P256 normalization regression tests PASS. Flat multi-profile
+public verifier fixed with5real P256 tests; publicationguards5PASS.
+Publication-only run40143742489 on671de8b324e2d888d58466cfe9e2fcb1646c902a PASS.
+Canonical artifact12579437941 github-signed-preview10:415files, ZIP72643796bytes,
+SHA256f7bfad787abc997aa7429b8778c59c1d370436d81d148388a722af454e045faa.
+Independent local inspection .work/preview.10/github-6c70e49 PASS all signatures,
+hashes/source+provenance. Local .work/preview.10/draft-verification-6c70e49.json.
+Helper from exact6c source/general40139752629 artifact12578351034 appended:
+APK3613575bytes SHA25601d837fef92239db28951f7ce60f5a26eb77c1c33236e8bb188d4a84e7c4d8d4,
+plus .sha256 and android-helper-provenance.json. Debug APK, physical VK pending.
+Published metadata read back: draft=false/prerelease=true/source6c; ALL418
+GitHub asset digest+size comparisons PASS, no extras/missing. Preview9 untouched.
+Browser publication screenshot .work/preview.10/published.jpg; ghTab marked output.
 
-After final runs: independently inspect signed artifact ZIP and all descriptors,
-append exact-source Helper APK + .sha256 + provenance to draft, publish, run
-verify-published-release.py against a NEW public output directory (not local
-artifact cache), then both literal README command VMs, then PR#1/main README.
-PR#1 draft/open/mergeable; main README still2lines. Update main only after final
-public-command passes. Browser ghTab owner session available; connector can
-list drafts via releases collection (GET by tag404 while draft), and download
-workflow artifacts. CUA file chooser documentation already read this session.
-
-Current .work/preview.10/helper/ has NEW6c70 exact-source Android artifact12578351034
-from general40139752629. ZIP SHA256
-7f685703d2f858b65f15748b609ff3e21ffd461d8b8270e407349d4104225e08.
-APK SHA25601d837fef92239db28951f7ce60f5a26eb77c1c33236e8bb188d4a84e7c4d8d4.
-Attach APK + .sha256 + android-helper-provenance.json AFTER fixed draft verification.
-Debug build only; physical/VK acceptance not claimed. No keys/identities inGit.
-
-Both diagnostic runtime scenarios and old fresh-source VMs passed all installation,
-LuCI/DNS/nftset/LAN/Helper/IPv6/routes/fw4/Stop/reinstall preservation checks.
-Historical exact debug evidence:
-https://github.com/RATOR2000/csqtt-openwrt/blob/c0c7543deebf2ac33c47ccf03fdbad08e1c465b2/docs/STATUS.md
-No unconditional all-routers/physical/stable/72h claim; six verified ABI/version
-profiles, no board lock. Original protocol amurcanov/csqtt v2.1.9 unchanged.
-
-Save exact new source/run IDs in .work/preview.10/candidate.json and this STATUS.
-Push through connector, verify tree equality, fetch without credential helper,
-align same-tree local ref; never ordinary gitpush (opensOAuth). No duplicate runs.
-Source-freeze remains fixed across later docs-only checkpoints. User quota
-window resets05:47:23 Moscow25Oct (current task started00:47); minimize model work
-while CI runs. No Codex schedules or unattended follow-up tasks.
+Root owns Git/CI/release/STATUS. signing_fix completed/frozen. release_docs_audit
+is editing README/PREVIEW_NOTES/BUILD final text; root holds commit until both
+public-command jobs pass. Recheck liveness before delegation. Do not rebuild SDK
+for these host-only publication or documentation changes. No schedules.
+Push dev through connector, credential-free fetch, align same-tree local ref.
+Five-hour quota resets05:47:23 Moscow25Oct; preserve tokens for final delivery.
 
 ## Implemented source and verification scope
 
@@ -164,8 +106,8 @@ published-verifier3 PASS. Native-runtime fixture generation, Python compilation,
 generated installer --check, shell syntax and diff-check PASS. Portable13/13
 Windows full run PASS but source evolved during that run; final focused native-
 environment/lock/bootstrap tests plus actual Windows/MSYS dash resumes passed.
-Frozen Linux contracts subsequently PASS. Actual new SDK/QEMU private DNS, VM,
-signature publication/public command remain PENDING; never infer them from mocks.
+Frozen Linux contracts subsequently PASS. Exact-source SDK/QEMU private DNS,3nativeVM and signature publication now PASS;
+public HTTPS command acceptance is the remaining delivery gate.
 Logs .work/portable-final-v2.log, portable-apk-env.log, portable-dash-resume.log.
 
 ## Publication and final delivery gates
