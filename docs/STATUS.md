@@ -117,6 +117,22 @@ Diagnostic22 bothFAILED with concrete causes (no need rerun):
  generalall5source mustmatch. No tag/assets publicationyet. NoownerrouterSSH.
  Agent vm_timeout completed/frozen. Window89%used at11:52UTC; save/checkpoint now,
  no broad/duplicatework. NoCodex schedules. Fullsource/nativequalgates remain.
+LATEST24Oct11:57UTC: dev6545d9ceb07eba45c0690def5921e492b4d142fb,
+tree895cec1ae616e476731c1b65effe9651bd57eaa3, local/fetch equalityPASS.
+Fresh general40091736716 on6545: core/android/native-policySUCCESS (actualnative
+ucode newplatform sanitizer/controlchar regression PASSED); checksactive, then
+openwrtpending. Do not rerun before currentresult. Buildbranch stillold06c.
+Diagnostic23 first40091757016/source01393ae... failed HOSTboundary6tests because
+ignoredoverlaydriverwasreadwithWindowsdefaultencoding (Russianconstantsmojibake).
+Production source6545 iscorrectUTF8. Fixed diagnosticdriver explicitUTF8 only;
+corrected diagnostic23run40091923076/sourcef164df5f36c3ae61d94a2ba4488c0f8cc8ac8570
+active. Host tests and bothVM required. Driveroverlaysruntime.uc onlyafter
+successfulinstall; evidencekind diagnostic_runtime_overlay explicitlynotrelease.
+IfBOTHdiagpass+all5generalPASS, freeze6545 exactcode (laterdocs-only commits need
+no rebuild) andupdate buildbranch forfresh6SDK/3VM/nativeARM9migration/draft10.
+No final/source-qualifiedinstallPASS before thosegates/publiccommandgates.
+No active local watcher; no schedules. Window89%at11:52 andnearlyspent, stop
+duplicatework; nextresume starts compactstatuses oftheseTWO runs, notoldCI/logs.
 No full6SDK launch; compact jobs only, bounded failed logs if concrete failure.
 
 Confirmed blockers/evidence (do not rerun old CI):
