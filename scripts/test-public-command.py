@@ -198,6 +198,11 @@ def main():
                         assertion = vm.guest_trace_diagnostics(private, args.released_source / 'scripts/test-openwrt-guest.sh')
                         print('Public guest assertion: ' + ('source_line=' + str(assertion) if assertion is not None else
                               'unknown'), flush=True)
+                        ucode = vm.guest_ucode_diagnostics(private, args.released_source)
+                        for category in ucode['classes']:
+                            print('Public guest ucode class: ' + category, flush=True)
+                        for filename, number in ucode['locations']:
+                            print('Public guest ucode source: ' + filename + ':' + str(number), flush=True)
                     reasons = {'resource_limit': ('Недостаточно', 'No space left'),
                                'dependency_solver': ('unable to select packages', 'unsatisfiable', 'изолированной базе'),
                                'signature_rejected': ('UNTRUSTED signature', 'Verification failure', 'подпись'),

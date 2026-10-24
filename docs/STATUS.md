@@ -31,8 +31,8 @@ release qualification/date. Owner installs personally; no router mutations,
 Codex schedules or old72h restart. Historical details up to this resume:
 https://github.com/RATOR2000/csqtt-openwrt/blob/9f6a860b2fa36fe2d63cf35bde58b6dfdb599c77/docs/STATUS.md
 
-FIRST UNFINISHED ACTION: run diagnostic21 public-input target-native APK fixture
-and guest trace fallback, against compiled06c packages. Only after BOTH
+FIRST UNFINISHED ACTION: run diagnostic22 native status source locations and
+first-install-only redacted APK errors, against compiled06c packages. Only after BOTH
 native24/25 diagnostic VMs pass, freeze a new exact source and run6SDK+5regression.
 Never promote mixed-source diagnostic packages/proofs to release qualification.
 Metadata .work/preview.10/candidate.json; prior frozen06c/treee5e2fd9 failed and
@@ -67,6 +67,28 @@ NOT a private guest log. Local extraction/escapecheck/compilePASS; Linux pending
 Workflow .work/preview.10/probe-workflow-v21.yml copies diagnosticbranch helper
 from .github/native-apk-public-probe.py to ignored .work before signingsecretstep.
 General19 run40087842202 ALL5SUCCESS on3b6 (openwrt120855924464 nowPASS).
+Diagnostic21 active40089983266/source844545093be4def36b3a74abcb142aba1ca19c1e,
+dev eba13d4a1a86ec705c8c082e554cbbb7b94aeb5b/tree22309c0042484432095bdd032b316f0a97906e14,
+local/fetch equal. APKpublic probe matches APK_CONFIG=/dev/null and nosecret child
+environment; first/tail bounded output from public-only target-native command.
+No .work files tracked: public diagnostic helper exists ONLY on diagnosticbranch
+at.github/native-apk-public-probe.py and is copied to ignored .work for execution.
+Diagnostic21 nowFAILED bothVM; PUBLIC target-native APK fixture PASSED native
+exact stagedadd (15installs, no stderr). Thus closure/signatures/CLIwork with
+public firmware baseline; actual VM environment/bootstrap differs.25samefailure.
+24failed manage status specifically (guesttrace owned/source91), after pure
+policy/health imports PASS. Agent vm_timeout adding only fixed UCODEclass and
+verified public sourcefile/line from boundedstatus.log; no config/error snippets.
+Root first-install-only extractor can show <=6redacted native ERROR/WARNING/apk
+lines (clean test DB/public packages, --no-scripts, no user/runtimeidentity yet);
+traces/paths/URLs/secretfields/longvalues removed; focusedprivacytestPASS. Never
+apply this to repeat/upgrade/user logs. Native privatefull logs remain undisclosed.
+No repeat public APK baseline probe22: it alreadyPASS and no production change.
+Diagnostic22 source ready: manage-status failure reads checkedregularstatus.log
+<=8192B and emits fixed UCODEclass/public sourcefile+numericline, max8markers;
+driverrevalidates sourcefiles/lines, publicboundstaggedsource. ActualGNUawk
+formats/privacy/refusaltestsPASS, BusyBoxCI pending. FullVM51=48PASS/3WindowsSKIP;
+shell/Python/diffPASS. Agent vm_timeout frozen; root ownsremainingGit/CI/release.
 No full6SDK launch; compact jobs only, bounded failed logs if concrete failure.
 
 Confirmed blockers/evidence (do not rerun old CI):

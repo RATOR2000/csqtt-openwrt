@@ -1,4 +1,4 @@
-name: Diagnostic public target APK fixture and guest trace (never release evidence)
+name: Diagnostic native status locations and redacted APK errors (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]
@@ -52,12 +52,6 @@ jobs:
           fi
           python3 scripts/bundle-dependencies.py --profile "$PROFILE_ID" --directory .work/diagnostic-vm --apk "$SDK/staging_dir/host/bin/apk" --usign "$USIGN"
           python3 scripts/release-manifest.py .work/diagnostic-vm --profile "$PROFILE_ID" --registry platforms/registry.json --dependencies .work/diagnostic-vm/dependencies.json --third-party .work/diagnostic-vm/dnsmasq-source.json
-      - name: Public-input target-native APK staged command (no private runtime)
-        if: matrix.release == '25.12.6'
-        run: |
-          mkdir -p .work/preview.10
-          cp .github/native-apk-public-probe.py .work/preview.10/native-apk-probe.py
-          python3 .work/preview.10/native-apk-probe.py
       - name: Private diagnostic fixture only; mismatched binaries never qualify
         env:
           CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}

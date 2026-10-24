@@ -88,7 +88,36 @@ if (type(health_assess) !== 'function' || type(health_initial) !== 'function' ||
     type(health_complete) !== 'function' || type(health_public) !== 'function') die('Native health exports missing');
 UCODE
 ucode "$TMP/import.uc" > "$TMP/import.log" 2>&1 || fail
-/usr/libexec/csqtt/manage status > "$TMP/status.json" 2> "$TMP/status.log" || fail
+status_diagnostics() {
+    [ -f "$TMP/status.log" ] && [ ! -L "$TMP/status.log" ] || return 0
+    dd if="$TMP/status.log" of="$TMP/status.checked" bs=1 count=8193 2>/dev/null || return 0
+    count=$(wc -c < "$TMP/status.checked") || return 0
+    case "$count" in ''|*[!0-9]*) return 0 ;; esac
+    [ "$count" -le 8192 ] || return 0
+    awk '
+      BEGIN { files["runtime.uc"]=1; files["policy.uc"]=1; files["health.uc"]=1 }
+      index($0,"Syntax error:") { classes["syntax_error"]=1 }
+      index($0,"Reference error:") { classes["reference_error"]=1 }
+      index($0,"Type error:") { classes["type_error"]=1 }
+      index($0,"Unable to resolve module") || index($0,"Unable to load module") ||
+        index($0,"Unable to compile module") { classes["module_error"]=1 }
+      { for (file in files) {
+          needle="/usr/share/csqtt/" file ", line "; at=index($0,needle)
+          if (at) {
+            value=substr($0,at+length(needle))
+            if (match(value,/^[1-9][0-9]*,/)) {
+              number=substr(value,1,RLENGTH-1)
+              if (length(number)<=6) locations[file ":" number]=1
+            }
+          }
+        } }
+      END {
+        for (kind in classes) print "CSQTT_GUEST_UCODE_CLASS=" kind
+        count=0; for (where in locations) if (count++<8) print "CSQTT_GUEST_UCODE_SOURCE=" where
+      }' "$TMP/status.checked" > "$TMP/status.markers" || return 0
+    cat "$TMP/status.markers"
+}
+/usr/libexec/csqtt/manage status > "$TMP/status.json" 2> "$TMP/status.log" || { status_diagnostics; fail; }
 jsonfilter -i "$TMP/status.json" -e '@.setup_required' | grep -qx true || fail
 jsonfilter -i "$TMP/status.json" -e '@.running' | grep -qx false || fail
 /usr/libexec/rpcd/csqtt list > "$TMP/rpc.json" || fail

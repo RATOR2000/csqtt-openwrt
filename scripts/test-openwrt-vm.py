@@ -332,6 +332,39 @@ def project_stage_diagnostics(private):
     return {'classes': classes or ['unclassified_output' if private else 'empty_output'], 'packages': packages}
 
 
+def first_install_native_errors(text):
+    """Redact APK errors only: clean firmware DB/public packages, no scripts.
+
+    The caller is restricted to the first disposable installation, before any
+    runtime/identity or user settings exist. Never expose shell traces or files.
+    """
+    result = []
+    for line in text[:DIAGNOSTIC_LIMIT].splitlines():
+        line = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', line).lstrip()
+        if not re.match(r'^(?:ERROR|WARNING|apk):', line, re.IGNORECASE):
+            continue
+        line = re.sub(r'[A-Za-z][A-Za-z0-9+.-]*://\S+', '<url>', line)
+        line = re.sub(r'(?i)\b(password|secret|token|grant|identity|key)\s*[=:]\s*(?:\'[^\']*\'|"[^"]*"|\S+)', r'\1=<redacted>', line)
+        line = re.sub(r'(?:/[^\s\'"<>:;()]+)+', '<path>', line)
+        line = re.sub(r'[A-Za-z0-9_+=/-]{32,}', '<value>', line)
+        line = ''.join(character for character in line if character.isprintable())
+        result.append(line[:300])
+        if len(result) == 6:
+            break
+    return result
+
+
+def guest_ucode_diagnostics(private, source=ROOT):
+    """Accept fixed ucode classes and locations within the exact public sources."""
+    classes = sorted(set(re.findall(r'(?m)^CSQTT_GUEST_UCODE_CLASS=(syntax_error|reference_error|type_error|module_error)\r?$', private)))
+    locations = set()
+    for filename, value in re.findall(r'(?m)^CSQTT_GUEST_UCODE_SOURCE=(runtime[.]uc|policy[.]uc|health[.]uc):([1-9][0-9]{0,5})\r?$', private):
+        path = source / 'openwrt/csqtt/files' / filename
+        if path.is_file() and int(value) <= len(path.read_text(encoding='utf-8').splitlines()):
+            locations.add((filename, int(value)))
+    return {'classes': classes, 'locations': sorted(locations)[:8]}
+
+
 def guest_trace_diagnostics(private, source=None):
     """Expose only an owned assertion call line, before fail/cleanup internals."""
     if source is None:
@@ -433,6 +466,11 @@ def run_remote(ssh, command, timeout=600, check=True):
             print('OpenWrt guest trace command: ' + trace['command'], flush=True)
             if trace['source_line'] is not None:
                 print('OpenWrt guest trace source_line=' + str(trace['source_line']), flush=True)
+            ucode = guest_ucode_diagnostics(private)
+            for category in ucode['classes']:
+                print('OpenWrt guest ucode class: ' + category, flush=True)
+            for filename, number in ucode['locations']:
+                print('OpenWrt guest ucode source: ' + filename + ':' + str(number), flush=True)
         guest_tools = {tool for group in re.findall(r'^for tool in ([a-z0-9 _-]+); do command -v "\$tool"',
                                                     guest_source, re.MULTILINE) for tool in group.split()}
         for tool in sorted(set(re.findall(r'(?m)^CSQTT_GUEST_MISSING_TOOL=([a-z0-9_-]{1,50})\r?$', private)) & guest_tools):
@@ -477,6 +515,9 @@ def run_remote(ssh, command, timeout=600, check=True):
                     if native is not None:
                         for category in project_stage_diagnostics(native)['classes']:
                             print('OpenWrt project native output class: ' + category, flush=True)
+                        if PHASE == 'first_offline_install':
+                            for error in first_install_native_errors(native):
+                                print('OpenWrt first-install APK error: ' + error, flush=True)
                 traced = installer_diagnostics(nested)
                 for name in traced['trace_functions']:
                     print('OpenWrt project stage trace function: ' + name, flush=True)
