@@ -37,6 +37,13 @@ package set; signatures/source/evidence gates stay strict. Same issue in standal
 public host verifier is being fixed with a multi-profile regression. No installed
 application changes and no SDK rebuild. Artifact ZIP retry uses exact known length
 after the first bounded download timed out; digest remains mandatory.
+Independent artifact inspection PASS: ZIP12579223101 exact SHA256 and72635488
+bytes,414 flat regular files; pinned P256 catalogue/all6 manifests, every package/
+dependency/index/source/proof hash, source6c and installer exact bytes PASS.
+Evidence .work/preview.10/draft-verification-6c70e49.json. Fixed standalone
+public verifier host-only aggregate check;5tests PASS including real Node P256
+two-profile APK/IPK, scoped selection, tamper and extra-package rejection.
+Publication rerun40143419924 on889cb9c6f68292576de6bfba9dc9daf7219e91df.
 QUALIFIED payload remains6c70e490585651b9a65d7d128ecc551415c32f4e; do NOT rebuild SDK.
 Official40139753900 ALL6SDK/3VM/signing+copyverification PASS; only final upload
 step failed because new publication filename guard omitted valid OpenWrt '~'.
