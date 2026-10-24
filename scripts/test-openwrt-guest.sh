@@ -261,7 +261,9 @@ login_response() {
         username="<input[[:space:]][^>]*name[[:space:]]*=[[:space:]]*" quote "luci_username" quote "[^>]*>"
         password="<input[[:space:]][^>]*name[[:space:]]*=[[:space:]]*" quote "luci_password" quote "[^>]*>"
         form="<form[[:space:]][^>]*method[[:space:]]*=[[:space:]]*" quote "post" quote
-        if (content !~ /<\/html>[[:space:]]*$/) bad["html_document"]=1
+        # HTML permits omitted html/body end tags; require a document marker
+        # and the complete authenticated-login form below, not a closing literal.
+        if (content !~ /<(html([[:space:]>])|!doctype[[:space:]]+html([[:space:]>]))/) bad["html_document"]=1
         if (!match(content,form)) bad["login_form"]=1
         else {
           form_content=substr(content,RSTART); closing=index(form_content,"</form>")
