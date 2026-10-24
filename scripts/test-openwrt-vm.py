@@ -254,7 +254,7 @@ def _private_native_output_head():
     # The package-manager's error can precede a long usage listing. Select only
     # its first bounded output after the unique, source-known staged APK call.
     command = ('apk --root "$CS_PM_ROOT" --arch "$CS_ARCH" --repositories-file "$CS_REPOSITORIES" '
-               '--keys-dir etc/apk/keys --no-network --no-scripts add "$@"')
+               '--keys-dir etc/apk/keys --no-network --no-scripts --force-non-repository add "$@"')
     lines = [n for n, line in enumerate((ROOT / 'install.sh').read_text(encoding='utf-8').splitlines(), 1)
              if line.strip() == command]
     if len(lines) != 1:

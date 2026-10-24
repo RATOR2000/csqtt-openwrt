@@ -47,6 +47,18 @@ function hold() { die('Unexpected native runtime hold call'); }
 `;
 const assertions = `
 function check(ok, message) { if (!ok) die(message); }
+// Exercise a real metadata string with native ucode. The JavaScript adapter
+// hoists declarations and previously hid the platform sanitizer's scope error.
+let platform_fixture = { family:'official', openwrt:'24.10.8', target:'x86/64',
+  architecture:'x86_64', package_manager:'opkg', backend:'fw4-nft' };
+native_files['/var/run/csqtt/platform-probe.json'] = sprintf('%J', platform_fixture);
+check(platform().family === 'official' && platform().openwrt === '24.10.8', 'Native platform metadata lookup failed');
+for (let control in [0, 31, 127]) {
+  platform_fixture.openwrt = '24.10.8' + chr(control);
+  native_files['/var/run/csqtt/platform-probe.json'] = sprintf('%J', platform_fixture);
+  check(platform().openwrt == null, 'Native platform metadata retained control characters');
+}
+native_files['/var/run/csqtt/platform-probe.json'] = null;
 let recovery_ctx = { boot_id: 'fixture-boot', config_epoch: 'fixture-config', network_epoch: 'fixture-network',
   process_epoch: 'fixture-process', intent: 'fixture-intent', automatic: true, process: 'ok', now: 0, gate: null };
 let wan_fixture = { schema_version: 1, config_valid: true, completed: true, endpoints: [

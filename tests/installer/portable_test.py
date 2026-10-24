@@ -207,6 +207,57 @@ class PortableTest(unittest.TestCase):
             self.assertTrue(any('--root' in c['args'] or '--offline-root' in c['args'] for c in calls))
             self.assertIn('http://192.168.73.1/cgi-bin/luci/admin/services/csqtt',result.stdout)
 
+    def test_apk_double_refuses_unacknowledged_ram_archive_and_live_acknowledgement(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            (root / '.portable-fixture').touch()
+            stage = root / 'stage'
+            (stage / 'lib/apk/db').mkdir(parents=True)
+            database = stage / 'lib/apk/db/installed'
+            database.write_text('{}', encoding='utf-8')
+            package = root / 'public-fixture.apk'
+            package.write_text('{"package":"csqtt","version":"1"}', encoding='utf-8')
+            env = {**os.environ, 'CSQTT_FAKE_ROOT': str(root), 'CSQTT_FAKE_SCENARIO': 'success'}
+            base = [NODE, str(REPO / 'tests/installer/portable_fake.cjs'), 'apk']
+            calls = ((['--root', str(stage), '--no-network', '--no-scripts', 'add', str(package)], False),
+                     (['--preserve-env', '--no-network', '--force-non-repository', 'add', str(package)], False),
+                     (['--root', str(stage), '--no-network', '--no-scripts', '--force-non-repository', 'add', str(package)], True))
+            for arguments, accepted in calls:
+                result = subprocess.run(base + arguments, env=env, capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode == 0, accepted, result.stderr)
+                if not accepted:
+                    self.assertEqual(json.loads(database.read_text()), {})
+            result = subprocess.run(base + ['--root', str(stage), '--no-scripts', '--cache-predownload',
+                '--cache-dir', str(root / 'bootstrap-cache'), 'add', 'openssl-util'],
+                env={**env, 'CSQTT_FAKE_SCENARIO': 'bootstrap_success'}, capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(database.read_text())['openssl-util'], '1')
+
+    def test_apk_ram_persistence_acknowledgement_is_only_on_isolated_add(self):
+        forbidden = {'--allow-untrusted', '--nodeps', '--force-depends', '--force-world', '--force-broken-world',
+                     '--force-checksum', '--force-signature', '--force-overwrite', '--force-architecture', '--force'}
+        for upgrade in (False, True):
+            for scenario in ('success', 'service_failure'):
+                with self.subTest(upgrade=upgrade, scenario=scenario):
+                    result, calls, before, after, _, config = self.run_case('apk', scenario, upgrade)
+                    self.assertEqual(result.returncode == 0, scenario == 'success', result.stdout + result.stderr)
+                    if scenario == 'service_failure':
+                        self.assertEqual(after, before)
+                    else:
+                        self.assertEqual(after['csqtt'], '0.1.0-r1')
+                    self.assertEqual(config, 'private fixture csqtt\n')
+                    additions = [call['args'] for call in calls if call['command'] == 'apk' and 'add' in call['args']]
+                    self.assertTrue(any('--root' in args for args in additions))
+                    self.assertTrue(any('--root' not in args for args in additions))
+                    for args in additions:
+                        self.assertFalse(forbidden.intersection(args))
+                        if '--root' in args:
+                            self.assertIn('--force-non-repository', args)
+                            self.assertIn('--no-network', args)
+                            self.assertIn('--no-scripts', args)
+                        else:
+                            self.assertNotIn('--force-non-repository', args)
+
     def test_exact_kernel_modules_preserve_baseline_and_rollback_introduced_only(self):
         for pm in ('opkg','apk'):
             for scenario in ('module_new','module_existing','module_failure','module_kernel','module_missing_kernel','module_powerloss'):

@@ -74,6 +74,16 @@ function local_domain() {
 }
 // A probe describes capabilities; only an authenticated installer profile may
 // qualify a new platform. Never infer support from a marketing firmware name.
+// Define this before platform(): ucode resolves lexical function references
+// where the function is compiled, unlike the JavaScript test adapter.
+function has_control(value, limit) {
+	// ucode uses POSIX regex; an escaped NUL cannot form a regex range.
+	for (let i = 0; i < length(value); i++) {
+		let code = ord(substr(value, i, 1));
+		if (code <= limit || code === 127) return true;
+	}
+	return false;
+}
 function platform() {
 	let probe = readjson(ROOT + 'platform-probe.json', {}), installed = readjson(STATE + 'platform.json', null);
 	let result = { profile_id: 'unknown', backend: 'unknown', state: 'unqualified', reasons: [],
@@ -175,14 +185,6 @@ function choice(value, fallback, allowed, name) {
 	value = value || fallback;
 	if (!includes(allowed, value)) die('Invalid ' + name);
 	return value;
-}
-function has_control(value, limit) {
-	// ucode uses POSIX regex; an escaped NUL cannot form a regex range.
-	for (let i = 0; i < length(value); i++) {
-		let code = ord(substr(value, i, 1));
-		if (code <= limit || code === 127) return true;
-	}
-	return false;
 }
 function client(main) {
 	let password = main.password || '', peer = main.peer || '', hashes = list(main.vk_hashes);

@@ -31,8 +31,9 @@ release qualification/date. Owner installs personally; no router mutations,
 Codex schedules or old72h restart. Historical details up to this resume:
 https://github.com/RATOR2000/csqtt-openwrt/blob/9f6a860b2fa36fe2d63cf35bde58b6dfdb599c77/docs/STATUS.md
 
-FIRST UNFINISHED ACTION: run diagnostic22 native status source locations and
-first-install-only redacted APK errors, against compiled06c packages. Only after BOTH
+FIRST UNFINISHED ACTION: read diagnostic23 (new installer, runtime source overlay
+in disposable guest only) +fresh general checks. Both production fixes below now
+implemented. Only after BOTH
 native24/25 diagnostic VMs pass, freeze a new exact source and run6SDK+5regression.
 Never promote mixed-source diagnostic packages/proofs to release qualification.
 Metadata .work/preview.10/candidate.json; prior frozen06c/treee5e2fd9 failed and
@@ -89,6 +90,33 @@ Diagnostic22 source ready: manage-status failure reads checkedregularstatus.log
 driverrevalidates sourcefiles/lines, publicboundstaggedsource. ActualGNUawk
 formats/privacy/refusaltestsPASS, BusyBoxCI pending. FullVM51=48PASS/3WindowsSKIP;
 shell/Python/diffPASS. Agent vm_timeout frozen; root ownsremainingGit/CI/release.
+Diagnostic22 active40090862978/source9883af145f284007440c901ef659873e21980ea6,
+dev d28f68c4034b7864e06c1e9291d2ee1c8fa3e068/treed2fd87af63cd56111980565ecd04bcf8e5da3c58,
+local/fetch equalityPASS. Read compactjobs then bounded failure details; no oldCI
+polling/rebuild. PublicAPKprobe21alreadyPASS, omitted22. Same06c compiledpayloads.
+Diagnostic22 bothFAILED with concrete causes (no need rerun):
+-25job120863057135 exactAPKerror: non-repository archives on tmpfs wouldbe lost
+ afterreboot. Publichostfixture21 onpersistentfsPASS explainsdifference. Fixed
+ csqtt_pm_install ONLY isolated--root/no-scripts branch with
+ --force-non-repository (only RAM persistence acknowledgement, NOT dependencies/
+ signatures/world bypass). Livebranchretainsnativeguard. Officialapkdocs confirm:
+ https://github.com/alpinelinux/apk-tools/blob/master/doc/apk.8.scd
+ Installer regenerated; headmatcher updated. Double nowmodels nativeRAMrefusal,
+ rejectsackoutside isolatedscriptfreeadd. Focused4 actualshellAPKcasesPASS109.384s
+ (new+upgrade xsuccess/servicefailure rollback); directrefusal/bootstrapPASS;
+ Node/Python/diffPASS. Noallowuntrusted/forceworld/forcedeps.
+-24job120863056983 nativeucode type_error runtime.uc84, manage status. platform()
+ calls laterdeclaredhas_control; JSadapterhoistsfunctions and missednativebinding.
+ Movedunchangedhelper beforeplatform; addedactualnativeucode platform metadata/
+ controlcharbehavior regression in native-runtime.mjs. Nativeexecution pending
+ freshgeneral/nativepolicy; Nodeportability12PASS, assemblercheck/diffPASS.
+ Diagnostic23 willoverlayONLY correctedruntime.uc afterinstall in disposableVM,
+ and label evidence diagnostic_runtime_overlay, NEVER cleanfirmware/releaseproof.
+ This avoids6SDKrebuild merely toverify interpretedsource. OnceBOTHdiagpass,
+ freezeexact devsource(newcommit, no[skipci]) andrunfresh6SDK+3VM/migration;
+ generalall5source mustmatch. No tag/assets publicationyet. NoownerrouterSSH.
+ Agent vm_timeout completed/frozen. Window89%used at11:52UTC; save/checkpoint now,
+ no broad/duplicatework. NoCodex schedules. Fullsource/nativequalgates remain.
 No full6SDK launch; compact jobs only, bounded failed logs if concrete failure.
 
 Confirmed blockers/evidence (do not rerun old CI):
