@@ -520,6 +520,8 @@ def run_remote(ssh, command, timeout=600, check=True):
             print_guest_web_diagnostics(private, 'OpenWrt guest')
             print_guest_lan_diagnostics(private, 'OpenWrt guest')
             print_guest_guard_diagnostics(private, 'OpenWrt guest')
+            for reason in sorted(set(re.findall(r'(?m)^CSQTT_GUEST_MANAGE_STAGE=(platform_probe|platform_qualification|compile|dns_config|firewall_hold|nft_hold|nft_validate|dns_snapshot|dns_stop|firewall_integration|nft_load|firewall_reload|dns_start|dns_ready|nft_release|route_rule|route_unreachable|route_conflict|table_conflict|lifecycle_lock|policy_lock|unsupported_feature|missing_resource)\r?$', private))):
+                print('OpenWrt guest manage stage: ' + reason, flush=True)
         guest_tools = {tool for group in re.findall(r'^for tool in ([a-z0-9 _-]+); do command -v "\$tool"',
                                                     guest_source, re.MULTILINE) for tool in group.split()}
         for tool in sorted(set(re.findall(r'(?m)^CSQTT_GUEST_MISSING_TOOL=([a-z0-9_-]{1,50})\r?$', private)) & guest_tools):

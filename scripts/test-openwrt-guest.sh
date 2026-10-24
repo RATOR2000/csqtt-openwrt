@@ -89,7 +89,8 @@ if (type(health_assess) !== 'function' || type(health_initial) !== 'function' ||
 UCODE
 ucode "$TMP/import.uc" > "$TMP/import.log" 2>&1 || fail
 status_diagnostics() {
-    case "${1:-status.log}" in status.log|apply.log|dns-ready.log|devices.log|helper.log) diagnostic_file="$TMP/${1:-status.log}" ;; *) return 0 ;; esac
+    case "${1:-status.log}" in runtime-compile.log|runtime-dns-test.log|runtime-nft.log|runtime-firewall.log|runtime-dns-stop.log) diagnostic_file="/var/run/csqtt/${1#runtime-}" ;;
+      status.log|apply.log|dns-ready.log|devices.log|helper.log) diagnostic_file="$TMP/${1:-status.log}" ;; *) return 0 ;; esac
     [ -f "$diagnostic_file" ] && [ ! -L "$diagnostic_file" ] || return 0
     dd if="$diagnostic_file" of="$TMP/status.checked" bs=1 count=8193 2>/dev/null || return 0
     count=$(wc -c < "$TMP/status.checked") || return 0
@@ -97,6 +98,29 @@ status_diagnostics() {
     [ "$count" -le 8192 ] || return 0
     awk '
       BEGIN { files["runtime.uc"]=1; files["policy.uc"]=1; files["health.uc"]=1 }
+      index($0,"Cannot inspect platform compatibility") { manage["platform_probe"]=1 }
+      index($0,"Platform is not qualified") { manage["platform_qualification"]=1 }
+      index($0,"Configuration validation failed") { manage["compile"]=1 }
+      index($0,"Group DNS configuration validation failed") { manage["dns_config"]=1 }
+      index($0,"Cannot persist maintenance guard") { manage["firewall_hold"]=1 }
+      index($0,"Cannot install maintenance guard") { manage["nft_hold"]=1 }
+      index($0,"Generated firewall policy was rejected") { manage["nft_validate"]=1 }
+      index($0,"Cannot identify old group DNS") { manage["dns_snapshot"]=1 }
+      index($0,"Old group DNS did not stop") { manage["dns_stop"]=1 }
+      index($0,"Firewall integration failed") { manage["firewall_integration"]=1 }
+      index($0,"Cannot load firewall policy") { manage["nft_load"]=1 }
+      index($0,"Firewall reload failed") { manage["firewall_reload"]=1 }
+      index($0,"Cannot start group DNS") { manage["dns_start"]=1 }
+      index($0,"Group DNS failed to start") { manage["dns_ready"]=1 }
+      index($0,"Cannot finish policy transaction") { manage["nft_release"]=1 }
+      index($0,"Cannot install guarded policy rule") { manage["route_rule"]=1 }
+      index($0,"Cannot install unreachable VPN route") { manage["route_unreachable"]=1 }
+      index($0,"Reserved policy rule is already in use") { manage["route_conflict"]=1 }
+      index($0,"Routing table 202 is already in use") { manage["table_conflict"]=1 }
+      index($0,"Lifecycle operation already in progress") { manage["lifecycle_lock"]=1 }
+      index($0,"Policy operation already in progress") { manage["policy_lock"]=1 }
+      index($0,"Operation not supported") { manage["unsupported_feature"]=1 }
+      index($0,"No such file or directory") { manage["missing_resource"]=1 }
       index($0,"Syntax error:") { classes["syntax_error"]=1 }
       index($0,"Reference error:") { classes["reference_error"]=1 }
       index($0,"Type error:") { classes["type_error"]=1 }
@@ -113,6 +137,7 @@ status_diagnostics() {
           }
         } }
       END {
+        for (kind in manage) print "CSQTT_GUEST_MANAGE_STAGE=" kind
         for (kind in classes) print "CSQTT_GUEST_UCODE_CLASS=" kind
         count=0; for (where in locations) if (count++<8) print "CSQTT_GUEST_UCODE_SOURCE=" where
       }' "$TMP/status.checked" > "$TMP/status.markers" || return 0
@@ -446,7 +471,7 @@ uci set csqtt.guestpc=device
 uci set csqtt.guestpc.mac=02:00:00:00:aa:01
 uci set csqtt.guestpc.group=guest
 uci commit csqtt
-timeout 60 /usr/libexec/csqtt/manage apply > "$TMP/apply.log" 2>&1 || { status_diagnostics apply.log; fail; }
+timeout 60 /usr/libexec/csqtt/manage apply > "$TMP/apply.log" 2>&1 || { status_diagnostics apply.log; for diagnostic in compile dns-test nft firewall dns-stop; do status_diagnostics "runtime-$diagnostic.log"; done; fail; }
 ucode /usr/share/csqtt/runtime.uc dns-ready > "$TMP/dns-ready.log" 2>&1 || { status_diagnostics dns-ready.log; fail; }
 # nft canonically replaces explicit IPv6 + reject with icmpv6 reject. Check
 # the installed rule meaning, including the managed MAC, rather than formatting.
