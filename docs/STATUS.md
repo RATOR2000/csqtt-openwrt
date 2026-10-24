@@ -31,8 +31,8 @@ Preserve preview9. DraftPR#1/main README await final public-command proof.
 Historical diagnostics23-30:
 https://github.com/RATOR2000/csqtt-openwrt/blob/f4e6bdca58277e9d1ed3e56eb49a1f6ca5b83ab0/docs/STATUS.md
 
-FIRST UNFINISHED: inspect diagnostic33 ONLY24.10.8 with fixed manage-stage and
-bounded known runtime-log diagnostics. Do NOT repeat successful25.12.6. Exact run/source IDs in
+FIRST UNFINISHED: inspect diagnostic34 ONLY24.10.8 with current runtime.uc AND
+current packaged platform-probe script overlay. Do NOT repeat successful25.12.6. Exact run/source IDs in
 .work/preview.10/candidate.json. Root owns Git/CI/release. Agents
 release_path_audit and lan_cause completed/frozen; no outstanding source owner.
 Recheck liveness before delegation. Use compact current-run status, no old logs.
@@ -112,6 +112,20 @@ Next33 adds fixed public manage-stage enums from actual source error strings,
 reads only bounded8KiB known compile/dns-test/nft/firewall/dns-stop logs for fixed
 class/source markers, never rawconfig/identity/logs. Only24 matrix, no duplicate25.
 Dev d2a411d59b3cb5c671830f55bd5da02d56fa2a8c/tree7858f964 equal.
+Diagnostic33run40116681094/source07cef61f3a614e2073a2d13638be4358d8f4f963,
+24job120939296435 exactstage platform_qualification. Concrete reuse-fixture bug:
+old06c compiled package contains OLD scripts/platform-probe.sh (Makefile copies
+CSQTT_PLATFORM_PROBE into /usr/libexec/csqtt/platform-probe). That old script
+reads nonexistent /etc/opkg/arch.conf; installed grant uses latest embedded
+installer probe (native opkg print-architecture), so refreshed architecture
+mismatches grant. This production source fix ALREADY exists and has regression
+proof; runtime-only diagnostic overlay had missed the packaged probe. No new
+production change required. All openwrt files except runtime.uc unchanged06c..HEAD;
+platform-probe is the other installed-source delta, copied from scripts/ by build.
+Diagnostic34 overlays current runtime.uc AND current platform-probe only in
+private disposable guest, kind diagnostic_current_scripts_overlay, never release.
+25FULLPASS32 retained; next24 fullpolicy proof after correcting stale script.
+Dev3ab1aeaebb7188dcfc3a64df6a89198094ff44e9/treef6f67aab equal.
 Current5h window52%used at last check; economy priority, save next precise gate.
 
 Confirmed blockers/evidence (do not rerun old CI):
