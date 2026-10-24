@@ -29,7 +29,14 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 command, owner priority GL-MT6000 official25.12.6. Owner installs personally; no
 SSH mutations/reboot/Codex schedules. Preserve all published tags/assets, especially9.
 
-FIRST UNFINISHED: publication-only repair workflow on codex/portable-preview.10-publish.
+FIRST UNFINISHED: finish publication-only repair workflow on codex/portable-preview.10-publish.
+First transport-only run40143275467 failed BEFORE draft mutation: per-profile
+package-directory equality was incorrectly used on a flat six-profile bundle.
+Corrected host-only check validates every descriptor and the aggregate exact
+package set; signatures/source/evidence gates stay strict. Same issue in standalone
+public host verifier is being fixed with a multi-profile regression. No installed
+application changes and no SDK rebuild. Artifact ZIP retry uses exact known length
+after the first bounded download timed out; digest remains mandatory.
 QUALIFIED payload remains6c70e490585651b9a65d7d128ecc551415c32f4e; do NOT rebuild SDK.
 Official40139753900 ALL6SDK/3VM/signing+copyverification PASS; only final upload
 step failed because new publication filename guard omitted valid OpenWrt '~'.

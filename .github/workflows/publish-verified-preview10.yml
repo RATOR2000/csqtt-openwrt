@@ -38,13 +38,20 @@ jobs:
               subprocess.run(['openssl','dgst','-sha256','-verify',str(key),'-signature',str(sig),str(data)],check=True,capture_output=True)
           signature(root/'catalogue.json',root/'catalogue.sig');catalogue=load(root/'catalogue.json')
           assert catalogue['schema']==2 and catalogue['upstream']==UPSTREAM and len(catalogue['profiles'])==6
-          profiles=set()
+          profiles=set();packages=set()
           for entry in catalogue['profiles']:
               artifact(entry,root);artifact(entry['signature'],root);signature(root/entry['name'],root/entry['signature']['name'])
-              m=validate(load(root/entry['name']),root);q=m['qualification'];profiles.add(m['profile_id'])
+              m=validate(load(root/entry['name']));q=m['qualification'];profiles.add(m['profile_id'])
               assert q['source_commit']==source and q['installation'] and q['activation'] and not q['physical_device']
+              bundle=m['dependency_bundle']
+              files=[*m['packages'],*bundle['packages'],*bundle['indexes'],*q['proofs'],*m.get('third_party_sources',[])]
+              files.extend(i['signature'] for i in bundle['indexes'] if 'signature' in i)
+              for file in files:
+                  artifact(file,root)
+                  if file['name'].endswith(('.apk','.ipk')):packages.add(file['name'])
               for proof in q['proofs']:assert load(root/proof['name'])['source_commit']==source
           assert len(profiles)==6
+          assert {p.name for p in root.iterdir() if p.suffix in ('.apk','.ipk')}==packages
           for line in (root/'SHA256SUMS').read_text().splitlines():
               digest,name=line.split('  ',1);assert pathlib.Path(name).name==name and hashlib.sha256((root/name).read_bytes()).hexdigest()==digest
           assert (root/'install.sh').read_bytes()==pathlib.Path('.work/qualified-source/install.sh').read_bytes()
