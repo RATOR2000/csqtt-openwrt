@@ -19,7 +19,7 @@ stage prerequisites_release
 . /etc/openwrt_release
 case "${DISTRIB_RELEASE:-}" in 24.10.*|25.12.*) ;; *) fail ;; esac
 stage prerequisites_tools
-for tool in ucode uci ubus nft fw4 ip nslookup sha256sum; do command -v "$tool" >/dev/null || { printf 'CSQTT_GUEST_MISSING_TOOL=%s\n' "$tool"; fail; }; done
+for tool in ucode uci ubus nft fw4 ip nslookup sha256sum nc; do command -v "$tool" >/dev/null || { printf 'CSQTT_GUEST_MISSING_TOOL=%s\n' "$tool"; fail; }; done
 # The host provisions this static test-only tool after the clean install. It
 # lives beside this script on the disposable disk, outside the package database.
 stage prerequisites_timeout
@@ -232,10 +232,62 @@ luci_diagnostics() {
         web_file_diagnostics "$TMP/web-system.log"
     )
 }
+login_response() {
+    LC_ALL=C awk -v response_bytes="$1" '
+      BEGIN { quote="[\"" sprintf("%c",39) "]" }
+      !body {
+        header_bytes+=length($0)+1
+        if ($0 !~ /\r$/) bad=1
+        sub(/\r$/, "")
+        if (NR==1) { if ($0 !~ /^HTTP\/1[.][01] 403( [^\r]*)?$/) bad=1; next }
+        if ($0=="") { body=1; next }
+        if ($0 !~ /^[A-Za-z0-9!#$%&*+.^_`|~-]+:[ \t]*[^\r]*$/) { bad=1; next }
+        at=index($0,":"); key=tolower(substr($0,1,at-1)); value=substr($0,at+1)
+        sub(/^[ \t]+/,"",value); sub(/[ \t]+$/,"",value)
+        if (key=="x-luci-login-required") { login++; if (tolower(value)!="yes") bad=1 }
+        if (key=="content-type") { html++; if (tolower(value) !~ /^text\/html([ \t]*;.*)?$/) bad=1 }
+        if (key=="content-length") { lengths++; if (value !~ /^[0-9]+$/ || value+0>131072) bad=1; declared=value+0 }
+        if (key=="transfer-encoding") bad=1
+        next
+      }
+      { content=content tolower($0) "\n" }
+      END {
+        if (bad || !body || login!=1 || html!=1 || lengths>1 || response_bytes<=header_bytes ||
+            (lengths && declared!=response_bytes-header_bytes)) exit 1
+        username="<input[[:space:]][^>]*name[[:space:]]*=[[:space:]]*" quote "luci_username" quote "[^>]*>"
+        password="<input[[:space:]][^>]*name[[:space:]]*=[[:space:]]*" quote "luci_password" quote "[^>]*>"
+        form="<form[[:space:]][^>]*method[[:space:]]*=[[:space:]]*" quote "post" quote
+        if (!match(content,form) || content !~ /<\/html>[[:space:]]*$/) exit 1
+        form_content=substr(content,RSTART); closing=index(form_content,"</form>")
+        if (!closing) exit 1
+        form_content=substr(form_content,1,closing)
+        if (form_content !~ username || !match(form_content,password)) exit 1
+        password_input=substr(form_content,RSTART,RLENGTH)
+        if (password_input !~ ("type[[:space:]]*=[[:space:]]*" quote "password" quote)) exit 1
+      }' "$TMP/luci-before"
+}
+luci_http() {
+    # Stock LuCI24/25 deliberately returns403 + its login header and rendered
+    # form for an anonymous request. uclient discards403 bodies. Read that exact
+    # unauthenticated HTTP contract using stock nc, without credentials or TLS
+    # overrides. A generic403, redirect,500 or successful unrelated page fails.
+    printf 'GET /cgi-bin/luci/ HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' > "$TMP/web-request"
+    rm -f "$TMP/web-nc.exit"
+    read_status=0
+    { if timeout 10 nc 127.0.0.1 80 < "$TMP/web-request" 2> "$TMP/luci-before.log"; then
+          printf '%s\n' 0 > "$TMP/web-nc.exit"
+      else printf '%s\n' "$?" > "$TMP/web-nc.exit"; fi
+    } | dd bs=1 count=131073 > "$TMP/luci-before" 2> "$TMP/web-read.log" || read_status=$?
+    web_status=$(cat "$TMP/web-nc.exit" 2>/dev/null) || web_status=125
+    case "$web_status" in ''|*[!0-9]*|????*) web_status=125 ;; esac
+    [ "$web_status" -le 255 ] || web_status=125
+    size=$(wc -c < "$TMP/luci-before") || size=0
+    if [ "$read_status" = 0 ] && [ "$web_status" = 0 ] && [ "$size" -le 131072 ] && login_response "$size"; then return 0; fi
+    luci_diagnostics "$web_status"
+    fail
+}
 stage luci_http
-if timeout 10 wget -O "$TMP/luci-before" http://127.0.0.1/cgi-bin/luci/ > "$TMP/luci-before.log" 2>&1; then :
-else web_status=$?; luci_diagnostics "$web_status"; fail; fi
-[ -s "$TMP/luci-before" ] || { luci_diagnostics 0; fail; }
+luci_http
 
 # Exercise dnsmasq forwarding into nftsets over both UDP and TCP, with a
 # synthetic loopback upstream. No Internet or VK response can make this pass.
@@ -351,8 +403,7 @@ guard_checks() {
     ip -4 rule show pref 11900 | grep -q 'unreachable' || fail
     # The guard retains configured LAN destinations before internet policy.
     grep -q 'oifname.*br-csqtt-test.*return' "$TMP/guards.txt" || fail
-    timeout 10 wget -q -O "$TMP/luci-after" http://127.0.0.1/cgi-bin/luci/ || fail
-    [ -s "$TMP/luci-after" ] || fail
+    luci_http
     [ "$(uci -q get csqtt.main.enabled)" = 0 ] || fail
 }
 guard_checks

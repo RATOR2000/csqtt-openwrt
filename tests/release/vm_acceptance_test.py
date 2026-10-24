@@ -3,6 +3,7 @@
 import contextlib
 import importlib.util
 import io
+import os
 import pathlib
 import re
 import shlex
@@ -38,9 +39,8 @@ if not SH:
 
 class VmAcceptanceTest(unittest.TestCase):
     @unittest.skipUnless(SH, 'A POSIX shell is required for native uclient option behavior')
-    def test_guest_web_requests_work_with_stock_uclient_without_server_response_option(self):
+    def test_guest_web_root_control_works_with_stock_uclient_without_server_response_option(self):
         guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
-        request = re.search(r'(?m)^if timeout 10 wget[^\n]+\nelse[^\n]+\n\[ -s "\$TMP/luci-before" \][^\n]+', guest).group(0)
         control = re.search(r'(?m)^        if timeout 3 wget[^\n]+\n[\s\S]+?^        else[^\n]+fi', guest).group(0)
         with tempfile.TemporaryDirectory() as temporary:
             directory = pathlib.Path(temporary)
@@ -55,17 +55,102 @@ class VmAcceptanceTest(unittest.TestCase):
                        'fail() { exit 91; }\n'
                        'if wget -S -O "$TMP/rejected" http://127.0.0.1/; then exit 66; '
                        'else [ "$?" = 64 ] || exit 67; fi\n')
-            for mode, expected in (('success', 0), ('failure', 91)):
-                result = subprocess.run([SH], input=harness + 'MODE=' + mode + '\n' + request,
-                                        capture_output=True, text=True, timeout=10)
-                self.assertEqual(result.returncode, expected, result.stderr)
-                self.assertNotIn('private-fixture', result.stdout)
-                if mode == 'failure':
-                    self.assertEqual(result.stdout, 'diagnostic_exit=8\n')
             result = subprocess.run([SH], input=harness + 'MODE=success\n' + control,
                                     capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, 'CSQTT_GUEST_WEB_CHECK=root_http_ok\n')
+
+    def login_http_fixture(self, body=None, headers=None, status='403 Forbidden'):
+        if body is None:
+            body = ('<html><form method="post"><input name="luci_username" type="text">'
+                    '<input type="password" name="luci_password"></form></html>')
+        if headers is None:
+            headers = ['X-LuCI-Login-Required: yes', 'Content-Type: text/html; charset=UTF-8']
+        return ('HTTP/1.0 ' + status + '\r\n' + '\r\n'.join(headers) + '\r\n\r\n' + body).encode('utf-8')
+
+    def test_guest_luci_parser_requires_complete_native_login_contract(self):
+        guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
+        program = re.search(r'login_response\(\) \{\n    LC_ALL=C awk -v response_bytes="\$1" \'([\s\S]+?)\' "\$TMP/luci-before"', guest).group(1)
+        awk = shutil.which('awk') or (str(pathlib.Path(SH).with_name('awk.exe')) if SH else '')
+        if not pathlib.Path(awk).is_file():
+            self.skipTest('A native awk is required for the real HTTP parser')
+        commands = [[awk, '-v', 'BINMODE=3']]
+        if shutil.which('busybox'):
+            commands.append([shutil.which('busybox'), 'awk'])
+        good = self.login_http_fixture()
+        variants = [(good, True), (good.replace(b'X-LuCI-Login-Required: yes', b'x-luci-login-required:\tYeS'), True)]
+        body = '<html>Русский<form method="post"><input name="luci_username"><input name="luci_password" type="password"></form></html>'
+        variants.append((self.login_http_fixture(body, ['X-LuCI-Login-Required: yes', 'Content-Type: text/html',
+                         'Content-Length: ' + str(len(body.encode('utf-8')))]), True))
+        for old, new in ((b'403 Forbidden', b'200 OK'), (b'403 Forbidden', b'500 Internal Server Error'),
+                         (b'403 Forbidden', b'302 Found'), (b'X-LuCI-Login-Required: yes\r\n', b''),
+                         (b'X-LuCI-Login-Required: yes', b'X-LuCI-Login-Required: no'),
+                         (b'Content-Type: text/html', b'Content-Type: text/plain'),
+                         (b'name="luci_password"', b'name="other"'), (b'type="password"', b'type="text"'),
+                         (b'<form method="post">', b'<form method="get">'), (b'</html>', b''),
+                         (b'\r\n', b'\n')):
+            variants.append((good.replace(old, new), False))
+        for extra in ('X-LuCI-Login-Required: yes', 'Content-Length: 0', 'Content-Length: 99999',
+                      'Content-Length: private', 'Transfer-Encoding: chunked'):
+            variants.append((good.replace(b'\r\n\r\n', ('\r\n' + extra + '\r\n\r\n').encode()), False))
+        variants.extend([(self.login_http_fixture(''), False),
+                         (self.login_http_fixture('<html>Forbidden</html>'), False),
+                         (self.login_http_fixture('<html><form method="post"></form><input name="luci_username"><input type="password" name="luci_password"></html>'), False)])
+        for command in commands:
+            for response, accepted in variants:
+                result = subprocess.run(command + ['-v', 'response_bytes=' + str(len(response)), program],
+                                        input=response, capture_output=True, timeout=10, env=dict(os.environ, LC_ALL='C'))
+                self.assertEqual(result.returncode == 0, accepted, result.stderr)
+                self.assertEqual(result.stdout, b'')
+
+    @unittest.skipUnless(SH, 'A POSIX shell is required for raw stock nc HTTP transport')
+    def test_guest_luci_raw_transport_keeps_nc_exit_and_read_bound(self):
+        guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
+        functions = guest[guest.index('login_response() {'):guest.index('stage luci_http\n')]
+        tools = {}
+        for name in ('awk', 'cat', 'rm', 'wc'):
+            path = shutil.which(name) or str(pathlib.Path(SH).with_name(name + '.exe'))
+            if not pathlib.Path(path).is_file():
+                self.skipTest('Native shell tools are required for the real bounded reader')
+            tools[name] = pathlib.Path(path).as_posix()
+        aliases = ''.join(name + '() { ' + shlex.quote(path) + (' -v BINMODE=3' if name == 'awk' else '') +
+                          ' "$@"; };\n' for name, path in tools.items())
+        dd = shutil.which('dd') or str(pathlib.Path(SH).with_name('dd.exe'))
+        if pathlib.Path(dd).is_file():
+            aliases += 'dd() { ' + shlex.quote(pathlib.Path(dd).as_posix()) + ' "$@"; };\n'
+        else:
+            # Windows Git omits dd; its real head still exercises the byte cap
+            # and pipeline/status contract. Linux uses the actual dd command.
+            head = shutil.which('head') or str(pathlib.Path(SH).with_name('head.exe'))
+            if not pathlib.Path(head).is_file():
+                self.skipTest('A native bounded byte reader is required')
+            aliases += ('dd() { [ "$#" = 2 ] && [ "$1" = bs=1 ] && [ "$2" = count=131073 ] || return 78; ' +
+                        shlex.quote(pathlib.Path(head).as_posix()) + ' -c 131073; };\n')
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            fixture = directory / 'fixture'
+            harness = ('set -eu\nTMP=' + shlex.quote(directory.as_posix()) + '\n' + aliases +
+                       'timeout() { [ "$1" = 10 ] || return 77; shift; "$@"; }\n'
+                       'nc() { [ "$#" = 2 ] && [ "$1" = 127.0.0.1 ] && [ "$2" = 80 ] || return 76; '
+                       'cat > "$TMP/sent-request"; cat "$TMP/fixture"; return "$NC_EXIT"; }\n'
+                       'luci_diagnostics() { printf "diagnostic_exit=%s\\n" "$1"; }\n'
+                       'fail() { exit 91; }\n' + functions)
+            for payload, exit_code, expected in ((self.login_http_fixture(), 0, 0),
+                                                  (self.login_http_fixture(), 4, 91),
+                                                  (self.login_http_fixture(status='500 Internal Server Error'), 0, 91),
+                                                  (self.login_http_fixture() + b'x' * 131073, 0, 91)):
+                fixture.write_bytes(payload)
+                result = subprocess.run([SH], input=harness + '\nNC_EXIT=' + str(exit_code) + '\nluci_http\n',
+                                        capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, expected, result.stderr)
+                self.assertNotIn('<html>', result.stdout)
+                self.assertLessEqual((directory / 'luci-before').stat().st_size, 131073)
+                self.assertEqual((directory / 'sent-request').read_bytes(),
+                                 b'GET /cgi-bin/luci/ HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n')
+            fixture.write_bytes(self.login_http_fixture())
+            result = subprocess.run([SH], input=harness + '\ndd() { return 1; }\nNC_EXIT=0\nluci_http\n',
+                                    capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 91, result.stderr)
 
     def test_guest_web_filter_redacts_native_http_body_and_system_log(self):
         guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')

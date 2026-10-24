@@ -42,22 +42,33 @@ LuCI asset assertions; BOTH fail guestsource136 HTTP LuCI request.25 stagedAPK
 RAMroot fix and24 nativehas_control binding fix therefore progress confirmed.
 Mixed06c compiledpayloads+6545 runtime sourceoverlay remain DIAGNOSTIC ONLY.
 No cleanfirmware/sourcequalified release proof. No need reread oldlogs/runs.
-Next action: diagnostic25 portable nativewget probes identify original HTTP
-failure, then fix concrete cause. Root owns Git/CI/release. Agent
-release_path_audit completed/frozen; no outstanding source ownership.
-Dev12cdd0505644c03d12ef1b0e3ee6d46e82eac72c pushed/treebf79e723 equal.
-Diagnostic24run40111329485/source53a49b26c30abe87cf11e80babaf2598a1379404
-25job120923497770: install/status PASS; nativeuhttpd runs,listens80+443;
-CGI directexecSUCCESS, modulesfs/ubus/uci/uloop/math/html load. Its newwget-S
-probe refusedoption; originalsource136 failure unresolved. Root caught-S absent
-in officialuclient getopt, fixed both calls to portable nonquietwget-O (stderr
-private). MeaningfulnativeCLI double regression and3boundarywebtests PASS.
-FixedTLS error/localhostredirect classes added from officialsource (no TLS
-bypass): https://github.com/openwrt/uclient/blob/master/uclient-fetch.c
-Diagnosticweb prints only fixedHTTP/exit/service/listener/module states,
-bounded8KiB classes and publicsourcealiases. Never rawHTML/headers/config/logs.
-PriorfullVM54=51PASS/3WindowsSKIP, publiccommand7PASS, shell/Python/diffPASS;
-latestfocused4webPASS0.147s. Original fetchsuccess/nonempty assertions remain.
+FIRST UNFINISHED: diagnostic26 with strictstockLuCI login check, plus fresh
+general checks on this candidate; if bothVM PASS then move buildbranch to SAME
+exact candidate code (docs-only later checkpoints do not force another build).
+Root owns Git/CI/release; agent release_path_audit completed/frozen.
+Dev02230e9f5e3a965d01a47fab570d294af136f87e pushed/treef3766a8 equal.
+Diag25run40111752888/source531371a59bbcfc5953837f9a9f340ae21f599e23:
+25job120924759473 confirms HTTP403, wgetexit8, rootHTTPok, nativeuhttpd/listeners
+80+443/directCGIexit0/all6nativeUCmodules PASS.24stillpending atthischeckpoint.
+This is expectedanonymousLuCI login, incorrectlyrejected by oldwget smoke.
+PrimaryBOTH24+25dispatcher emits403+X-LuCI-Login-Required yes andsysauthPOSTform:
+https://github.com/openwrt/luci/blob/openwrt-24.10/modules/luci-base/ucode/dispatcher.uc
+https://github.com/openwrt/luci/blob/openwrt-25.12/modules/luci-base/ucode/dispatcher.uc
+
+Corrected testONLY (no productionchange): sharedinitial+afterapply/fw4/Stop
+luci_http uses stockBusyBoxnc127.0.0.1:80 underexisting10sdeadline/noextraflags.
+Boundstream131073B, reject>131072, require nc+ddsuccess. Parseactual403, single
+case-insensitivelogin-requiredyes+HTMLContentType, completePOSTformwithusername
+andpassword-typeinput+closingHTML, validContentLengthifpresent. Rejectarbitrary
+403/200/500, redirects, malformed/truncated/TE/duplicateheaders/oversize. Noauth
+password, TLSbypass, configchange or newdependency. Stocknc verified24+25config.
+SixfocusedbehavioraltestsPASS1.476s; Pythoncompile/shell/diffPASS. Fullnative26
+pending. Old-Sdiagnostic optionbugfixed: uclient-fetchdoesnotimplement-S; both
+remainingdiagnosticwgetcalls useportable-O, privateoutput. TLSclassesfixedonly,
+noallow-untrusted/no-check-certificate. Diagnostic24 is superseded, notqualifying.
+Oldgeneral6545ALL5PASS is retained; newcandidategeneral validateschangedactual
+HTTPtest and allotherregressions. No duplicate general launch for docs-only.
+
 
 Two preceding production fixes in6545:
 - ONLY isolated--root/no-network/no-scripts APKadd acknowledges temporary RAM
