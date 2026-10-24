@@ -1,0 +1,55 @@
+name: Native installer regression
+on:
+  push:
+    branches: [codex/installer-smoke]
+permissions:
+  contents: read
+jobs:
+  native-installer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native test dependencies
+        run: |
+          sudo timeout 180 apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+          sudo timeout 300 apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y build-essential curl git iproute2 kmod libssl-dev lua5.3 meson ninja-build openssl pkg-config python3 qemu-user wget zlib1g-dev
+      - name: Build pinned APK 3.0.5
+        env:
+          VERSION: '3.0.5'
+        run: |
+          SOURCE="$GITHUB_WORKSPACE/.work/installer-smoke/apk-tools"
+          BUILD="$GITHUB_WORKSPACE/.work/installer-smoke/apk-build"
+          COMMIT=b5a31c0d865342ad80be10d68f1bb3d3ad9b0866
+          git init "$SOURCE"
+          git -C "$SOURCE" remote add origin https://github.com/alpinelinux/apk-tools.git
+          for ATTEMPT in 1 2; do
+            if timeout 120 git -C "$SOURCE" fetch --depth=1 origin "$COMMIT"; then break; fi
+            test "$ATTEMPT" -lt 2 || exit 1
+          done
+          git -C "$SOURCE" checkout --detach FETCH_HEAD
+          test "$(git -C "$SOURCE" rev-parse HEAD)" = "$COMMIT"
+          meson setup "$BUILD" "$SOURCE" \
+            -Dminimal=false -Ddocs=disabled -Dhelp=enabled \
+            -Dlua=disabled -Dlua_version=5.3 -Dpython=disabled -Dtests=disabled \
+            -Dcrypto_backend=openssl -Durl_backend=wget -Dzstd=disabled
+          meson compile -C "$BUILD" -j 2
+          "$BUILD/src/apk" --version
+      - name: Authenticate published preview packages
+        run: |
+          PACKAGES="$GITHUB_WORKSPACE/.work/installer-smoke/packages"
+          BASE=https://github.com/RATOR2000/csqtt-openwrt/releases/download/v0.1.0-preview.1
+          mkdir -p "$PACKAGES"
+          for ASSET in csqtt-0.1.0-r1.apk csqtt-captcha-0.1.0-r1.apk luci-app-csqtt-0.1.0-r1.apk manifest.json manifest.sig SHA256SUMS; do
+            curl --fail --location --connect-timeout 15 --max-time 90 --retry 2 --retry-delay 2 --retry-max-time 180 "$BASE/$ASSET" --output "$PACKAGES/$ASSET"
+          done
+          openssl dgst -sha256 -verify release/csqtt-public.pem -signature "$PACKAGES/manifest.sig" "$PACKAGES/manifest.json"
+          python3 scripts/verify-release.py "$PACKAGES"
+          (cd "$PACKAGES" && sha256sum -c SHA256SUMS)
+      - name: Run isolated native APK and ARM64 tests
+        run: |
+          sudo modprobe tun
+          test -c /dev/net/tun
+          sudo sh scripts/test-native-apk.sh \
+            "$GITHUB_WORKSPACE/.work/installer-smoke/apk-build/src/apk" \
+            "$GITHUB_WORKSPACE/.work/installer-smoke/packages"

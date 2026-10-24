@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+# Called by the transport after TUN address/link setup and during teardown.
+[ "${CSQTT_TUN_DEVICE:-csqtt0}" = csqtt0 ] || exit 1
+case "${1:-}" in
+	up)
+		ip -4 route replace unreachable default table 202 metric 42760
+		ip -4 route replace default dev csqtt0 table 202 metric 10
+		# Rules are installed by manage before transport is allowed to start.
+		ip -4 rule show pref 11900 | grep -q 'fwmark 0x40000000/0x60000000.*unreachable' || exit 1
+		;;
+	down)
+		ip -4 route del default dev csqtt0 table 202 metric 10 2>/dev/null || true
+		# Never remove the unreachable default or firewall guards on disconnect.
+		;;
+	*) exit 2 ;;
+esac

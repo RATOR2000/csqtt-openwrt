@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "id": "glinet-4.11-arm64-private-runtime-experiment",
+  "qualification": {"installation": false, "activation": false},
+  "purpose": "Isolated userspace feasibility only; this is not a matching GL-MT6000 firmware SDK or kernel module build",
+  "sdk": {
+    "name": "openwrt-sdk-21.02.7-mediatek-mt7622_gcc-8.4.0_musl.Linux-x86_64",
+    "url": "https://downloads.openwrt.org/releases/21.02.7/targets/mediatek/mt7622/openwrt-sdk-21.02.7-mediatek-mt7622_gcc-8.4.0_musl.Linux-x86_64.tar.xz",
+    "sha256": "723b08a90778779cbc20da03a36fa0e213b22dd63ce601803f0eae44f303681d",
+    "checksum_url": "https://downloads.openwrt.org/releases/21.02.7/targets/mediatek/mt7622/sha256sums"
+  },
+  "ucode": {
+    "revision": "85922056ef7abeace3cca3ab28bc1ac2d88e31b1",
+    "url": "https://codeload.github.com/jow-/ucode/tar.gz/85922056ef7abeace3cca3ab28bc1ac2d88e31b1",
+    "sha256": "54dda1e8a2757710c285659e42336f5054f1825f20d01a4016245bbf877f6da7"
+  },
+  "musl_license": {
+    "version": "1.1.24",
+    "source_url": "https://musl.libc.org/releases/musl-1.1.24.tar.gz",
+    "source_sha256": "1370c9a812b2cf2a7d92802510cca0058cc37e66a7bedd70051f0a34015022a3",
+    "url": "https://git.musl-libc.org/cgit/musl/plain/COPYRIGHT?h=v1.1.24",
+    "sha256": "3520d478bccbdf68d9dc0c03984efb0fa4b99868ab2599f5b5f72f3fb3b07a49"
+  },
+  "sdk_sources": {
+    "package/libs/libubox/Makefile": {"PKG_SOURCE_VERSION": "b14c4688612c05c78ce984d7bde633bce8703b1e", "PKG_MIRROR_HASH": "7dd1db1e0074a9c7c722db654cce3111b3bd3cff0bfd791c4497cb0f6c22d3ca"},
+    "package/system/ubus/Makefile": {"PKG_SOURCE_VERSION": "4fc532c8a55ba8217ad67d7fd47c5eb9a8aba044", "PKG_MIRROR_HASH": "a5c8205f2e2b2f1f9ad687592e66a6e2bf8900dc54cfe3ceefe6c297d18971a8"},
+    "package/system/uci/Makefile": {"PKG_SOURCE_VERSION": "4b3db1179747b6a6779029407984bacef851325c", "PKG_MIRROR_HASH": "9d00b5056a0dd4094c7e19f1a0ecaffa90409f22ea28f164d0e36febd06e37d1"},
+    "package/libs/libjson-c/Makefile": {"PKG_VERSION": "0.15", "PKG_HASH": "99bca4f944b8ced8ae0bbc6310d6a3528ca715e69541793a1ef51f8c5b4b0878"}
+  },
+  "gates": ["native compilation", "private-loader module and UCI/ubus integration", "exact GL firmware kernel execution", "GL ubusd protocol acceptance", "legacy firewall adapter acceptance"]
+}
