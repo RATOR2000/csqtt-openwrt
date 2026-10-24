@@ -29,7 +29,18 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 command, owner priority GL-MT6000 official25.12.6. Owner installs personally; no
 SSH mutations/reboot/Codex schedules. Preserve all published tags/assets, especially9.
 
-FIRST UNFINISHED: finish publication-only repair workflow on codex/portable-preview.10-publish.
+FIRST UNFINISHED: publication-only GitHub asset-name normalization, then publish.
+Run40143419924 verified raw414 assets PASS, then upload refused: GitHub changes
+asset-name '~' to '.', so the signed raw names were unavailable under exact names.
+New host-only normalizer verifies frozen raw signatures/ALL descriptors/source6c,
+renames only transport filenames and descriptor name fields, preserves every
+package/native filename/version/proof/installer/source byte, re-signs tuple and
+catalogue metadata, and adds signed publication provenance (source6c vs packaging
+commit, original run/artifact/digest). GITHUB_SHA is never changed. Atomic new
+output; collisions/tamper/wrong source refuse.4real P256 normalization tests PASS.
+This is a distribution-name repair using already qualified binaries, not a new
+application build. Frozen release tag and installer source remain6c.
+ finish publication-only repair workflow on codex/portable-preview.10-publish.
 First transport-only run40143275467 failed BEFORE draft mutation: per-profile
 package-directory equality was incorrectly used on a flat six-profile bundle.
 Corrected host-only check validates every descriptor and the aggregate exact
@@ -37,6 +48,13 @@ package set; signatures/source/evidence gates stay strict. Same issue in standal
 public host verifier is being fixed with a multi-profile regression. No installed
 application changes and no SDK rebuild. Artifact ZIP retry uses exact known length
 after the first bounded download timed out; digest remains mandatory.
+Independent artifact inspection PASS: ZIP12579223101 exact SHA256 and72635488
+bytes,414 flat regular files; pinned P256 catalogue/all6 manifests, every package/
+dependency/index/source/proof hash, source6c and installer exact bytes PASS.
+Evidence .work/preview.10/draft-verification-6c70e49.json. Fixed standalone
+public verifier host-only aggregate check;5tests PASS including real Node P256
+two-profile APK/IPK, scoped selection, tamper and extra-package rejection.
+Publication rerun40143419924 on889cb9c6f68292576de6bfba9dc9daf7219e91df.
 QUALIFIED payload remains6c70e490585651b9a65d7d128ecc551415c32f4e; do NOT rebuild SDK.
 Official40139753900 ALL6SDK/3VM/signing+copyverification PASS; only final upload
 step failed because new publication filename guard omitted valid OpenWrt '~'.

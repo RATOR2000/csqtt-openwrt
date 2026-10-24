@@ -112,8 +112,12 @@ def verify(tag, source_commit, output, profiles=None):
     require(selected and (not profiles or set(profiles) <= seen), 'Requested public profile is missing')
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         list(pool.map(lambda entry: checked_asset(entry, base, output), assets.values()))
+    for descriptor in assets.values():
+        artifact(descriptor, output)
+    expected_packages = {name for name in assets if name.endswith(('.apk', '.ipk'))}
+    actual_packages = {path.name for path in output.iterdir() if path.suffix in ('.apk', '.ipk')}
+    require(actual_packages == expected_packages, 'Public package directory differs from selected profiles')
     for path, manifest in selected:
-        validate(manifest, output)
         for proof in manifest['qualification']['proofs']:
             document = load(output / proof['name'])
             require(document.get('source_commit') == source_commit, 'Public proof/source mismatch')
