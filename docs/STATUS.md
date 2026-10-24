@@ -31,7 +31,7 @@ Keep preview9 immutable, draft PR#1 open, and main README pending public proof.
 Historical diagnostics and exact preceding checkpoints:
 https://github.com/RATOR2000/csqtt-openwrt/blob/e47800faa02de8ac4fa6e7eaa6d28e60e67fdf9d/docs/STATUS.md
 
-FIRST UNFINISHED: inspect diagnostic28 with test-only FIFO transport correction
+FIRST UNFINISHED: inspect diagnostic29 with test-only FIFO transport correction
 and both native VMs. Agent release_path_audit completed/frozen. Root owns STATUS,
 Git, CI and release; no outstanding source ownership. Recheck liveness on resume.
 Diagnostic27 run40113295831/sourcefb7d9bc7807bf235b64dc1b23ad4ec5b2d41a677
@@ -41,6 +41,14 @@ skips only verified missing applet, preserves other actual rc/stderr, uses bound
 server-stop polling so cleanup cannot mask failure. Localfocused3=2PASS/1LinuxSKIP;
 Python/diff PASS. Actual guest acceptance and production unchanged.
 Dev bbad584348a6e590d2d7a65d45f1fb9016ec74bf/treebf87da1c equal.
+Diagnostic28 run40113629165/source4f36315230dd1b875fc977950b2ce82ea5cfacdf
+now revealed the HOST harness cause: vm-timeout C execvp cannot invoke a shell
+nc() function, so its dynamic-port mapping was ignored and it contacted host80.
+Test now uses a private executable bin/nc wrapper with PATH, validates exact
+127:80 arguments, invokes actual BusyBox nc on the ephemeral peer and records
+wrapper invocation. Old EOF case remains. No skip/dependency/guest change.
+Pythoncompile/diff and focused parser PASS; actual Linux case pending29.
+Dev d958e26806316a4f428e3ba626c360e65fa96d32/tree7ecc572f equal.
 No full six-SDK rebuild yet. Never qualify mixed diagnostic packages as a release.
 IDs and generated diagnostic overlays: .work/preview.10/candidate.json.
 

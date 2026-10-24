@@ -233,15 +233,24 @@ class VmAcceptanceTest(unittest.TestCase):
                 self.assertEqual(old.stdout, b'')
                 self.assertEqual(state, ['early_fin'])
             with peer() as (port, state):
+                private_bin = directory / 'bin'
+                private_bin.mkdir()
+                wrapper = private_bin / 'nc'
+                invoked = directory / 'nc-invoked'
+                wrapper.write_text('#!/bin/sh\n'
+                                   '[ "$#" = 2 ] && [ "$1" = 127.0.0.1 ] && [ "$2" = 80 ] || exit 76\n'
+                                   ': > ' + shlex.quote(str(invoked)) + '\nexec ' +
+                                   shlex.quote(busybox) + ' nc 127.0.0.1 ' + str(port) + '\n', encoding='utf-8')
+                wrapper.chmod(0o700)
                 harness = ('set -eu\nTMP=' + shlex.quote(directory.as_posix()) + '\n' +
+                           'PATH=' + shlex.quote(str(private_bin)) + ':"$PATH"; export PATH\n' +
                            'timeout() { ' + shlex.quote(str(binary)) + ' "$@"; }\n' +
-                           'nc() { [ "$#" = 2 ] && [ "$1" = 127.0.0.1 ] && [ "$2" = 80 ] || return 76; ' +
-                           shlex.quote(busybox) + ' nc 127.0.0.1 ' + str(port) + '; }\n' +
                            'luci_diagnostics() { printf "diagnostic_exit=%s\\n" "$1"; }\n'
                            'fail() { exit 91; }\n' + functions + '\nluci_http\n')
                 start = time.monotonic()
                 fixed = subprocess.run([SH], input=harness, capture_output=True, text=True, timeout=5)
                 elapsed = time.monotonic() - start
+                self.assertTrue(invoked.is_file(), 'Native timeout execvp must reach the private nc executable via PATH')
                 self.assertEqual(fixed.returncode, 0, fixed.stdout + fixed.stderr)
                 self.assertEqual(state, ['response'])
             self.assertLess(elapsed, 3, 'Successful probes must not wait for the ten-second deadline')
