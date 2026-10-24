@@ -371,6 +371,12 @@ def print_guest_lan_diagnostics(private, prefix):
         print(prefix + ' LAN ' + key + ': ' + value, flush=True)
 
 
+def print_guest_guard_diagnostics(private, prefix):
+    states = sorted(set(re.findall(r'(?m)^CSQTT_GUEST_GUARD_CHECK=(chain|ipv6|mac|reject):([01])\r?$', private[-DIAGNOSTIC_LIMIT:])))
+    for key, value in states:
+        print(prefix + ' guard ' + key + ': ' + value, flush=True)
+
+
 def guest_web_diagnostics(private):
     """Only fixed disposable-guest web states; never HTML, headers or log text."""
     private = private[-DIAGNOSTIC_LIMIT:]
@@ -513,6 +519,7 @@ def run_remote(ssh, command, timeout=600, check=True):
                 print('OpenWrt guest ucode source: ' + filename + ':' + str(number), flush=True)
             print_guest_web_diagnostics(private, 'OpenWrt guest')
             print_guest_lan_diagnostics(private, 'OpenWrt guest')
+            print_guest_guard_diagnostics(private, 'OpenWrt guest')
         guest_tools = {tool for group in re.findall(r'^for tool in ([a-z0-9 _-]+); do command -v "\$tool"',
                                                     guest_source, re.MULTILINE) for tool in group.split()}
         for tool in sorted(set(re.findall(r'(?m)^CSQTT_GUEST_MISSING_TOOL=([a-z0-9_-]{1,50})\r?$', private)) & guest_tools):
