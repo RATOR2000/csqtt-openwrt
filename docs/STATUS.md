@@ -29,7 +29,18 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 command, owner priority GL-MT6000 official25.12.6. Owner installs personally; no
 SSH mutations/reboot/Codex schedules. Preserve all published tags/assets, especially9.
 
-FIRST UNFINISHED: finish publication-only repair workflow on codex/portable-preview.10-publish.
+FIRST UNFINISHED: publication-only GitHub asset-name normalization, then publish.
+Run40143419924 verified raw414 assets PASS, then upload refused: GitHub changes
+asset-name '~' to '.', so the signed raw names were unavailable under exact names.
+New host-only normalizer verifies frozen raw signatures/ALL descriptors/source6c,
+renames only transport filenames and descriptor name fields, preserves every
+package/native filename/version/proof/installer/source byte, re-signs tuple and
+catalogue metadata, and adds signed publication provenance (source6c vs packaging
+commit, original run/artifact/digest). GITHUB_SHA is never changed. Atomic new
+output; collisions/tamper/wrong source refuse.4real P256 normalization tests PASS.
+This is a distribution-name repair using already qualified binaries, not a new
+application build. Frozen release tag and installer source remain6c.
+ finish publication-only repair workflow on codex/portable-preview.10-publish.
 First transport-only run40143275467 failed BEFORE draft mutation: per-profile
 package-directory equality was incorrectly used on a flat six-profile bundle.
 Corrected host-only check validates every descriptor and the aggregate exact

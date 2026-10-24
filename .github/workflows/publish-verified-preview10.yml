@@ -15,7 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Publication guard regressions
-        run: python3 tests/release/draft_publication_test.py
+        run: |
+          python3 tests/release/draft_publication_test.py
+          python3 tests/release/normalization_test.py
       - uses: actions/checkout@v4
         with:
           ref: 6c70e490585651b9a65d7d128ecc551415c32f4e
@@ -57,7 +59,18 @@ jobs:
           assert (root/'install.sh').read_bytes()==pathlib.Path('.work/qualified-source/install.sh').read_bytes()
           print('Qualified six-profile payload, signatures, all hashes and installer/source binding PASS.')
           PY
+      - name: Normalize GitHub asset transport names and re-sign metadata
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: |
+          git fetch --no-tags --depth=1 origin 6c70e490585651b9a65d7d128ecc551415c32f4e
+          python3 scripts/normalize-publication-assets.py dist/publish dist/github --source-commit 6c70e490585651b9a65d7d128ecc551415c32f4e --source-run 40139753900 --source-artifact 12579223101 --source-artifact-sha256 24d2d80ae6ee2bf72f1522e174dd01b5d5d2f2b9103f06713616cbb82aaf1aa0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: github-signed-preview10
+          path: dist/github/*
+          if-no-files-found: error
       - name: Resume only the identified unpublished draft
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/publish-preview-draft.py dist/publish --tag v0.1.0-preview.10 --revision 10 --source-commit 6c70e490585651b9a65d7d128ecc551415c32f4e --previous-draft-source d62af169f1f811ab534d9ef8769ca7c817cf0c9d
+        run: python3 scripts/publish-preview-draft.py dist/github --tag v0.1.0-preview.10 --revision 10 --source-commit 6c70e490585651b9a65d7d128ecc551415c32f4e --previous-draft-source d62af169f1f811ab534d9ef8769ca7c817cf0c9d
