@@ -1,4 +1,4 @@
-name: Diagnostic native FIFO login after host capability preflight (never release evidence)
+name: Diagnostic native FIFO with executable host nc fixture (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]
