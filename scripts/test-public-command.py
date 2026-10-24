@@ -203,6 +203,7 @@ def main():
                             print('Public guest ucode class: ' + category, flush=True)
                         for filename, number in ucode['locations']:
                             print('Public guest ucode source: ' + filename + ':' + str(number), flush=True)
+                        vm.print_guest_web_diagnostics(private, 'Public guest')
                     reasons = {'resource_limit': ('Недостаточно', 'No space left'),
                                'dependency_solver': ('unable to select packages', 'unsatisfiable', 'изолированной базе'),
                                'signature_rejected': ('UNTRUSTED signature', 'Verification failure', 'подпись'),
