@@ -42,12 +42,22 @@ LuCI asset assertions; BOTH fail guestsource136 HTTP LuCI request.25 stagedAPK
 RAMroot fix and24 nativehas_control binding fix therefore progress confirmed.
 Mixed06c compiledpayloads+6545 runtime sourceoverlay remain DIAGNOSTIC ONLY.
 No cleanfirmware/sourcequalified release proof. No need reread oldlogs/runs.
-Next action: diagnostic24 bounded fixed web markers identify HTTP/uhttpd failure,
-then fix concrete cause. Root owns Git/CI/release. Agent release_path_audit is
-completed/frozen; no source ownership outstanding. Webdiagnostic captures fixed
-HTTP/exit/service/listener/CGI/module states and bounded error classes/source
-aliases only; no HTML/headers/config/raw logs. FullVM54=51PASS/3WindowsSKIP,
-publiccommand7PASS, Pythoncompile/shell/diffPASS. Original assertions preserved.
+Next action: diagnostic25 portable nativewget probes identify original HTTP
+failure, then fix concrete cause. Root owns Git/CI/release. Agent
+release_path_audit completed/frozen; no outstanding source ownership.
+Dev12cdd0505644c03d12ef1b0e3ee6d46e82eac72c pushed/treebf79e723 equal.
+Diagnostic24run40111329485/source53a49b26c30abe87cf11e80babaf2598a1379404
+25job120923497770: install/status PASS; nativeuhttpd runs,listens80+443;
+CGI directexecSUCCESS, modulesfs/ubus/uci/uloop/math/html load. Its newwget-S
+probe refusedoption; originalsource136 failure unresolved. Root caught-S absent
+in officialuclient getopt, fixed both calls to portable nonquietwget-O (stderr
+private). MeaningfulnativeCLI double regression and3boundarywebtests PASS.
+FixedTLS error/localhostredirect classes added from officialsource (no TLS
+bypass): https://github.com/openwrt/uclient/blob/master/uclient-fetch.c
+Diagnosticweb prints only fixedHTTP/exit/service/listener/module states,
+bounded8KiB classes and publicsourcealiases. Never rawHTML/headers/config/logs.
+PriorfullVM54=51PASS/3WindowsSKIP, publiccommand7PASS, shell/Python/diffPASS;
+latestfocused4webPASS0.147s. Original fetchsuccess/nonempty assertions remain.
 
 Two preceding production fixes in6545:
 - ONLY isolated--root/no-network/no-scripts APKadd acknowledges temporary RAM

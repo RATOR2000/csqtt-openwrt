@@ -152,6 +152,10 @@ web_filter() {
       }
       match($0,/HTTP error [1-5][0-9][0-9]/) { status[substr($0,RSTART+11,3)]=1 }
       index($0,"Connection refused") { classes["connection_refused"]=1 }
+      index($0,"Invalid SSL certificate") || index($0,"SSL verify error") { classes["tls_certificate"]=1 }
+      index($0,"hostname does not match SSL certificate") { classes["tls_hostname"]=1 }
+      index($0,"SSL support not available") { classes["tls_unavailable"]=1 }
+      index($0,"Redirected to https://127.0.0.1/") { classes["local_https_redirect"]=1 }
       index($0,"timed out") { classes["timeout"]=1 }
       index($0,"Permission denied") { classes["permission_denied"]=1 }
       index($0,"Exec format error") || index($0,"Failed to execute") || index($0,"Unable to execute") { classes["cgi_execute"]=1 }
@@ -220,7 +224,7 @@ luci_diagnostics() {
         else cgi_status=$?; fi
         printf 'CSQTT_GUEST_WEB_CGI_EXIT=%s\n' "$cgi_status"
         web_file_diagnostics "$TMP/web-cgi.log"
-        if timeout 3 wget -S -q -O "$TMP/web-root" http://127.0.0.1/ > "$TMP/web-root.log" 2>&1; then
+        if timeout 3 wget -O "$TMP/web-root" http://127.0.0.1/ > "$TMP/web-root.log" 2>&1; then
             printf '%s\n' CSQTT_GUEST_WEB_CHECK=root_http_ok
         else printf '%s\n' CSQTT_GUEST_WEB_CHECK=root_http_failed; fi
         web_file_diagnostics "$TMP/web-root.log"
@@ -229,7 +233,7 @@ luci_diagnostics() {
     )
 }
 stage luci_http
-if timeout 10 wget -S -q -O "$TMP/luci-before" http://127.0.0.1/cgi-bin/luci/ > "$TMP/luci-before.log" 2>&1; then :
+if timeout 10 wget -O "$TMP/luci-before" http://127.0.0.1/cgi-bin/luci/ > "$TMP/luci-before.log" 2>&1; then :
 else web_status=$?; luci_diagnostics "$web_status"; fail; fi
 [ -s "$TMP/luci-before" ] || { luci_diagnostics 0; fail; }
 

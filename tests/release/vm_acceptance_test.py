@@ -37,6 +37,36 @@ if not SH:
 
 
 class VmAcceptanceTest(unittest.TestCase):
+    @unittest.skipUnless(SH, 'A POSIX shell is required for native uclient option behavior')
+    def test_guest_web_requests_work_with_stock_uclient_without_server_response_option(self):
+        guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
+        request = re.search(r'(?m)^if timeout 10 wget[^\n]+\nelse[^\n]+\n\[ -s "\$TMP/luci-before" \][^\n]+', guest).group(0)
+        control = re.search(r'(?m)^        if timeout 3 wget[^\n]+\n[\s\S]+?^        else[^\n]+fi', guest).group(0)
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            harness = ('set -eu\nTMP=' + shlex.quote(directory.as_posix()) + '\n'
+                       'timeout() { shift; "$@"; }\n'
+                       # The native uclient wget supports -O but rejects GNU/BusyBox -S.
+                       'wget() { [ "$1" = -O ] || return 64; [ "$#" = 3 ] || return 64; '
+                       'case "$3" in */cgi-bin/luci/) if [ "$MODE" = failure ]; then '
+                       'printf "%s\\n" "HTTP error 500 private-fixture" >&2; return 8; fi ;; esac; '
+                       'printf "%s\\n" "successful-response" > "$2"; }\n'
+                       'luci_diagnostics() { printf "diagnostic_exit=%s\\n" "$1"; }\n'
+                       'fail() { exit 91; }\n'
+                       'if wget -S -O "$TMP/rejected" http://127.0.0.1/; then exit 66; '
+                       'else [ "$?" = 64 ] || exit 67; fi\n')
+            for mode, expected in (('success', 0), ('failure', 91)):
+                result = subprocess.run([SH], input=harness + 'MODE=' + mode + '\n' + request,
+                                        capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, expected, result.stderr)
+                self.assertNotIn('private-fixture', result.stdout)
+                if mode == 'failure':
+                    self.assertEqual(result.stdout, 'diagnostic_exit=8\n')
+            result = subprocess.run([SH], input=harness + 'MODE=success\n' + control,
+                                    capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, 'CSQTT_GUEST_WEB_CHECK=root_http_ok\n')
+
     def test_guest_web_filter_redacts_native_http_body_and_system_log(self):
         guest = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
         program = re.search(r"web_filter\(\) \{\n    awk '([\s\S]+?)'\n\}", guest).group(1)
@@ -49,7 +79,7 @@ class VmAcceptanceTest(unittest.TestCase):
         private = 'private-key-password-url-config'
         body = ('HTTP/1.1 500 Internal Server Error\nLocation: https://example.invalid/' + private +
                 '\nHTTP error 403\nConnection refused: ' + private + '\nPermission denied: ' + private +
-                '\nType error: ' + private + '\nUnable to resolve module ' + private +
+                '\nInvalid SSL certificate: ' + private + '\nServer hostname does not match SSL certificate: ' + private + '\nType error: ' + private + '\nUnable to resolve module ' + private +
                 '\nIn /usr/share/ucode/luci/dispatcher.uc, line 14, byte 1:\n' +
                 'In /usr/share/csqtt/runtime.uc, line 12, byte 2:\n' +
                 'In /private/runtime.uc, line 1, byte 1:\n' +
@@ -61,7 +91,7 @@ class VmAcceptanceTest(unittest.TestCase):
             self.assertNotIn('https:', result.stdout)
             parsed = native_vm.guest_web_diagnostics(result.stdout)
             self.assertEqual(parsed['status'], [403, 500])
-            self.assertEqual(parsed['classes'], ['connection_refused', 'module_error', 'permission_denied', 'type_error'])
+            self.assertEqual(parsed['classes'], ['connection_refused', 'module_error', 'permission_denied', 'tls_certificate', 'tls_hostname', 'type_error'])
             self.assertEqual(parsed['locations'], [('csqtt.runtime', 12), ('luci.dispatcher', 14)])
 
     def test_guest_web_markers_reject_unowned_fields_paths_and_values(self):
@@ -464,7 +494,7 @@ class VmAcceptanceTest(unittest.TestCase):
         if shutil.which('busybox'):
             commands.append([shutil.which('busybox'), 'awk'])
         body = ('Syntax error: Unable to compile module ' + private + '\nReference error: ' + private +
-                '\nType error: ' + private + '\n  | In /usr/share/csqtt/health.uc, line 1, byte 1:\n' +
+                '\nInvalid SSL certificate: ' + private + '\nServer hostname does not match SSL certificate: ' + private + '\nType error: ' + private + '\n  | In /usr/share/csqtt/health.uc, line 1, byte 1:\n' +
                 'In function(), file /usr/share/csqtt/runtime.uc, line 2, byte 3:\n' +
                 'In /private/policy.uc, line 3, byte 1:\nIn /usr/share/csqtt/policy.uc, line 9999999, byte 1:\n' + private)
         for command in commands:
