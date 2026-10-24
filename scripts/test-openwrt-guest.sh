@@ -19,7 +19,14 @@ stage prerequisites_release
 . /etc/openwrt_release
 case "${DISTRIB_RELEASE:-}" in 24.10.*|25.12.*) ;; *) fail ;; esac
 stage prerequisites_tools
-for tool in ucode uci ubus nft fw4 ip timeout nslookup sha256sum; do command -v "$tool" >/dev/null || { printf 'CSQTT_GUEST_MISSING_TOOL=%s\n' "$tool"; fail; }; done
+for tool in ucode uci ubus nft fw4 ip nslookup sha256sum; do command -v "$tool" >/dev/null || { printf 'CSQTT_GUEST_MISSING_TOOL=%s\n' "$tool"; fail; }; done
+# The host provisions this static test-only tool after the clean install. It
+# lives beside this script on the disposable disk, outside the package database.
+stage prerequisites_timeout
+case "$0" in */*) TEST_TIMEOUT="${0%/*}/vm-timeout" ;; *) TEST_TIMEOUT=./vm-timeout ;; esac
+[ -f "$TEST_TIMEOUT" ] && [ ! -L "$TEST_TIMEOUT" ] && [ -x "$TEST_TIMEOUT" ] || fail
+timeout() { "$TEST_TIMEOUT" "$@"; }
+timeout 1 true || fail
 stage prerequisites_enabled
 [ "$(uci -q get csqtt.main.enabled)" = 0 ] || fail
 stage prerequisites_auto_recover

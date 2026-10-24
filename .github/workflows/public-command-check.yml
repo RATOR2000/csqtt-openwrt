@@ -30,10 +30,11 @@ jobs:
       - name: Public acceptance dependencies (no signing secrets)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 openssh-client python3-pexpect openssl e2fsprogs
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 openssh-client python3-pexpect openssl e2fsprogs gcc libc6-dev
       - name: Public acceptance host boundaries
         run: |
           python3 tests/release/public_command_test.py
+          python3 tests/release/vm_timeout_test.py
           python3 tests/release/published_test.py
           python3 tests/release/openwrt_image_test.py
           python3 tests/release/vm_disk_test.py

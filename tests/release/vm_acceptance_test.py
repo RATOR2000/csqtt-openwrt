@@ -37,6 +37,35 @@ if not SH:
 
 
 class VmAcceptanceTest(unittest.TestCase):
+    def test_native_output_head_is_checked_bounded_and_stops_at_next_trace(self):
+        if not SH:
+            self.skipTest('A POSIX shell is required')
+        source = (ROOT / 'install.sh').read_text(encoding='utf-8').splitlines()
+        line = next(n for n, row in enumerate(source, 1) if row.strip().startswith(
+            'apk --root "$CS_PM_ROOT" --arch "$CS_ARCH" --repositories-file "$CS_REPOSITORIES"'))
+        marker = '+CSQTT_XTRACE:' + str(line) + ': apk private-arguments\n'
+        with tempfile.TemporaryDirectory() as directory:
+            log = pathlib.Path(directory) / 'stage.log'
+            awk = shutil.which('awk') or str(pathlib.Path(SH).with_name('awk.exe'))
+            wc = shutil.which('wc') or str(pathlib.Path(SH).with_name('wc.exe'))
+            command = ('awk() { ' + shlex.quote(awk) + ' "$@"; }; wc() { ' + shlex.quote(wc) +
+                       ' "$@"; }; f=' + shlex.quote(log.as_posix()) + '; ' + native_vm._private_native_output_head())
+            def run(body):
+                log.write_text(body, encoding='utf-8')
+                return subprocess.run([SH], input=command, text=True, capture_output=True, timeout=10)
+            good = run('earlier private data\n' + marker + 'apk: unrecognized option\n' + 'usage\n' * 4000 +
+                       '+CSQTT_XTRACE:1: other private-data\n')
+            self.assertEqual(good.returncode, 0, good.stderr)
+            self.assertTrue(good.stdout.startswith('apk: unrecognized option\n'))
+            self.assertNotIn('private', good.stdout)
+            self.assertLessEqual(len(good.stdout.encode()), native_vm.DIAGNOSTIC_LIMIT + len('\n' + native_vm.DIAGNOSTIC_READ_OK + '\n'))
+            stopped = run(marker + 'first\n+CSQTT_XTRACE:1: next secret\nprivate\n')
+            self.assertEqual(stopped.stdout, 'first\n\n' + native_vm.DIAGNOSTIC_READ_OK + '\n')
+            for bad in ('no marker\n', marker + marker, marker + 'x' * (native_vm.DIAGNOSTIC_SCAN_LIMIT + 1)):
+                result = run(bad)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn(native_vm.DIAGNOSTIC_READ_OK, result.stdout)
+
     @contextlib.contextmanager
     def nested_solver_fixture(self, relative='bootstrap/solver.log'):
         if not SH:
@@ -590,9 +619,9 @@ class VmAcceptanceTest(unittest.TestCase):
 
     def test_guest_missing_tool_marker_emits_only_complete_source_known_names(self):
         private = 'private-secret-command-url-fixture'
-        cases = (('timeout', 'timeout'), ('nslookup\r', 'nslookup'),
-                 (private, None), ('timeout_suffix', None), ('timeout ' + private, None),
-                 ('timeout; ' + private, None), ('/private/timeout', None))
+        cases = (('nslookup', 'nslookup'), ('nslookup\r', 'nslookup'),
+                 (private, None), ('nslookup_suffix', None), ('nslookup ' + private, None),
+                 ('nslookup; ' + private, None), ('/private/nslookup', None), ('timeout', None))
         for value, expected in cases:
             body = 'CSQTT_GUEST_MISSING_TOOL=' + value + '\n'
             with self.subTest(value=value), mock.patch.object(native_vm, 'PHASE', 'native_runtime_dns_firewall_luci'), \

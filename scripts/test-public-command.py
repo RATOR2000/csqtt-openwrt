@@ -21,6 +21,7 @@ from release_schema import artifact, describe, load, require, token, validate
 from openwrt_image import extract_openwrt_image
 from vm_disk import expand_disposable_root
 from vm_console import prepare_guest_console
+from vm_timeout import build_timeout, provision_timeout
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REPOSITORY = 'RATOR2000/csqtt-openwrt'
@@ -159,6 +160,8 @@ def main():
     import pexpect
     with tempfile.TemporaryDirectory(prefix='csqtt-public-vm-') as temporary:
         work = pathlib.Path(temporary)
+        phase('test_timeout_build')
+        test_timeout = build_timeout(work, args.released_source)
         image_name = f'openwrt-{version}-x86-64-generic-ext4-combined.img.gz'
         compressed = work / image_name
         bundle.download(f'https://downloads.openwrt.org/releases/{version}/targets/x86/64/' + image_name, compressed, vm.IMAGES[version])
@@ -221,6 +224,8 @@ def main():
             remote('cd /tmp/csqtt-public; (' + command + ') > install.private.log 2>&1', timeout=1200)
             installed_hash = remote('sha256sum /tmp/csqtt-install.sh').stdout.split()[0]
             require(installed_hash == released['installer']['sha256'], 'Guest ran different public installer bytes')
+            phase('test_timeout_provision')
+            provision_timeout(ssh, test_timeout, '/tmp/csqtt-public')
             phase('native_runtime_dns_firewall_luci')
             smoke = remote('cd /tmp/csqtt-public; sh guest.sh > smoke.private.log 2>&1; tail -n 1 smoke.private.log')
             require(smoke.stdout.strip() == 'CSQTT_GUEST_SMOKE_PASS', 'Released native guest smoke did not pass')

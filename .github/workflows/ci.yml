@@ -58,6 +58,7 @@ jobs:
           python3 tests/release/published_test.py
           python3 tests/release/public_command_test.py
           python3 tests/release/vm_acceptance_test.py
+          python3 tests/release/vm_timeout_test.py
           python3 tests/release/sdk_recipe_test.py
           node --test tests/release/*.test.cjs
       - name: Shell syntax
