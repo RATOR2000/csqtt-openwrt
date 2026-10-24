@@ -695,6 +695,9 @@ def main():
             subprocess.run(ssh + ['umask 077; cat > /usr/share/csqtt/runtime.uc'],
                 input=(ROOT / 'openwrt/csqtt/files/runtime.uc').read_bytes(),
                 capture_output=True, check=True, timeout=20)
+            subprocess.run(ssh + ['test -f /usr/libexec/csqtt/platform-probe && test ! -L /usr/libexec/csqtt/platform-probe && cat > /usr/libexec/csqtt/platform-probe'],
+                input=(ROOT / 'scripts/platform-probe.sh').read_bytes(),
+                capture_output=True, check=True, timeout=20)
             phase('test_timeout_provision')
             provision_timeout(ssh, test_timeout, '/tmp/csqtt-native')
             phase('native_runtime_dns_firewall_luci')
@@ -704,7 +707,7 @@ def main():
             # staging and install; only authenticated release assets use HTTP.
             phase('repeat_install_settings_preserved')
             remote('cd /tmp/csqtt-native; sha256sum -c before.sha256 >/dev/null; uci set csqtt.main.workers=18; uci commit csqtt; sha256sum /etc/config/csqtt /etc/config/dhcp /etc/config/firewall /etc/config/network > repeat.sha256; sh install.sh ci-private > repeat.private.log 2>&1; sha256sum -c repeat.sha256 >/dev/null')
-            result = {'schema': 1, 'kind': 'diagnostic_runtime_overlay', 'result': 'pass',
+            result = {'schema': 1, 'kind': 'diagnostic_current_scripts_overlay', 'result': 'pass',
                       'source_commit': evidence.source(), 'profile_id': args.profile, 'openwrt': version,
                       'package_manager': platform['package_manager'], 'physical_device': False,
                       'image': {'name': image_name, 'sha256': IMAGES[version], 'extraction': image_extraction,

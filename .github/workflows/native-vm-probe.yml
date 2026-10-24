@@ -1,4 +1,4 @@
-name: Diagnostic remaining OpenWrt24 guarded apply stage (never release evidence)
+name: Diagnostic OpenWrt24 with current packaged platform probe (never release evidence)
 on:
   push:
     branches: [codex/portable-preview.10-vm-probe]
