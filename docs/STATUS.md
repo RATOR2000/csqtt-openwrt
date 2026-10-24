@@ -29,7 +29,12 @@ GitHub default main README currently only2lines; user docs live on dev branch.
 command, owner priority GL-MT6000 official25.12.6. Owner installs personally; no
 SSH mutations/reboot/Codex schedules. Preserve all published tags/assets, especially9.
 
-FIRST UNFINISHED: new exact-source qualification after packaging-signature fix.
+FIRST UNFINISHED: monitor fixed exact-source candidate6c70e490585651b9a65d7d128ecc551415c32f4e
+(treec118b04d979ae8a4caf8f6186daca34d772fc447), official40139753900 and
+general40139752629. Official contracts/native-policy PASS, sixSDK active.
+General core/native-policy/android/checks PASS, openwrt active. Completed checks
+log121008796653 confirms ALL SIX real OpenSSL signing regressions PASS (not SKIP).
+Do not rebuild/refreeze for later docs-only commits.
 Root owns Git/CI/release. signing_fix and release_docs_audit completed/frozen;
 no outstanding file owner. Recheck liveness before delegation.
 Old frozen d62af169f1f811ab534d9ef8769ca7c817cf0c9d PASSED all6SDK/3nativeVM,
@@ -65,11 +70,12 @@ public-command passes. Browser ghTab owner session available; connector can
 list drafts via releases collection (GET by tag404 while draft), and download
 workflow artifacts. CUA file chooser documentation already read this session.
 
-Old Helper .work/preview.10/helper/ is FROMd62 general artifact12576903574;
-replace it from NEW exact-source general android-helper-debug before attaching.
-ZIP SHA1d448c8d969b4281f47d422d24f7192c23c81699c43b57e12fcabaf547ef6440,
-APK SHA884604a79a0738e4bc57b413dbbefad4ad13daba3b8a8da4207e013599de75c6.
-Debug build only, no physical Android/VK acceptance claim. No keys/identities inGit.
+Current .work/preview.10/helper/ has NEW6c70 exact-source Android artifact12578351034
+from general40139752629. ZIP SHA256
+7f685703d2f858b65f15748b609ff3e21ffd461d8b8270e407349d4104225e08.
+APK SHA25601d837fef92239db28951f7ce60f5a26eb77c1c33236e8bb188d4a84e7c4d8d4.
+Attach APK + .sha256 + android-helper-provenance.json AFTER fixed draft verification.
+Debug build only; physical/VK acceptance not claimed. No keys/identities inGit.
 
 Both diagnostic runtime scenarios and old fresh-source VMs passed all installation,
 LuCI/DNS/nftset/LAN/Helper/IPv6/routes/fw4/Stop/reinstall preservation checks.
