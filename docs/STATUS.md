@@ -31,13 +31,30 @@ release qualification/date. Owner installs personally; no router mutations,
 Codex schedules or old72h restart. Historical details up to this resume:
 https://github.com/RATOR2000/csqtt-openwrt/blob/9f6a860b2fa36fe2d63cf35bde58b6dfdb599c77/docs/STATUS.md
 
-FIRST UNFINISHED ACTION: run/read diagnostic19 with test-only timeout tool and
-bounded native APK output head, against compiled06c packages. Only after BOTH
+FIRST UNFINISHED ACTION: run diagnostic20 with guest source/error locations and
+expanded literal official APK error classes, against compiled06c packages. Only after BOTH
 native24/25 diagnostic VMs pass, freeze a new exact source and run6SDK+5regression.
 Never promote mixed-source diagnostic packages/proofs to release qualification.
 Metadata .work/preview.10/candidate.json; prior frozen06c/treee5e2fd9 failed and
 build branch still points there. Latest dev at resume9f6a860 (docs-only after
 456d725), working tree/fetch clean. Ordinary gitpush opensOAuth; use connector.
+24Oct10:56UTC checkpoint pushed3b6f44d384f77330c64b5b94d5424d4d3d844024,
+treec6e48216d5579a279a8007d43b56d0a80b5de320; local/fetch trees equal.
+Diagnostic19 run40087858978/source25cd5e44fac111205d39cc8d7fcb6fc386ebcce7
+completed bothVM fail: host static deadline/process-group/bounded diagnostic tests
+PASS both;24job120854341998 installer/provision PASS, runtime now native_imports
+failure (newpreciseguesttrace/ucodeclass being added).25job120854342130 still
+native APK staged fail; checked HEAD+TAIL bothunclassified. Pinned officialAPK
+binary literal message catalogue reveals missing DB/cache/repository/format/root
+classes; added fixedclasses+focused9casePASS, never raw guest values. General
+40087842202 on3b6: core/native-policy/android/checks PASS, openwrt120855924464 active.
+Diagnostic20 source nowready: guest sh-x with source-owned fail-call location;
+strict successful return plus exact anchored PASS, not lastline after xtrace.
+Public classifier binds released guest source. Optional import.log reader deferred
+until actual failing line known. VM47=44PASS/3WindowsSKIP, compile/diffPASS;
+agent vm_timeout frozen. APKclasses include verified pinned target strings and
+fixed POSIXerrno classes; native error output remains private. No production edit.
+No full6SDK launch; compact jobs only, bounded failed logs if concrete failure.
 
 Confirmed blockers/evidence (do not rerun old CI):
 -24.10.8: actual signed install + strict wrongprojectsignature PASS repeatedly;
