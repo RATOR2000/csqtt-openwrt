@@ -47,9 +47,14 @@ command on GL-MT6000 official25.12.6 and completes browser wizard. Agent does NO
 install remotely. Source/ABI/VM qualification is complete; physical router,
 real VK/Android, boot-after-first-activation-failure and72h remain future stable
 gates, not prerequisites falsely marked passed. Auto recovery default stays0.
-Final README/BUILD/PREVIEW_NOTES delivery goes through existing PR#1 to main.
-User created duplicate PR#4 from public-check branch; close it after PR#1 merge,
-without merging it. Older PR#2/#3 are outside this change. No schedules.
+Final README/BUILD/PREVIEW_NOTES delivered to main via PR#1, merged
+2026-10-25 as708c92debdbad11179c0a3a99688c1dcc3531a3e. Remote main README
+compared byte-exact to reviewed local source; pinned command PASS. Main tree
+2ee24d2829e992d24a369ead1e82abf47e8ff9bf. User-created duplicate PR#4 CLOSED
+without merging after PR#1; older PR#2/#3 untouched. Dev fast-forwarded to the
+main merge. This final status-only checkpoint is published to both branches.
+All release delivery work complete; next action belongs to owner installation.
+No SSH mutations/reboot and no Codex schedules during this stage.
 Original CSQTT2.1.9 retained explicitly despite2.5.0; no protocol/server upgrade.
 Root owns final Git/PR/main verification. All subagents completed/frozen.
 
@@ -146,7 +151,7 @@ P256 catalogue SHA25613c4ae5018445616f76e9dba18d2809bd5feb3fa65e5bc4c9e57bc04a63
 All6SDK/3VM/5general, native signed ARM9->10->9 and both public command VMs PASS.
 Default README has exact-tag temporary-file HTTPS command, six-profile table,
 Flint2 official25.12.6 priority, browser setup/update/removal instructions and
-honest preview/physical/VK limitations. Final docs checkpoint promoted viaPR#1.
+honest preview/physical/VK limitations. Final docs checkpoint promoted viaPR#1; public default README command checked.
 No branch/tag/latest installer, no unconditional any-architecture claim.
 Candidate .work/preview.10/candidate.json; all private caches/evidence remain ignored.
 
