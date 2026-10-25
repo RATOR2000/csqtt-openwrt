@@ -2,8 +2,8 @@
 
 Updated 2026-10-25. Read this first, then IMPLEMENTATION.md.
 Files, Git and current router evidence are authoritative. Preserve existing settings.
-Older detailed history is retained in Git at c509a1d1ad8d2126b86c2a1e502e46840b92cf86:
-https://github.com/RATOR2000/csqtt-openwrt/blob/c509a1d1ad8d2126b86c2a1e502e46840b92cf86/docs/STATUS.md
+Historical commits are retained for source reproducibility; current public
+resume information below is sanitized.
 
 ## First unfinished action — official OpenWrt one-command preview
 
@@ -122,11 +122,13 @@ all10published releases and bounded nested archive/package contents. No exact
 matches for actual router credentials/VK data/server endpoint/runtimeidentity,
 WAN address or assigned-device identifiers. Generic privatePEM/PAT/realVK checks
 found no credential leak. Official uhttpd password examples are commented-out
-upstream defaults, not personal configuration. No private data values were
-printed, uploaded or persisted by the comparison. Reports remain ignored locally.
+upstream defaults, not personal configuration. Comparison secret values were never
+printed, uploaded or persisted by the audit. Reports remain ignored locally.
 
 Removed personal filesystem paths and unnecessary live-network/measurement
-facts from current documentation. Keep generic board/firmware compatibility and
+facts from current documentation. Forward-only documentation commits also
+sanitized all4older branch heads that still contained personal local paths.
+Current public branch-head scan confirms0personal Windows paths; no force push. Keep generic board/firmware compatibility and
 acceptance outcomes; do not copy personal paths, addresses, SSIDs, device IDs,
 raw router output/configuration/screenshots or usage timelines into public docs.
 Historical commits/tags still contain old local-user paths; this audit does NOT
