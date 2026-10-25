@@ -15,6 +15,8 @@ import shutil
 import subprocess
 import tempfile
 import time
+import ssl
+import urllib.error
 import urllib.request
 
 from release_schema import artifact, describe, load, require, token, validate
@@ -104,12 +106,35 @@ def download(url, maximum=67108864):
     require(url.startswith(('https://api.github.com/repos/' + REPOSITORY + '/',
                             'https://github.com/' + REPOSITORY + '/releases/download/')), 'Foreign download URL')
     request = urllib.request.Request(url, headers={'User-Agent': 'CSQTT-public-acceptance'})
-    with urllib.request.urlopen(request, timeout=90) as response:
-        require(response.url.startswith(('https://api.github.com/', 'https://github.com/',
-                                         'https://release-assets.githubusercontent.com/')), 'Foreign asset redirect')
-        data = response.read(maximum + 1)
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(request, timeout=90) as response:
+                require(response.url.startswith(('https://api.github.com/', 'https://github.com/',
+                                                 'https://release-assets.githubusercontent.com/')), 'Foreign asset redirect')
+                data = response.read(maximum + 1)
+            break
+        except urllib.error.HTTPError as error:
+            if attempt == 3 or not (error.code == 429 or 500 <= error.code <= 599):
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+            if attempt == 3 or isinstance(getattr(error, 'reason', error), ssl.SSLCertVerificationError):
+                raise
+        time.sleep(attempt + 1)
     require(0 < len(data) <= maximum, 'Public asset exceeds bound')
     return data
+
+
+def removal_luci_probe(source):
+    """Reuse the qualified login contract, including its intentional HTTP403."""
+    text = (source / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
+    start, end = 'web_filter() {\n', '\nstage luci_http\n'
+    require(text.count(start) == 1 and text.count(end) == 1, 'Qualified web probe boundaries changed')
+    functions = text[text.index(start):text.index(end)]
+    require(all(marker in functions for marker in ('luci_http() {', 'login_response() {', 'luci_diagnostics() {',
+                'x-luci-login-required', 'luci_username', 'luci_password', 'timeout 10 nc')), 'Incomplete qualified login probe')
+    return ('#!/bin/sh\nset -eu\numask 077\nTMP=/tmp/csqtt-public/web-after\nmkdir -p "$TMP"\n'
+            'TEST_TIMEOUT=/tmp/csqtt-public/vm-timeout\n'
+            'timeout() { "$TEST_TIMEOUT" "$@"; }\nfail() { exit 1; }\n' + functions + '\nluci_http\n')
 
 
 def verify_signature(path, signature, key):
@@ -247,7 +272,7 @@ def main():
                     markers = re.findall(r'CSQTT_GUEST_STAGE=([a-z_]{1,50})(?:\s|$)', private)
                     if markers:
                         print('Public guest substage: ' + markers[-1], flush=True)
-                    if PHASE == 'native_runtime_dns_firewall_luci':
+                    if PHASE == 'native_runtime_dns_firewall_luci' or PHASE.startswith('native_application_removal'):
                         assertion = vm.guest_trace_diagnostics(private, args.released_source / 'scripts/test-openwrt-guest.sh')
                         print('Public guest assertion: ' + ('source_line=' + str(assertion) if assertion is not None else
                               'unknown'), flush=True)
@@ -294,15 +319,18 @@ def main():
                    'sha256sum /etc/config/csqtt /etc/config/dhcp /etc/config/firewall /etc/config/network > repeat.sha256; '
                    '(' + command + ') > repeat.private.log 2>&1; sha256sum -c repeat.sha256 >/dev/null', timeout=1200)
             phase('native_application_removal')
+            remote('cat > /tmp/csqtt-public/removal-luci.sh', input_text=removal_luci_probe(args.released_source))
             remote('cd /tmp/csqtt-public; test "$(uci -q get csqtt.main.enabled)" = 0; '
                    '! uci show csqtt | grep -q "=device$"; '
                    'if command -v apk >/dev/null; then apk --no-network del luci-app-csqtt csqtt-captcha csqtt; '
                    'else opkg remove luci-app-csqtt csqtt-captcha csqtt; fi > uninstall.private.log 2>&1; '
                    'sha256sum -c repeat.sha256 >/dev/null; '
                    'test ! -x /usr/bin/csqtt-client; test ! -x /usr/bin/csqtt-captcha; '
-                   'test ! -f /usr/share/luci/menu.d/luci-app-csqtt.json; '
-                   'wget -q -O luci-after http://127.0.0.1/cgi-bin/luci/; test -s luci-after; '
-                   'nslookup -type=A example.com 127.0.0.1 > dns-after.private.log 2>&1; '
+                   'test ! -f /usr/share/luci/menu.d/luci-app-csqtt.json')
+            phase('native_application_removal_http')
+            remote('cd /tmp/csqtt-public; sh removal-luci.sh > removal-web.private.log 2>&1')
+            phase('native_application_removal_dns_lan')
+            remote('cd /tmp/csqtt-public; nslookup -type=A example.com 127.0.0.1 > dns-after.private.log 2>&1; '
                    'ubus call network.interface.lan status > lan-after.private.log; '
                    'jsonfilter -i lan-after.private.log -e "@.up" | grep -qx true')
             result = {'schema': 1, 'kind': 'published_readme_command_vm', 'result': 'pass',

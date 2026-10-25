@@ -11,6 +11,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import ssl
+import urllib.error
 import unittest
 from unittest import mock
 
@@ -26,6 +28,49 @@ COMMAND = 'uclient-fetch -O /tmp/csqtt-install.sh ' + BASE + 'install.sh && sh /
 
 
 class PublicCommandTest(unittest.TestCase):
+    def test_post_removal_reuses_exact_qualified_login_contract(self):
+        script = public.removal_luci_probe(ROOT)
+        qualified = (ROOT / 'scripts/test-openwrt-guest.sh').read_text(encoding='utf-8')
+        functions = qualified[qualified.index('web_filter() {\n'):qualified.index('\nstage luci_http\n')]
+        self.assertIn(functions, script)
+        self.assertIn('x-luci-login-required', script)
+        self.assertIn('luci_username', script)
+        self.assertIn('luci_password', script)
+        self.assertIn('timeout 10 nc', script)
+        self.assertNotIn('stage private_dns', script)
+        self.assertNotIn('nft add', script)
+        (self.source / 'scripts').mkdir()
+        (self.source / 'scripts/test-openwrt-guest.sh').write_text('luci_http() { true; }')
+        with self.assertRaisesRegex(ValueError, 'boundaries'):
+            public.removal_luci_probe(self.source)
+
+    def test_public_download_retries_only_bounded_transient_failures(self):
+        url = BASE + 'catalogue.json'
+        def response():
+            value = io.BytesIO(b'public')
+            value.url = url
+            return value
+        for failure in (urllib.error.HTTPError(url, 429, '', {}, None),
+                        urllib.error.HTTPError(url, 503, '', {}, None),
+                        urllib.error.URLError(TimeoutError('private timeout'))):
+            with mock.patch.object(public.urllib.request, 'urlopen', side_effect=[failure, response()]) as request, \
+                 mock.patch.object(public.time, 'sleep'):
+                self.assertEqual(public.download(url), b'public')
+                self.assertEqual(request.call_count, 2)
+        for failure in (urllib.error.HTTPError(url, 403, '', {}, None),
+                        urllib.error.HTTPError(url, 404, '', {}, None),
+                        urllib.error.URLError(ssl.SSLCertVerificationError('certificate'))):
+            with mock.patch.object(public.urllib.request, 'urlopen', side_effect=failure) as request, \
+                 mock.patch.object(public.time, 'sleep'):
+                with self.assertRaises((urllib.error.URLError, ssl.SSLCertVerificationError)):
+                    public.download(url)
+                self.assertEqual(request.call_count, 1)
+        with mock.patch.object(public.urllib.request, 'urlopen', side_effect=TimeoutError()) as request, \
+             mock.patch.object(public.time, 'sleep'):
+            with self.assertRaises(TimeoutError):
+                public.download(url)
+            self.assertEqual(request.call_count, 4)
+
     def test_native_opkg_fixture_partial_removal_requires_progress_and_stops_on_refusal(self):
         shell = shutil.which('sh')
         if not shell and shutil.which('git'):
