@@ -42,18 +42,44 @@ exact acceptance source6979eb22bf0b0658541d098374e88b63b5b75945 and published
 release/source6c binding verified. Private local evidence .work/preview.10/public-command/.
 Installed release/tag remain6c70;6979 is host test code only. Host13tests PASS.
 
-NEXT USER ACTION: owner personally installs preview10 using default README
-command on GL-MT6000 official25.12.6 and completes browser wizard. Agent does NOT
-install remotely. Source/ABI/VM qualification is complete; physical router,
-real VK/Android, boot-after-first-activation-failure and72h remain future stable
-gates, not prerequisites falsely marked passed. Auto recovery default stays0.
+OWNER NATIVE CHECK 2026-10-25 around14:45–15:00 Moscow: owner personally
+installed preview10 via README command. Supplied output.txt confirms all stages
+and success; valid UTF8, no terminal-encoding defect. Readonly SSH aliasrouter
+and existing LuCI session independently checked: GL-MT6000/official25.12.6,
+kernel6.12.112, all3application packages0.1.0-r10 and exact-kernelTUN installed.
+Wizard completed, enabled1,9activeworkers, connected, no CAPTCHA/policyerror;
+1client process,1health and1helper instance. Health WAN/VPN/DNS/process allOK,
+sample age2–29s across checks; at final sample uptime1344s. Auto recovery stays
+observe-only/automaticfalse,0attempts. Settings/services were NOT modified.
+All39persistent installed payloads match fresh hashes from signedR10APKs; known
+/etc/uci-defaults/90-luci-csqtt consumed after normal postinstall. Its RPC hash,
+mode0755, runningrpcd and liveCSQTT RPC verified. Manifest/signature/installer
+hashes3/3 match published bytes. Journal archivedphasecommitted, backupintegrity
+PASS, no pending installer bootstrap/transaction. Firstinstall correctly backed
+up dhcp/firewall/network, with csqtt absentbefore. DHCP/network unchanged;
+firewall differs only by4ownedCSQTTincludes and disabledoffload, as designed.
+TUN up; routingtable202 has tunneldefault+unreachablefallback, protected-source
+and mark unreachable rules present; nft5drop/reject rules. No outage/fault/leak
+experiment performed. LuCI visiblyConnected. Private evidence ignored under
+.work/preview.10/owner-audit/, extractedpayloadhashes router-payloads-r10.json.
+One nonfatal install.log earlypostinst message Platformisnotqualified occurs
+BEFOREinstaller persists signed platformgrant. Current qualified/state+healthy
+activationPASS. Futurepackaging cleanup can avoid this alarming early attempt;
+do not weaken grant guard or rewrite publishedpreview10 to hide the message.
+WAN physical linketh1 is100Mbit/full, independently confirmedsysfs+LuCI; may
+limit throughput if ISP plan exceeds100Mbit. ClientRSS8996KiB during idleaudit,
+not a throughput/memoryload benchmark. No source code or router config changes.
+NEXT ACCEPTANCE: owner's normal LAN application use and feedback; controlled
+fault/recovery, complete VK/Android/CAPTCHA and72h still not passed. No Codex
+scheduled tasks or hidden collector. Initial physicalinstall/connection check
+is now evidenced; published original qualification proofs remain immutable.
 Final README/BUILD/PREVIEW_NOTES delivered to main via PR#1, merged
 2026-10-25 as708c92debdbad11179c0a3a99688c1dcc3531a3e. Remote main README
 compared byte-exact to reviewed local source; pinned command PASS. Main tree
 2ee24d2829e992d24a369ead1e82abf47e8ff9bf. User-created duplicate PR#4 CLOSED
 without merging after PR#1; older PR#2/#3 untouched. Dev fast-forwarded to the
 main merge. This final status-only checkpoint is published to both branches.
-All release delivery work complete; next action belongs to owner installation.
+Release delivery and initial owner-install observation complete; ongoing physical acceptance remains.
 No SSH mutations/reboot and no Codex schedules during this stage.
 Original CSQTT2.1.9 retained explicitly despite2.5.0; no protocol/server upgrade.
 Root owns final Git/PR/main verification. All subagents completed/frozen.
@@ -97,10 +123,9 @@ Published metadata read back: draft=false/prerelease=true/source6c; ALL418
 GitHub asset digest+size comparisons PASS, no extras/missing. Preview9 untouched.
 Browser publication screenshot .work/preview.10/published.jpg; ghTab marked output.
 
-Root owns Git/CI/release/STATUS. signing_fix completed/frozen. release_docs_audit
-is editing README/PREVIEW_NOTES/BUILD final text; root holds commit until both
-public-command jobs pass. Recheck liveness before delegation. Do not rebuild SDK
-for these host-only publication or documentation changes. No schedules.
+Root owns Git/CI/release/STATUS. Previous agents completed/frozen; recheck
+liveness before delegation. All public delivery gates passed. No SDK rebuild
+for documentation/observation updates. No schedules.
 Push dev through connector, credential-free fetch, align same-tree local ref.
 Five-hour quota resets05:47:23 Moscow25Oct; preserve tokens for final delivery.
 
