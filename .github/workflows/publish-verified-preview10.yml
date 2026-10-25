@@ -1,0 +1,76 @@
+name: Publish previously qualified preview10 draft
+on:
+  push:
+    branches: [codex/portable-preview.10-publish]
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: preview10-draft-publication
+  cancel-in-progress: false
+jobs:
+  draft:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publication guard regressions
+        run: |
+          python3 tests/release/draft_publication_test.py
+          python3 tests/release/normalization_test.py
+      - uses: actions/checkout@v4
+        with:
+          ref: 6c70e490585651b9a65d7d128ecc551415c32f4e
+          path: .work/qualified-source
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-official-preview
+          run-id: 40139753900
+          github-token: ${{ github.token }}
+          path: dist/publish
+      - name: Independently verify qualified source, P256 signatures and every artifact
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,pathlib,subprocess,sys
+          source='6c70e490585651b9a65d7d128ecc551415c32f4e'
+          sys.path.insert(0,str(pathlib.Path('.work/qualified-source/scripts').resolve()))
+          from release_schema import load,validate,artifact,UPSTREAM
+          root=pathlib.Path('dist/publish');key=pathlib.Path('.work/qualified-source/release/csqtt-public.pem')
+          def signature(data,sig):
+              subprocess.run(['openssl','dgst','-sha256','-verify',str(key),'-signature',str(sig),str(data)],check=True,capture_output=True)
+          signature(root/'catalogue.json',root/'catalogue.sig');catalogue=load(root/'catalogue.json')
+          assert catalogue['schema']==2 and catalogue['upstream']==UPSTREAM and len(catalogue['profiles'])==6
+          profiles=set();packages=set()
+          for entry in catalogue['profiles']:
+              artifact(entry,root);artifact(entry['signature'],root);signature(root/entry['name'],root/entry['signature']['name'])
+              m=validate(load(root/entry['name']));q=m['qualification'];profiles.add(m['profile_id'])
+              assert q['source_commit']==source and q['installation'] and q['activation'] and not q['physical_device']
+              bundle=m['dependency_bundle']
+              files=[*m['packages'],*bundle['packages'],*bundle['indexes'],*q['proofs'],*m.get('third_party_sources',[])]
+              files.extend(i['signature'] for i in bundle['indexes'] if 'signature' in i)
+              for file in files:
+                  artifact(file,root)
+                  if file['name'].endswith(('.apk','.ipk')):packages.add(file['name'])
+              for proof in q['proofs']:assert load(root/proof['name'])['source_commit']==source
+          assert len(profiles)==6
+          assert {p.name for p in root.iterdir() if p.suffix in ('.apk','.ipk')}==packages
+          for line in (root/'SHA256SUMS').read_text().splitlines():
+              digest,name=line.split('  ',1);assert pathlib.Path(name).name==name and hashlib.sha256((root/name).read_bytes()).hexdigest()==digest
+          assert (root/'install.sh').read_bytes()==pathlib.Path('.work/qualified-source/install.sh').read_bytes()
+          print('Qualified six-profile payload, signatures, all hashes and installer/source binding PASS.')
+          PY
+      - name: Normalize GitHub asset transport names and re-sign metadata
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: |
+          git fetch --no-tags --depth=1 origin 6c70e490585651b9a65d7d128ecc551415c32f4e
+          python3 scripts/normalize-publication-assets.py dist/publish dist/github --source-commit 6c70e490585651b9a65d7d128ecc551415c32f4e --source-run 40139753900 --source-artifact 12579223101 --source-artifact-sha256 24d2d80ae6ee2bf72f1522e174dd01b5d5d2f2b9103f06713616cbb82aaf1aa0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: github-signed-preview10
+          path: dist/github/*
+          if-no-files-found: error
+      - name: Resume only the identified unpublished draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/publish-preview-draft.py dist/github --tag v0.1.0-preview.10 --revision 10 --source-commit 6c70e490585651b9a65d7d128ecc551415c32f4e --previous-draft-source d62af169f1f811ab534d9ef8769ca7c817cf0c9d

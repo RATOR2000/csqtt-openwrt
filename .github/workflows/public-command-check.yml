@@ -1,0 +1,50 @@
+name: Published README command acceptance
+on:
+  push:
+    branches: [codex/portable-preview.10-public-check]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Exact already published immutable preview tag
+        required: true
+        default: v0.1.0-preview.10
+permissions:
+  contents: read
+concurrency:
+  group: public-command-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  public-command:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ['24.10.8', '25.12.6']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || 'v0.1.0-preview.10' }}
+          path: .work/public-release-source
+      - name: Public acceptance dependencies (no signing secrets)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 openssh-client python3-pexpect openssl e2fsprogs gcc libc6-dev
+      - name: Public acceptance host boundaries
+        run: |
+          python3 tests/release/public_command_test.py
+          python3 tests/release/vm_timeout_test.py
+          python3 tests/release/published_test.py
+          python3 tests/release/openwrt_image_test.py
+          python3 tests/release/vm_disk_test.py
+      - name: Exact published README command on clean firmware
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || 'v0.1.0-preview.10' }}
+        run: |
+          python3 scripts/test-public-command.py --public-tag "$RELEASE_TAG" --profile official-${{ matrix.release }}-x86-64-x86_64 --released-source .work/public-release-source --directory .work/public-command
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-command-${{ matrix.release }}
+          path: .work/public-command/*-public-command-evidence.json
+          if-no-files-found: error

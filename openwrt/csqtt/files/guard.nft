@@ -1,0 +1,3 @@
+# Before initial activation there are no managed devices.
+# Replaced atomically by /usr/libexec/csqtt/manage apply.
+add table inet csqtt

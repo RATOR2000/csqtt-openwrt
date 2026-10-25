@@ -1,0 +1,85 @@
+name: Signed official OpenWrt preview
+on:
+  push:
+    branches: [codex/portable-preview.10-build]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: New immutable preview tag (preview.9 is frozen)
+        required: true
+        default: v0.1.0-preview.10
+      package_release:
+        description: Package revision
+        required: true
+        default: '10'
+permissions:
+  contents: read
+concurrency:
+  group: official-preview-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  candidate:
+    uses: ./.github/workflows/portability-build.yml
+    with:
+      package_release: ${{ inputs.package_release || '10' }}
+    secrets: inherit
+  native-vm:
+    needs: candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ['24.10.8', '25.12.5', '25.12.6']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: candidate-official-${{ matrix.release }}-x86-64-x86_64
+          path: .work/native-bundle
+      - name: Disposable VM dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 openssh-client python3-pexpect e2fsprogs gcc libc6-dev
+      - name: Test-only VM command deadline boundaries
+        run: python3 tests/release/vm_timeout_test.py
+      - name: Sign private acceptance fixture (never published)
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: python3 scripts/sign-portable-release.py .work/native-bundle --provisional
+      - name: Clean firmware signed installer and native acceptance
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: python3 scripts/test-openwrt-vm.py --directory .work/native-bundle --profile official-${{ matrix.release }}-x86-64-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-vm-${{ matrix.release }}
+          path: .work/native-bundle/*-vm-evidence.json
+          if-no-files-found: error
+  release:
+    needs: [candidate, native-vm]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: .work/release-inputs
+      - name: Bind passed evidence, sign catalogue and assemble immutable assets
+        env:
+          CSQTT_SIGNING_KEY: ${{ secrets.CSQTT_SIGNING_KEY || secrets.secret1 }}
+        run: python3 scripts/prepare-portable-release.py .work/release-inputs dist/publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-official-preview
+          path: dist/publish/*
+          if-no-files-found: error
+      - name: Create a new draft preview for final review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag || 'v0.1.0-preview.10' }}
+          PACKAGE_RELEASE: ${{ inputs.package_release || '10' }}
+        run: |
+          python3 scripts/check-preview-tag.py "$RELEASE_TAG" "$PACKAGE_RELEASE"
+          python3 scripts/publish-preview-draft.py dist/publish --tag "$RELEASE_TAG" --revision "$PACKAGE_RELEASE" --previous-draft-source d62af169f1f811ab534d9ef8769ca7c817cf0c9d

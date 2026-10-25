@@ -1,0 +1,22 @@
+#!/bin/sh
+# No arguments supplied by the RPC caller are passed to a process.
+case "$1" in
+  list)
+    printf '%s\n' '{"status":{},"start":{},"stop":{},"restart":{},"apply":{},"diagnostics":{},"devices":{},"captcha_begin":{},"captcha_cancel":{}}'
+    ;;
+  call)
+    case "$2" in
+      status) exec /usr/libexec/csqtt/manage status ;;
+      start) exec /usr/libexec/csqtt/manage start ;;
+      stop) exec /usr/libexec/csqtt/manage stop ;;
+      restart) exec /usr/libexec/csqtt/manage restart ;;
+      apply) exec /usr/libexec/csqtt/manage apply ;;
+      diagnostics) exec /usr/libexec/csqtt/manage diagnostics ;;
+      devices) exec /usr/libexec/csqtt/manage devices ;;
+      captcha_begin) exec /usr/bin/csqtt-captcha pair ;;
+      captcha_cancel) exec /usr/bin/csqtt-captcha cancel ;;
+      *) printf '%s\n' '{"ok":false,"error":"unknown_method"}'; exit 1 ;;
+    esac
+    ;;
+  *) exit 1 ;;
+esac

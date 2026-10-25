@@ -1,0 +1,19 @@
+{
+  "main": { "enabled": "0", "lan_device": ["br-lan"], "vpn_dns": "1.1.1.1", "wan_dns": "9.9.9.9" },
+  "groups": [
+    { "id": "private", "name": "Private", "default_action": "vpn" },
+    { "id": "direct", "name": "Direct", "default_action": "wan" }
+  ],
+  "devices": [
+    { "id": "a", "mac": "02:00:00:00:00:01", "group": "private" },
+    { "id": "b", "mac": "02:00:00:00:00:02", "group": "direct" }
+  ],
+  "rules": [
+    { "id": "parent", "group": "private", "destination": "example.org", "action": "wan" },
+    { "id": "child", "group": "private", "destination": "secure.example.org", "action": "vpn" },
+    { "id": "direct_ip", "group": "private", "destination": "203.0.113.0/24", "action": "wan" },
+    { "id": "protected_domain", "group": "direct", "destination": "example.net", "action": "vpn" }
+  ],
+  "local_subnets": ["192.168.1.0/24"],
+  "local_domain": "lan"
+}

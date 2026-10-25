@@ -1,0 +1,36 @@
+name: Reliability Rust validation
+on:
+  push:
+    branches: ['codex/reliability-core-*']
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        id: cargo-cache
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            vendor/csqtt/rust-client/target
+          key: cargo-host-${{ runner.os }}-1.97.1-${{ hashFiles('vendor/csqtt/rust-client/Cargo.lock') }}
+      - name: Rust dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang ninja-build pkg-config
+          rustup toolchain install 1.97.1 --profile minimal
+      - name: Rust regressions
+        run: |
+          cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml
+          cargo +1.97.1 test --locked --manifest-path vendor/csqtt/rust-client/Cargo.toml turn::integration_tests::authenticated_flow_survives_pool_deficit_and_keeps_channel_data_zero_copy -- --exact
+      - uses: actions/cache/save@v4
+        if: always() && steps.cargo-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            vendor/csqtt/rust-client/target
+          key: cargo-host-${{ runner.os }}-1.97.1-${{ hashFiles('vendor/csqtt/rust-client/Cargo.lock') }}
