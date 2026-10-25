@@ -1,11 +1,11 @@
 # CSQTT OpenWrt implementation contract
 
-Current native reference: GL.iNet GL-MT6000, OpenWrt 25.12.5,
+Current native reference: GL.iNet GL-MT6000, official OpenWrt 25.12.6,
 mediatek/filogic, aarch64_cortex-a53. Current delivery scope (user replacement
 plan2026-10-22) is official24.10/25.12 ARM64/x86_64, later ARMv7. The GLvendor
 firmware plan was cancelled; its experiments remain checkpointed. Qualification
 is per verified ABI/firmware/capability profile, without a board allowlist or an
-unconditional all-routers claim. Owner's current fresh reference is25.12.6.
+unconditional all-routers claim. OpenWrt25.12.5 is the historical native reference.
 One active tunnel. Upstream protocol is original
 amurcanov/csqtt v2.1.9 at 446293aa2e873ac5323ef6fd2316d9b81d966c11.
 Android deployment and upstream server stay compatible and unchanged.
@@ -40,7 +40,9 @@ LuCI Save & Apply applies policies without restarting a running transport when
 the effective client.json is unchanged. The init reload compares a private
 snapshot after a successful guarded apply; changed or absent transport restarts
 from that prepared config. Failed apply preserves the process and its guards.
-Domains match themselves and subdomains. LAN scope is explicit (default br-lan).
+Domains match themselves and subdomains. New installations default to automatic
+LAN scope, resolved from trusted static firewall/netifd interfaces while excluding
+WAN. Explicit manual LAN interfaces remain supported and survive updates.
 
 RPC object `csqtt`: status, start, stop, restart, diagnostics, devices,
 captcha_begin, captcha_cancel. Status redacts secrets. Configuration uses UCI.
@@ -57,7 +59,12 @@ does not disable these probes. This preserves the upstream wire protocol and
 requires no public ICMP endpoint. Authentication and configuration errors retain
 their existing handling. Internet access beyond the server is a separate check.
 
-## Reliability recovery (implementation candidate)
+## Reliability recovery (shipped in preview.10; full live acceptance pending)
+
+The implementation below is delivered in preview.10. Source, ABI/VM qualification
+and the initial native connection check are recorded separately in STATUS.md.
+Controlled physical failures, full real Helper/CAPTCHA and72h acceptance remain
+unfinished; code delivery does not establish those results.
 
 Manual CAPTCHA availability and explicit human takeover are distinct. Waiting
 for a human releases the shared authentication network permit; each credential
@@ -78,8 +85,9 @@ the uptime into an integer interval `[L, L+10)` milliseconds. A timestamp inside
 that interval can be current; reject the next tick and malformed timestamps.
 Use the exclusive upper bound for the 15s status and <85s lease age limits,
 allowing expiry up to10ms early without extending either deadline. All process,
-boot and human-epoch ownership checks remain mandatory. This correction is not
-installed on the signed r9 router during its72h observation.
+boot and human-epoch ownership checks remain mandatory. Preview.10 includes this
+correction; immutable signed r9 is unchanged. Its historical72h observation was
+interrupted by a firmware reinstall and is not an active or completed acceptance.
 
 Automatic recovery is initially observe-only (`auto_recover=0`). Both fixed
 VPN HTTPS targets must fail after successful bound DNS, with both matching WAN
@@ -100,9 +108,9 @@ by the remaining admission deadline; stop its descendants before ending the
 lease. Process exits remain procd's responsibility; never fabricate a lease
 from a missing or stale core. VPN probe sockets also bind explicitly to csqtt0.
 
-Candidate code, CI, signed package, live controlled checks and72h observation
-are separate gates. These paragraphs describe intended candidate behavior,
-not completed live acceptance. No router reboot or automatic WAN fallback.
+Source implementation, CI, signed package, live controlled checks and72h
+observation are separate gates. These paragraphs describe shipped behavior,
+not completed full live acceptance. No router reboot or automatic WAN fallback.
 
 ## Routing invariants
 
@@ -173,8 +181,9 @@ hardware minimums or reduce security to fit a device. A Russian LuCI first-run
 wizard collects existing connection fields, selects devices and checks public
 VPN health only after explicit activation. New installs remain disabled until
 completion; configured upgrades bypass the wizard, even when manually stopped.
-No scheduled Codex jobs. Owner installs the published preview personally; no
-remote mutation is authorized. Current SSH alias `router` permits agreed reads.
+No scheduled Codex jobs. The user installs published releases personally; no
+remote mutation is authorized. Router access requires explicitly agreed reads;
+a new chat or account must obtain its own connection and access scope.
 See PORTABILITY.md and docs/evidence for source/build/native gate distinctions.
 
 One README command must work on a clean supported image: authenticated bootstrap
@@ -186,11 +195,13 @@ VPN success is reported separately by the wizard. Publish only after native
 clean-OpenWrt installation and guarded-routing proofs are bound to the release.
 VM/ABI preview qualification is distinct from physical-device/VK acceptance.
 
-### Existing reference release
+### Published preview and historical reference
 
-New public repository `csqtt-openwrt`. Do not publish untested binaries as a
-stable release. Support the exact router target first. Build through the
-25.12.5 SDK; dependencies and kmod-tun come from compatible official feeds.
+Public repository `csqtt-openwrt` delivers preview.10. Do not publish untested
+binaries as a stable release. The historical native reference used25.12.5;
+the current native reference uses25.12.6. Select the exact release/target/ABI SDK
+from platforms/registry.json; dependencies and kmod-tun come from compatible
+official feeds.
 Installer checks target, release, signatures and space before changing state,
 backs up settings, preserves secrets, and supports repeat install/upgrade.
 

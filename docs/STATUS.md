@@ -2,34 +2,52 @@
 
 Updated 2026-10-25. Read this first, then IMPLEMENTATION.md.
 Files, Git and current router evidence are authoritative. Preserve existing settings.
+Fresh chat/account: after this file and IMPLEMENTATION, read docs/AI_HANDOFF.md.
+It contains the public project summary, source map and copyable startup prompt.
 Historical commits are retained for source reproducibility; current public
 resume information below is sanitized.
 
-## First unfinished action — official OpenWrt one-command preview
+## Current delivery scope
 
 USER APPROVED replacement plan2026-10-22: official OpenWrt24.10/25.12 only,
 no board lock; ARM64/x86_64 thenARMv7, MIPS remains a distinct feasibility gate.
 ONE README command installs dependencies/client/LuCI; first setup in browser.
 GLvendor firmware priority CANCELLED. Preserve its unfinished experiments in
 checkpoint/history; exclude vendor private-runtime/legacy stack from new release.
-Owner will personally install the published release: NO remote install/update,
-reboot, activation, faults or service/config changes. Only explicitly agreed readonly router inspections are allowed. NO Codex scheduled tasks.
+Published release installation is user-performed. NO remote install/update,
+reboot, activation, fault or service/config changes without separate authorization.
+Only explicitly agreed readonly router inspections are allowed. NO Codex schedules.
 
-Native reference inventory: GL-MT6000, official25.12.6, mediatek/filogic,
-aarch64_cortex-a53, kernel6.12.112, APK; LuCI/firewall4/plain dnsmasq present,
-CSQTT and kmod-tun absent, no /etc/glversion. Old72h collector directory absent
-after reference firmware reinstall. Old72h is INCOMPLETE/UNVERIFIED, neverPASS.
+Native reference: GL-MT6000, official25.12.6, mediatek/filogic,
+aarch64_cortex-a53, kernel6.12.112, APK, LuCI/firewall4/plain dnsmasq.
+Preview10 and exact-kernel TUN are now installed and initially verified below.
+The old preview9 collector was lost after firmware reinstallation; its72h
+acceptance is INCOMPLETE/UNVERIFIED, neverPASS.
 Do not run the old collector or silently start a new observation window.
 User delivery is the default-branch README, promoted through PR#1 after public gates.
 
-## Current checkpoint and first unfinished action
+## First unfinished action for a new continuation
+
+If the user provides a new bug or feature, prioritize that request within the
+contract. Otherwise the next safe source task is the nonfatal early post-install
+Platformisnotqualified message: inspect why package service preparation runs
+before the installer persists the signed platform grant; add a narrow regression
+and avoid the premature call without weakening qualification/lifecycle guards.
+Use isolated tests; a working router does not need changes for this investigation.
+This task is pending, not implemented by the handoff documentation checkpoint.
+After it, follow the physical recovery/Helper/boot/72h and platform gates in
+AI_HANDOFF/ACCEPTANCE. No deployment or new release is implied by a checkpoint.
+
+## Published preview10 checkpoint and evidence
 
 PREVIEW10 PUBLISHED 2026-10-24T23:43:21Z (25Oct Moscow), prerelease,418assets.
 https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.10
 Frozen tag/application/installer source6c70e490585651b9a65d7d128ecc551415c32f4e.
 General40139752629 ALL5 PASS; official40139753900 ALL6SDK +3nativeVM PASS,
 including25.12.6 ARM owner tuple and signed native ARM9->10->9 package migration.
-No physical owner install, actual VK/Android, boot7 or72h pass claimed.
+Published qualification manifests intentionally retain physical_device=false.
+Later initial native installation is recorded below; complete VK/Android,
+failed-first-activation boot and72h acceptance remain pending.
 
 DELIVERY GATES COMPLETE: final public-command run40184158722 PASS BOTH jobs:
 24.10.8 job121141294484 and25.12.6 job121141294541. Native clean firmware,
@@ -278,18 +296,30 @@ Boot7 materials saved in ee557fd5dbf66c20466916ca76c9f30402aa7a90; do not reboot
 or run new boot faults under that deferred plan. Do not repeat passed normal
 boot/crash/synthetic routedIPv6 proof. Never call the project stable/fullyaccepted.
 
-## Tooling and ownership
+## Tooling and continuation
 
-Root owns live/router/Git/publication. Freshness review agent finished; check liveness
-before delegation. Keep future outputs/checks focused: owner requests lowtokens.
-Repo RATOR2000/csqtt-openwrt; dev codex/csqtt-openwrt, no merge just to save work.
-Windows/PowerShell, portableGo .work/tools/go/bin; no localRust/WSL/Docker.
-SSH openwrt-router with BatchMode/StrictHostKeyChecking/ConnectTimeout8.
-Send LF scripts as Python subprocess bytes; PowerShell pipeline appendsCR.
-Router has setsid, NO nohup. Never expose passwords/VKlinks/grants/identity/keys.
-.work/dist/build/private credentials remain ignored. GitHub publication tab2 is9;
-user tab1preview1 must remain. No OAuth/key setup needed.
-Push through GitHub connector create_tree/create_commit/update_ref using
-scripts/export-github-tree.py committed bytes; normalgitpush opens GCM OAuth.
-Credential-free fetch, require tree equality, update localref; dev checkpoints
-skipci. Frozen tags/assets immutable. Detailed old history linked at top.
+Repository RATOR2000/csqtt-openwrt; default main, existing development branch
+codex/csqtt-openwrt. Fresh sessions must inspect Git/files and live agent status;
+no old agent, browser tab, SSH target, credentials or tool installation is assumed.
+See AGENTS and AI_HANDOFF for the cross-account continuation procedure.
+
+Determine the current OS/tools. The original station used Windows/PowerShell;
+Linux/Rust, Android and SDK jobs are in GitHub Actions. Private ignored tools and
+evidence may be absent in another checkout. Do not reinstall available tools or
+fabricate test results. Preserve UTF8/LF; avoid personal paths in public docs.
+
+When a configured GitHub connector supports writes, prefer it. The existing
+scripts/export-github-tree.py exports committed bytes for create_tree/commit/ref;
+verify tree equality and ref leases. In the original workstation ordinary push
+opened an OAuth flow; other accounts must check their actual authentication.
+Keep checkpoint commits small; do not merge unfinished code merely to save it.
+Published tags/assets are immutable. Documentation-only updates need link,
+privacy and diff checks, not a redundant SDK build. Source changes require the
+checks appropriate to that component before any new qualified release.
+
+AI HANDOFF CHECKPOINT 2026-10-25: docs/AI_HANDOFF.md and README entry published
+with portable AGENTS instructions and refreshed STATUS/IMPLEMENTATION/ACCEPTANCE.
+Public context includes completed work, exact source/evidence links, known issues,
+remaining gates, a safe first source task and a copyable prompt. It needs no chat
+history/private cache. No router or release changes; no secret or personal data
+added. Keep this checkpoint descriptive; it is not another software release.

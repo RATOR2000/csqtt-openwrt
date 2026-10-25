@@ -51,4 +51,6 @@ GL-MT6000 (Flint 2) с официальной OpenWrt 25.12.6 соответст
 
 [Подробная инструкция](docs/USAGE.md) · [Сборка и проверки](docs/BUILD.md) · [Поддерживаемые платформы](docs/PORTABILITY.md) · [Состояние разработки](docs/STATUS.md)
 
+Для продолжения разработки в новом чате: [контекст проекта и готовый промпт для ИИ](docs/AI_HANDOFF.md).
+
 Исходное ядро: amurcanov/csqtt v2.1.9. [Лицензия и авторство](LICENSE): PolyForm Noncommercial 1.0.0.
