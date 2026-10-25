@@ -32,15 +32,23 @@ General40139752629 ALL5 PASS; official40139753900 ALL6SDK +3nativeVM PASS,
 including25.12.6 ARM owner tuple and signed native ARM9->10->9 package migration.
 No physical owner install, actual VK/Android, boot7 or72h pass claimed.
 
-FIRST UNFINISHED: repair public-command host harness, then both literal HTTPS
-command VMs, then PR#1/main README. Initial run40143890684:24.10.8 failed at
-missing_dependencies_fixture exit255 BEFORE installer;25.12.6 still active.
-Do not assume255isSSH: opkg native dependency-order removal mayreturn255 too.
-signing_fix owns ONLYtest-public-command.py/public_command_test.py: consecutive
-readonly readiness + bounded native fixture removal passes requiring inventory
-progress, noforce/dependencybypass; add failure classes. Root owns orchestration.
-These are host-test fixes; release/tag/assets immutable. Do not rebuild SDK.
-Docs final text in README/PREVIEW_NOTES/BUILD is local and HELD until both PASS.
+FIRST UNFINISHED: final public-command run40184158722 on host-harness source
+6979eb22bf0b0658541d098374e88b63b5b75945. Both literal README command VMs
+24.10.8/25.12.6 must PASS, then finalize PR#1/main README. Published application,
+installer and tag remain source6c70; this later source is host acceptance only.
+Previous run40144226874:24 install/native runtime/reinstall PASS, final removal
+probe falsely failed: stock LuCI deliberately serves403 + auth header/login form,
+while old wget success assertion demanded2xx. Existing qualified guest explicitly
+has the right contract. Fixed by extracting SAME bounded nc/full HTTP/login-form
+probe from exact released source and reusing after removal. No app/release edits.
+Previous25 public_metadata failure was a transient public fetch; host now retries
+ONLY429/5xx/transport, not404/certificate/signature/integrity failures.13tests PASS.
+Native fixture opkg ordering and stable readonly SSH fixes11tests PASS before.
+README/PREVIEW_NOTES/BUILD final edits are HELD until BOTH public jobs PASS.
+Root owns orchestration/STATUS/Git. All subagents completed; recheck liveness.
+User reiterated keep original CSQTT2.1.9 despite2.5.0; no protocol/server upgrade.
+User installs personally; no SSH changes. No schedules. Final user needs link and
+one command, supported owner tuple, clear distinction physical/VK still pending.
 
 Independent public verification COMPLETE PASS: fresh public-6c70e49 output,
 all6profiles/396referencedassets + manifests/catalogue/installer/tag/source pinned
