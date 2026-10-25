@@ -248,120 +248,25 @@ Manual resource collector/report source added;4/4 resource evidence tests PASS
 (PIDreuse/gaps/counterreset/impossiblemetrics/noautomaticqualification), shell
 syntax PASS. No actual measurements: owner forbids touching the main router.
 
-## Historical72h observation — interrupted/unverified after owner reflash
+## Historical reliability acceptance — incomplete after reference reflash
 
-The paragraphs below describe Oct18–20 evidence, NOT current live state.
-On22Oct the router has a fresh25.12.6 image, noCSQTT and no oldcollector directory.
-Deadline passing does not prove acceptance. Preserve source/evidence without
-declaring72PASS, enabling defaultauto1 or restarting the old observation.
+The old preview9 long-run observation was interrupted by a firmware reinstall.
+Elapsed wall time is not72h evidence. Do not claim a pass, resume the old collector,
+silently reset its window, or enable source-default automatic recovery on that basis.
+Published preview9 and its source/assets remain immutable. Old native connection
+and source-fault/Stop/observer-restart/Start/Reload checks passed on the previous
+reference installation; they do not establish the current preview10 fault gates.
 
-Signed preview.9 is published, installed and passed native smoke acceptance.
-72H IS RUNNING, NOT COMPLETE. Do not reinstall or repeat completed fault/Stop tests.
-Start: 2026-10-18T20:28:48Z (18Oct23:28:48MSK).
-Deadline: 2026-10-21T20:28:48Z (21Oct23:28:48MSK).
-Private router directory: /etc/csqtt/backups/preview9-acceptance-20261018-202846.
-.work/preview.9/acceptance.json pins the directory, build, hashes and exact clocks.
-Latest native read: sameboot, live exactPID/startticks/argv, fresh sample,72workers,
-WAN/VPN/groupDNS healthy, one configured client/observer, no process change.
-Baseline1attempt/1soft/1transport incident came from the planned test BEFORE this
-window; do not count it as a new ordinary-use outage. Rolling attempts age out.
+Detailed live measurements, private collection paths and observation clocks are
+not needed in public resume documentation. Private local acceptance metadata
+remains ignored. The source contract and existing tests preserve the important
+process-ownership/freshness/coverage rules. The millisecond-vs-centisecond boot
+clock interval correction is documented in IMPLEMENTATION and covered by tests.
 
-Use the existing readonly command, no new source/CI audit for unchanged state:
-& 'C:/Users/Alexander/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe' .work/preview.9/check-acceptance.py
-It saves bounded public evidence/summary locally and validates sample freshness,
-sameboot, exact process ownership and coverage. A finished72h marker means
-finished_review_required, never automatic overall acceptance. Inspect detected
-outages and recovery results; do not declare72h before actual complete coverage.
-Process exit, boot change, sample gaps or invalid evidence mean incomplete; never
-silently reset the window. User ordinary settings/usage must be preserved.
-
-USER OVERRIDE 2026-10-19: NO CODEX SCHEDULED TASKS. User cited token availability
-and explicitly requested removal. Heartbeat csqtt-preview9-72 DELETED through app
-tool, deleteStatus=deleted; its automation.toml is absent. Do not recreate it or
-any substitute schedule without a new explicit user request. Continue manually
-when the user asks. Router-local procd recovery and passive72h evidence collection
-remain running without Codex tokens; cancellation did not change router services.
-After successful72h, implement the remaining defaultauto1 source/release step
-with appropriate checks/checkpoint; never replace published9 tag/assets.
-Source defaultauto remains0 pending acceptance; live owner auto_recover=1.
-
-Manual read Oct19 15:50UTC: elapsed69686s (19h21m), sameboot/coverage valid,
-collector fresh/alive,72workers and WAN/VPN/DNS healthy.385 recordedchanges/
-heartbeats,0observed client process changes, no new soft/transport cycle. Brief
-groupDNS failures returned to vpn_reachable after84/24/25s; two preceding
-probe_uncertain samples also cleared. Counts are recorded transitions, not a
-claim of confirmed LAN outages.100 status_stale transitions require diagnosis.
-Readonly low-priority native clock proof .work/preview.9/clock-freshness.public.json:
-status5ms ahead of truncated /proc/uptime, SAME PID/startticks/boot,72workers,
-clock catches up at next10ms tick. Thus strict future-time comparison can reject
-a current status; it does not establish the cause of every historical warning.
-SOURCE correction completed in runtime.uc and recovery.test/native-runtime:
-integer uptime interval[L,L+10), current-tick timestamp accepted, next tick and
-malformed data rejected. Expiry uses conservative upperbound: status<=15s,
-lease<85s; may expire<=10ms early, never later. PID/startticks/boot/human ownership
-checks preserved. Node runtime/recovery40/40 PASS, native generator syntax and
-generation PASS, actual router ucode in-memory fixture PASS (production services
-untouched). Centiseconds .01/.08/.09/.12, +0/+1/+9/+10ms, expired/malformed times,
-ownership mismatches and lease guards covered. Original native success marker
-preserved; extra freshness marker added. Evidence: .work/preview.9/freshness-
-{node,native}.public.log; generator node tests/policy/native-runtime.mjs followed
-by root run-freshness-native.py. No new SDK/Rust/CI build or signed release.
-Source-only checkpoint; no live installation/restart/window reset, signed9 continues.
-
-## Exact signed release and live state
-
-Release: https://github.com/RATOR2000/csqtt-openwrt/releases/tag/v0.1.0-preview.9
-Frozen source20d405f272ec24fdd4cb02780e6a9068e3274351,
-build926a44f31caeb760df70d808eee53d6f715d0d8b,
-treef7ee0b0931e151f4c732bfe7e3949577d74ee893.
-Run39161176161 all5 PASS: checks117774641657, core117774641601,
-native117774641441, Android117774641697, SDK117774930559.
-OpenWrt artifact12148789642, Android12149236103; exact digests/head/log bindings
-in .work/preview.9/{release-config,artifact-metadata,job-log-metadata,provenance}.json.
-All8 public downloads, API sizes/digests, tag/commit/title/body verified. All3APK
-and manifest signatures match pinned project P256 public key. Public PEM SHA256:
-39259baf94d83602c784b103506445cd7e26ec9c3635cc277b90ff31fe4d4bac.
-
-Signed installer exit0; csqtt/csqtt-captcha/luci-app-csqtt are all0.1.0-r9.
-Four files csqtt/dhcp/firewall/network byte-preserved; enabled1/auto_recover1 and
-rolling budget/last_action retained. Native all15 installed payload hashes match
-signed9; temporary production health.uc hotfix fully replaced. Normal group DNS,
-local DNS, policies,72workers, separate WAN/VPN HTTPS exits and released maintenance
-guards PASS. Router GL-MT6000/OpenWrt25.12.5, no reboot and no WAN fallback.
-Proof .work/preview.9/router-{upgrade,post-check}.public.log, both exits0.
-Private current backup: /etc/csqtt/backups/preview9-upgrade-20261018-202542-1058.
-It includes four configs, signed7 rollback APK/manifest/installer/publickeys and
-signature/hash proofs; native offline solver simulated all3 r9-to-r7 downgrades
-successfully WITHOUT actually downgrading. Do not use withdrawn8 for rollback.
-
-## Completed reliability checks — do not restart them
-
-CI:104policy/LuCI+2release Node,7installer+4release Python,376Rust passed/0failed/
-7existing ignored, focusedTURN1. Exact packaged LuCI25 and reload6 PASS.
-Native real health.uc filesystem import/all6exports, ucode/DNS TCP/UDP/IPv4/IPv6,
-traffic guards, ARM64 startup and real isolated LinuxTUN lifecycle PASS.
-New signed ELF early --health-probe/--control-request/--recovery-step native PASS
-before installation; device-id/livePID unchanged. Package/source/mode/license/
-dependency/minification verification complete in provenance. No localRust build.
-
-Source fault acceptance: router-origin198.18.0.1TCP443 only, no LAN forward match;
-soft repair at215s then one transport restart at276s, one cycle charged, guards
-checked every5s/no duplicate; cleanup/table removal exit0, restored72healthy.
-Native Stop/observerrestart/Start/unchangedReload PASS: Stop disabled/0clients,
-observer respected it, guards/budget preserved, Start1client, Reload samePID and
-effective config; four configs restored byte-identical. Source-test evidence in
-.work/preview.9/source-{controlled-acceptance,management}.public.log. One initial
-preflight refused transientstatus_stale BEFORE mutation; fresh baseline retry PASS.
-These source proofs are separate from signed9 smoke and real LAN/VK acceptance.
-
-Collector reads bounded8sucode/5subus, logs safe enums/counts/state changes and
-10min heartbeats, samples10s,2MiBcap. Rejects >60s sampling gaps/window reset.
-Reader checks fresh sample, initial/log coverage, exactPID/startticks/NULargv,
-sameboot,259200s duration and terminal/finishclock proof; SSHoverall timeout45s.
-Shell/Python syntax and isolated valid/invalid/identity/timeout cases PASS.
-Native collector readiness/fresh advancing sample PASS; native forced2stimeout
-reaped its own process group and preserved an unrelated child (public proof
-.work/preview.9/collector-timeout.public.log). All private raw stderr stays private.
+No Codex scheduled tasks: previous automation was removed at the user's request.
+Do not recreate an automation or token-consuming monitor. Manual continuation
+only when requested. Recovery inside the router's own procd service is separate.
+Current automatic-recovery default remains observe-only pending its stated gates.
 
 ## Withdrawn8, implementation and deferred gates
 
