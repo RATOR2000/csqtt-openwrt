@@ -21,7 +21,7 @@ aarch64_cortex-a53, kernel6.12.112, APK; LuCI/firewall4/plain dnsmasq present,
 CSQTT and kmod-tun absent, no /etc/glversion. Old72h collector directory absent
 after owner's firmware reinstall. Old72h is INCOMPLETE/UNVERIFIED, neverPASS.
 Do not run old reader through `openwrt-router` or silently start a new window.
-GitHub default main README currently only2lines; user docs live on dev branch.
+User delivery is the default-branch README, promoted through PR#1 after public gates.
 
 ## Current checkpoint and first unfinished action
 
@@ -32,23 +32,32 @@ General40139752629 ALL5 PASS; official40139753900 ALL6SDK +3nativeVM PASS,
 including25.12.6 ARM owner tuple and signed native ARM9->10->9 package migration.
 No physical owner install, actual VK/Android, boot7 or72h pass claimed.
 
-FIRST UNFINISHED: final public-command run40184158722 on host-harness source
-6979eb22bf0b0658541d098374e88b63b5b75945. Both literal README command VMs
-24.10.8/25.12.6 must PASS, then finalize PR#1/main README. Published application,
-installer and tag remain source6c70; this later source is host acceptance only.
-Previous run40144226874:24 install/native runtime/reinstall PASS, final removal
-probe falsely failed: stock LuCI deliberately serves403 + auth header/login form,
-while old wget success assertion demanded2xx. Existing qualified guest explicitly
-has the right contract. Fixed by extracting SAME bounded nc/full HTTP/login-form
-probe from exact released source and reusing after removal. No app/release edits.
-Previous25 public_metadata failure was a transient public fetch; host now retries
-ONLY429/5xx/transport, not404/certificate/signature/integrity failures.13tests PASS.
-Native fixture opkg ordering and stable readonly SSH fixes11tests PASS before.
-README/PREVIEW_NOTES/BUILD final edits are HELD until BOTH public jobs PASS.
-Root owns orchestration/STATUS/Git. All subagents completed; recheck liveness.
-User reiterated keep original CSQTT2.1.9 despite2.5.0; no protocol/server upgrade.
-User installs personally; no SSH changes. No schedules. Final user needs link and
-one command, supported owner tuple, clear distinction physical/VK still pending.
+DELIVERY GATES COMPLETE: final public-command run40184158722 PASS BOTH jobs:
+24.10.8 job121141294484 and25.12.6 job121141294541. Native clean firmware,
+missing LuCI/OpenSSL tool/TUN dependencies, exact literal public HTTPS command,
+real runtime DNS/firewall/LuCI, repeat/manual18/four configs preservation,
+three-application removal and LuCI/systemDNS/LAN after removal all PASS.
+Artifacts12596105295 (24) and12596035058 (25) downloaded; ZIP digest, pass result,
+exact acceptance source6979eb22bf0b0658541d098374e88b63b5b75945 and published
+release/source6c binding verified. Private local evidence .work/preview.10/public-command/.
+Installed release/tag remain6c70;6979 is host test code only. Host13tests PASS.
+
+NEXT USER ACTION: owner personally installs preview10 using default README
+command on GL-MT6000 official25.12.6 and completes browser wizard. Agent does NOT
+install remotely. Source/ABI/VM qualification is complete; physical router,
+real VK/Android, boot-after-first-activation-failure and72h remain future stable
+gates, not prerequisites falsely marked passed. Auto recovery default stays0.
+Final README/BUILD/PREVIEW_NOTES delivery goes through existing PR#1 to main.
+User created duplicate PR#4 from public-check branch; close it after PR#1 merge,
+without merging it. Older PR#2/#3 are outside this change. No schedules.
+Original CSQTT2.1.9 retained explicitly despite2.5.0; no protocol/server upgrade.
+Root owns final Git/PR/main verification. All subagents completed/frozen.
+
+Previous false host failures fixed: native opkg dependency-order fixture with
+strict inventory progress; stable readonly SSH readiness; stock LuCI403+auth
+header/full login-form uses SAME bounded qualified nc probe after removal.
+Only temporary429/5xx/transport public downloads are retried; no certificate,
+404/signature/hash relaxation. Published application and assets never changed.
 
 Independent public verification COMPLETE PASS: fresh public-6c70e49 output,
 all6profiles/396referencedassets + manifests/catalogue/installer/tag/source pinned
@@ -125,42 +134,21 @@ generated installer --check, shell syntax and diff-check PASS. Portable13/13
 Windows full run PASS but source evolved during that run; final focused native-
 environment/lock/bootstrap tests plus actual Windows/MSYS dash resumes passed.
 Frozen Linux contracts subsequently PASS. Exact-source SDK/QEMU private DNS,3nativeVM and signature publication now PASS;
-public HTTPS command acceptance is the remaining delivery gate.
+both literal public HTTPS command acceptances now PASS on40184158722.
 Logs .work/portable-final-v2.log, portable-apk-env.log, portable-dash-resume.log.
 
-## Publication and final delivery gates
+## Publication and final delivery evidence
 
-Keep published preview9/tag/assets immutable. New tag10/package revision10 only.
-README dev uses exact-tag HTTPS tempfile command, conditional availability notice
-and exact target/version table; no unconditional all-routers claim. Main README
-currently only2lines; update through existing PR#1 only when verified release ready.
-
-After private VM/signing gates, inspect signed draft, publish, then independently
-verify public assets with scripts/verify-published-release.py --tag
-v0.1.0-preview.10 --source-commit <exact candidate SHA> --output
-.work/preview.10/public. Host verifier uses Node crypto (Windows OpenSSL absent),
-bounded TLS, pinned P256, signed sizes/hashes, actual tag commit and installer
-equality with tagged/qualified source. Candidate metadata .work/preview.10/candidate.json.
-
-Then push tests-only branch codex/portable-preview.10-public-check to run
-public-command-check.yml (24.10.8 and25.12.6). This checks literal tagged README
-HTTPS command on disposable VMs with LuCI/OpenSSL-tool/TUN removed normally,
-tagged native guest smoke, repeat/manual18 preservation and actual removal of
-three application packages with four configs/LAN/LuCI/system DNS preserved.
-Private HTTP CI fixture checks do NOT count as literal public command acceptance.
-No secrets/signing key in public-check jobs; never overwrite failed public assets.
-
-VM specification:768MiB RAM,2CPU, explicit1GiB disposable root filesystem.
-Pinned firmware bytes and installer resource checks remain mandatory. Expansion
-is recorded in image.test_disk; stock104MiB capacity is not certified. Physical device/VK/Android/live r9 services/long duration and
-boot7 remain separate gates. Owner installs personally; never SSH-install.
-
-Git pushes MUST use GitHub connector (normal git push opens GCM OAuth).
-scripts/export-github-tree.py exports committed delta with --no-renames. Reassemble
-UTF8 parts, create_tree on origin tree, verify exact HEAD tree, create_commit and
-leased update_ref; fetch credential-free and align local branch without reset.
-Deletion tree entries need mode100644,type blob,sha null. Preserve checkpoints.
-
+Published preview9/tag/assets unchanged. Preview10 revision10 is published and
+all418public files independently downloaded/verified. Exact source6c70 and
+installer SHA256cde0fa81946e91ba042aae6d862c6d52b576bf4900a2ee9dcbaec9ee9fb470d2.
+P256 catalogue SHA25613c4ae5018445616f76e9dba18d2809bd5feb3fa65e5bc4c9e57bc04a635fdf9.
+All6SDK/3VM/5general, native signed ARM9->10->9 and both public command VMs PASS.
+Default README has exact-tag temporary-file HTTPS command, six-profile table,
+Flint2 official25.12.6 priority, browser setup/update/removal instructions and
+honest preview/physical/VK limitations. Final docs checkpoint promoted viaPR#1.
+No branch/tag/latest installer, no unconditional any-architecture claim.
+Candidate .work/preview.10/candidate.json; all private caches/evidence remain ignored.
 
 ## Historical2026-10-20 vendor work — superseded, retained as checkpoint
 
